@@ -189,6 +189,33 @@ class TestCoreWorkflowContract(unittest.TestCase):
             self.assertIn("hooks/", gate_messages[0].message)
 
 
+class TestAgentsMdBudget(unittest.TestCase):
+    """AGENTS.md は常駐予算（文字数）と runtime の読み込み上限（bytes）の 2 本で見る。"""
+
+    def test_small_agents_md_has_no_findings(self):
+        self.assertEqual(budget.agents_md_findings("codex", b"# tiny\n"), [])
+
+    def test_codex_agents_md_at_project_doc_limit_is_error(self):
+        limit = budget.PROJECT_DOC_HARD_LIMIT_BYTES["codex"]
+        findings = budget.agents_md_findings("codex", b"x" * limit)
+        checks = {f.check: f.level for f in findings}
+        self.assertEqual(checks.get("project-doc-hard-limit"), "error")
+        # 文字数予算にも当たる（上限は予算のはるか先にある）
+        self.assertEqual(checks.get("target-residency-budget"), "error")
+
+    def test_hard_limit_only_applies_to_runtimes_with_a_known_limit(self):
+        limit = budget.PROJECT_DOC_HARD_LIMIT_BYTES["codex"]
+        findings = budget.agents_md_findings("pi", b"x" * limit)
+        self.assertNotIn("project-doc-hard-limit", {f.check for f in findings})
+
+    def test_real_targets_stay_under_the_hard_limit(self):
+        hard = [
+            f for f in budget.check_target_residency_budget(REPO_ROOT)
+            if f.check == "project-doc-hard-limit"
+        ]
+        self.assertEqual(hard, [])
+
+
 class TestCapabilityContract(unittest.TestCase):
     def test_real_repo_capability_contract_is_clean(self):
         findings = capabilities.check(REPO_ROOT)

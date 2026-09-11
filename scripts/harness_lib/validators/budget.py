@@ -74,6 +74,15 @@ def check_always_loaded_budget(repo_root: Path) -> list[Finding]:
 # 肥大の入れ忘れをブロックするライン。
 TARGET_AGENTS_MD_ERROR_CHARS = 4_500
 TARGET_AGENTS_MD_WARN_CHARS = int(TARGET_AGENTS_MD_ERROR_CHARS * 0.9)
+
+# runtime が AGENTS.md を読み込む物理上限（bytes）。超過分は runtime 側で無言に切り捨て
+# られ、指示が途中で消える。上の文字数予算は「常駐コストを抑える」線で、こちらは
+# 「読まれなくなる」線。予算の方がずっと手前にあるので通常はこちらに当たらないが、
+# 予算を緩めたときにこの天井を越えないよう別枠で error にする。runtime 側の設定で
+# 上限を引き上げる案は採らない（AGENTS.md を減らすのが正で、上限を上げるのは常駐
+# コストを増やすだけ）。codex: project_doc_max_bytes の既定 32 KiB。他 runtime は
+# 同種の上限を公表していないため未登録。
+PROJECT_DOC_HARD_LIMIT_BYTES = {"codex": 32 * 1024}
 TARGET_FRONTMATTER_ERROR_CHARS = 9_000
 TARGET_FRONTMATTER_WARN_CHARS = int(TARGET_FRONTMATTER_ERROR_CHARS * 0.9)
 
@@ -87,6 +96,40 @@ CLAUDE_FRONTMATTER_WARN_CHARS = 9_000
 
 # skills/<name>/SKILL.md 形式（直下のみ、ネストされた skill は対象外）
 _SKILL_MD_DIRECT_RE = re.compile(r"^skills/[^/]+/SKILL\.md$")
+
+
+def agents_md_findings(target_name: str, agents_bytes: bytes) -> list[Finding]:
+    """配布される AGENTS.md（include 展開後）を、常駐予算（文字数）と runtime の
+    読み込み上限（bytes）の 2 本で検証する。"""
+    findings: list[Finding] = []
+    agents_chars = len(agents_bytes.decode("utf-8"))
+    if agents_chars > TARGET_AGENTS_MD_WARN_CHARS:
+        level = "error" if agents_chars > TARGET_AGENTS_MD_ERROR_CHARS else "warn"
+        findings.append(
+            Finding(
+                check="target-residency-budget",
+                level=level,
+                message=(
+                    f"{target_name}: AGENTS.md が {agents_chars:,} 文字 "
+                    f"（warn: {TARGET_AGENTS_MD_WARN_CHARS:,} / "
+                    f"error: {TARGET_AGENTS_MD_ERROR_CHARS:,}）"
+                ),
+            )
+        )
+    hard_limit = PROJECT_DOC_HARD_LIMIT_BYTES.get(target_name)
+    if hard_limit is not None and len(agents_bytes) >= hard_limit:
+        findings.append(
+            Finding(
+                check="project-doc-hard-limit",
+                level="error",
+                message=(
+                    f"{target_name}: AGENTS.md が {len(agents_bytes):,} bytes で runtime の"
+                    f"読み込み上限 {hard_limit:,} bytes に達している（超過分は無言で"
+                    f"切り捨てられる）。上限を上げずに AGENTS.md を減らす"
+                ),
+            )
+        )
+    return findings
 
 
 def check_target_residency_budget(repo_root: Path) -> list[Finding]:
@@ -118,24 +161,7 @@ def check_target_residency_budget(repo_root: Path) -> list[Finding]:
 
         agents_bytes = m.files.get("AGENTS.md")
         if agents_bytes is not None:
-            agents_chars = len(agents_bytes.decode("utf-8"))
-            if agents_chars > TARGET_AGENTS_MD_WARN_CHARS:
-                level = (
-                    "error"
-                    if agents_chars > TARGET_AGENTS_MD_ERROR_CHARS
-                    else "warn"
-                )
-                findings.append(
-                    Finding(
-                        check="target-residency-budget",
-                        level=level,
-                        message=(
-                            f"{target_name}: AGENTS.md が {agents_chars:,} 文字 "
-                            f"（warn: {TARGET_AGENTS_MD_WARN_CHARS:,} / "
-                            f"error: {TARGET_AGENTS_MD_ERROR_CHARS:,}）"
-                        ),
-                    )
-                )
+            findings.extend(agents_md_findings(target_name, agents_bytes))
 
         # curated（rulesync upstream）skill は ledger 管理下に入ったが、frontmatter の
         # 大きさは harness が制御できない。予算は harness 所有分の肥大を止める線なので
