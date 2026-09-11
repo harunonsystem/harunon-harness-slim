@@ -1,0 +1,36 @@
+{
+  "executionMode": "normal",
+  "scope": {
+    "allProviders": "off",
+    "additionalProviders": []
+  },
+  "tools": {
+    "webRun": true,
+    "imageGeneration": true,
+    "viewImageFallback": false,
+    "applyPatchOnly": false,
+    "viewImageOnly": false,
+    "webRunOnly": false,
+    "imageGenerationOnly": false
+  },
+  "ui": {
+    "statusLine": false,
+    "toolRenaming": true,
+    "compactTools": true,
+    "backgroundShellWidget": true,
+    "backgroundShellToggleShortcut": "alt+w",
+    "backgroundShellPrevShortcut": "alt+q",
+    "backgroundShellNextShortcut": "alt+e",
+    "backgroundShellCloseShortcut": "alt+r"
+  },
+  "compaction": {
+    "responsesCompaction": true
+  },
+  "openai": {
+    "fast": false,
+    "verbosity": "low",
+    "proxyResponsesLite": false,
+    "forceCachedWebSockets": true,
+    "webSearchModel": "gpt-5.6-luna"
+  }
+}

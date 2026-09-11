@@ -1,0 +1,156 @@
+{
+	"$schema": "../../../schemas/target-config.schema.json",
+	"name": "pi",
+	"displayName": "pi coding agent",
+	"configDir": "~/.pi/agent",
+	"configFile": "settings.json",
+	"instructionsFile": "AGENTS.md",
+	"settingsSync": {
+		"source": "packages/targets/pi/settings.json",
+		"format": "json",
+		"keys": [
+			"defaultProvider",
+			"defaultModel",
+			"defaultThinkingLevel",
+			"theme",
+			"quietStartup",
+			"collapseChangelog",
+			"hideThinkingBlock",
+			"treeFilterMode",
+			"enableAnalytics",
+			"enableInstallTelemetry",
+			"enableSkillCommands",
+			"packages",
+			"enabledModels",
+			"compaction"
+		]
+	},
+	"distribute": {
+		"AGENTS.md": {
+			"source": "packages/targets/pi/AGENTS.md",
+			"expandIncludes": true
+		},
+		"commands.md": {
+			"source": "packages/core/commands.md"
+		},
+		"agents/": {
+			"source": "packages/targets/pi/agents/"
+		},
+		"pi-codex-conversion.json": {
+			"source": "packages/targets/pi/pi-codex-conversion.json"
+		},
+		"web-search.json": {
+			"source": "packages/targets/pi/web-search.json"
+		},
+		"hook-runner/": {
+			"source": "packages/core/hook-runner/"
+		},
+		"model-providers.json": {
+			"source": "packages/core/model-providers.json"
+		},
+		"claude-hooks/rtk-rewrite.sh": {
+			"source": "packages/core/hooks/rtk-rewrite.sh"
+		},
+		"claude-hooks/block-grep-in-bash.sh": {
+			"source": "packages/core/hooks/block-grep-in-bash.sh"
+		},
+		"claude-hooks/block-dangerous-in-bash.sh": {
+			"source": "packages/core/hooks/block-dangerous-in-bash.sh"
+		},
+		"claude-hooks/block-edit-on-main.sh": {
+			"source": "packages/core/hooks/block-edit-on-main.sh"
+		},
+		"claude-hooks/block-secrets-in-commit.sh": {
+			"source": "packages/core/hooks/block-secrets-in-commit.sh"
+		},
+		"claude-hooks/approve-push.sh": {
+			"source": "packages/core/hooks/approve-push.sh"
+		},
+		"claude-hooks/approve-pr.sh": {
+			"source": "packages/core/hooks/approve-pr.sh"
+		},
+		"claude-hooks/enforce-gwm-for-worktree.sh": {
+			"source": "packages/core/hooks/enforce-gwm-for-worktree.sh"
+		},
+		"claude-hooks/post-edit-checks.sh": {
+			"source": "packages/core/hooks/post-edit-checks.sh"
+		},
+		"claude-hooks/fix_gfm_tables.py": {
+			"source": "packages/core/hooks/fix_gfm_tables.py"
+		},
+		"claude-hooks/lib/": {
+			"source": "packages/core/hooks/lib/",
+			"hookLibClosure": true
+		},
+		"policy/": {
+			"source": "packages/core/policy/"
+		},
+		"workflows/": {
+			"source": "packages/core/workflows/"
+		},
+		"rules/": {
+			"source": [
+				"packages/core/rules/"
+			]
+		},
+		"extensions/harness-policy.js": {
+			"source": "packages/core/pi-extensions/harness-policy.js"
+		},
+		"extensions/harness-fff-mode.js": {
+			"source": "packages/targets/pi/pi-extensions/harness-fff-mode.js"
+		},
+		"extensions/pi-tool-display/config.json": {
+			"source": "packages/targets/pi/pi-tool-display.json"
+		},
+		"extensions/": {
+			"source": "packages/core/pi-extensions/"
+		},
+		"sol-pi.json": {
+			"source": "packages/targets/pi/sol-pi.json"
+		},
+		"subagents.json": {
+			"source": "packages/targets/pi/subagents.json"
+		},
+		"mcp.json": {
+			"source": "packages/targets/pi/mcp.json"
+		}
+	},
+	"obsoleteFiles": [
+		"rules/worktree-directory-change.md",
+		"keybindings.yml",
+		"extensions/otty-integration.ts",
+		"hooks.json",
+		"extensions/omp-denial-reason.js",
+		"extensions/post-edit-checks.ts"
+	],
+	"notes": [
+		"skills は pi に直接配布しない（2026-07-17 に skills/ エントリを削除）。pi は ~/.agents/skills をネイティブスキャンするため、shared-agents ターゲット（configDir: ~/.agents）が唯一の配布経路。~/.pi/agent/skills にも配ると同名スキルの collision 警告が起動時に出る",
+		"disabledSkills は packages/core/disabled-skills.json（common + target 別）と extras 側 disabled-skills.json で宣言する（config.json 直書きは廃止・一元化済み）",
+		"AGENTS.md は pi 専用の薄い常駐テンプレート（packages/targets/pi/AGENTS.md が SSOT）。共通ルール全文を常時ロードさせず、必要時に rules/ · skills/ · commands.md を読ませる。共有ブロック（常駐ルール最小・Routing）は packages/core/fragments/agents-md/ を expandIncludes で取り込む。core/CLAUDE.md（Claude の source）とは分離",
+		"hooks は extensions/claude-hooks-bridge.ts（pi の tool_call を Claude ツール名に写す adapter）が hook-runner/hook-runner.js（runtime 共有の hookRunner）を呼んで Claude PreToolUse プロトコルで無改修実行する。どの hook をどの順で流すかは policy/hook-pipeline.json の runtimes / when / order が決め、pi 側に hook 一覧（旧 hooks.json）は持たない（2026-09-03 に hooks.json を退役。obsoleteFiles で掃除）。設計: docs/plans/004-pi-target-bridge.md",
+		"pi の edit/write/read は入力フィールドが path のため、ブリッジが path ↔ file_path を双方向変換する",
+		"hook 移植ポリシー: (a) 普遍ポリシー（rtk-rewrite / block-grep / block-dangerous / block-edit-on-main / enforce-gwm / codex-review gate）のみブリッジで移植し、配布も配線済みファイル単位に限定 (b) Claude Code の仕様補正が目的の hook（fix_gfm_tables / jq・shellcheck PostToolUse / check-plan-model / scan-new-skills / log-compaction / verify-before-* の additionalContext 注入）は移植しない (c) pi 固有の欠落（permission 層なし）は pi ネイティブ拡張 confirm-destructive.ts で補填",
+		"hookRunner は hook を order 昇順に逐次実行し updatedInput を連鎖させる（Claude は並列・deny 優先）。ガード系を rtk-rewrite より先に置かないと、書き換え後のコマンドしか見えず deny が発火しない。順序は hook-pipeline.json の stage / order が担い、validator が逐次 runtime の guard < rewrite を検証する",
+		"write / edit 後の shellcheck / jq / GFM チェックは extensions/post-edit-checks.js（pi と omp で共有する adapter）→ hook-runner/post-edit.js → claude-hooks/post-edit-checks.sh。旧 post-edit-checks.ts（同じ 3 判定を TypeScript で再実装していた双子）は 2026-09-03 に退役。omp 専用の extensions/omp-denial-reason.js が pi-extensions/ にあった間は pi の extensions/ にも配られ bash ごとに二重実行されていたため packages/core/omp-extensions/ へ移し、pi 側は obsoleteFiles で掃除する",
+		"settings.json は settingsSync で管理キーのみ同期（lastChangelogVersion 等はローカル保持）",
+		"モデルプロバイダは extensions/harness-providers.ts と openai-codex-accounts.ts が registerProvider で定義。openai-codex は work を主アカウント、personal を quota/rate-limit 時だけのセッション単位 fallback とし、資格情報・アカウント状態は ~/.pi/agent 内だけに保存する。API key は opencode の auth.json を !command 参照（zen/cerebras/mistral）。models.json はローカル専用（cursorapi 等）",
+		"新規マシンの前提: (1) mise use --global --pin npm:@earendil-works/pi-coding-agent（バージョンは ~/.config/mise/config.toml の pin が正。ここには書かない。プロジェクトの Node 固定に影響されない pi CLI） (2) opencode の auth 設定済み（~/.local/share/opencode/auth.json） (3) openai-codex サブスクは pi で /login (4) jq インストール済み",
+		"pi 本体は mise の npm backend（npm:@earendil-works/pi-coding-agent）で管理する。Node の npm -g bin に直接入れると、Node バージョンを固定するプロジェクトで pi が PATH から消える。bootstrap は設定配布のみ",
+		"hook 実体の配布先は claude-hooks/（hooks/ という名前だと pi が旧 extensions 形式と誤認して起動時に警告 + キー入力待ちになる）",
+		"mcp.json は pi-mcp-adapter の pi グローバル設定（sentry/linear/figma/notion、remote OAuth）。URL のみ SSOT、トークンは adapter がローカル管理（セッション切れは /mcp で手動再接続）",
+		"Core Workflow の source SSOT は packages/core/policy/harnessctl.py + packages/core/workflows/change.json。配布後は runtime config 配下の policy/harnessctl.py + workflows/change.json となり、hard gate は extensions/harness-policy.js が呼び出す。agent の手動入口は run-change skill の scripts/harness.py",
+		"pin 一覧（2026-08-31 更新）: pi-codex-conversion 3.0.23、@gotgenes/pi-subagents 21.0.0、pi-clarify 1.0.1、pi-web-access 0.27.0、pi-mcp-adapter 2.31.0、@ff-labs/pi-fff 0.10.5、pi-tool-display 0.5.0、pi-lens 4.1.3、@pi-lab/input-history 1.0.3、pi-powerline-footer 0.16.0、pi-rewind 0.5.0。レビューは固定タイムアウトと自動モデルフォールバックを持つ code-reviewer package を使わず、reviewer subagent に一本化する。subagent frontmatter は name / description / tools / model / thinking を受理する（@gotgenes 21.x。@narumitw 2.x の thinkingLevel からリネーム済み）。agents/*.md は本文にプロンプトを持つ完全な自己定義なので built-in エージェントに依存しない。経緯: howaboua-pi-stuff#99 / pi-subagents#437 / #461",
+		"pi-fff は @ff-labs/pi-fff@0.10.5 を settings.json で管理する。FFF のツール名は PI_FFF_MODE で切り替わり、未設定時の tools-and-ui では ffgrep / fffind / fff-multi-grep、override では built-in を乗っ取って grep / find / multi_grep になる。Pi target が配布する extensions/harness-fff-mode.js が FFF 読み込み前に PI_FFF_MODE の未設定時を override に設定するため、各マシンの shell startup / dotfiles に個別設定しない。明示した PI_FFF_MODE は尊重する。どちらのモードでも衝突しないよう、pi-tool-display の registerToolOverrides は grep / find を false にする。tools-and-ui の FFF ツールは customToolOverrides で outputMode: hidden を宣言する（反映には pi 側の /reload が要る）",
+		"pi-tool-display は既定の opencode preset で built-in tool output と diff の TUI 表示を compact 化する。表示rendererの変更であり、モデルへ渡る tool result の context token を直接削減するものではない",
+		"Pi は標準 compaction と Codex native responsesCompaction を使用する。observational-memory の追加 worker は使わず、標準 compaction は reserveTokens 16384 / keepRecentTokens 20000 で管理する。両方の外部 compaction hook は有効化しない",
+		"SoL-Pi は 8f8c13916c97fb54c32008e41c05421f9b69ac3b に固定し、初期導入では ObservationPack のみ有効化する。Action Fusion は then_run が harness の Bash tool_call policy を迂回し得るため無効、Evidence-Preserving Reducer と Online Context Compact も既存 provider/compaction ownership と重ねないため無効。@gotgenes/pi-subagents の child は package extension を継承するため、subagents.json の excludedExtensionPackages で SoL-Pi を child から外し root session のみに限定する",
+		"Pi の coding profile では Codex の web_run を canonical にし、pi-web-access の web_search は unregister する。fetch_content / get_search_content は残し、research 時だけ web-search.json の enabled を true に戻す",
+		"モデル方針は gpt-5.6-luna:medium（default）、gpt-5.6-luna:max（scout/worker）、gpt-5.6-sol:medium（planner/reviewer）。Terra は採用せず、OpenAI Codex の認証・権限・ネットワーク・サーバーエラーでは account rotation しない。quota/rate-limit だけ /codex-account が personal へ切り替え、報告された reset 後に work を再試行する",
+		"defaultModel は bare の model id（実値は gpt-5.6-luna。上のモデル方針どおり default は Luna）で書く。pi は defaultProvider と defaultModel を分離して modelRegistry.find(provider, id) の exact match で解決するため、provider/model 形式だと解決失敗して先頭モデルに silent fallback する。この bare 必須の制約は defaultModel 側だけの話で、CLI の --model は別経路で prefix を解釈するため provider 修飾のまま渡してよい",
+		"2026-08-28: 自作 pi extension を 5 つ退役させた。status-footer.ts は pi-powerline-footer と pi-codex-conversion の ui.statusLine でフッターが 3 重になっていたため削除。2026-08-29 に pi-codex-conversion.json の ui.statusLine も false にして powerline に一本化（context 使用量は powerline の context セグメントが出す）。git-checkpoint.ts は pi-rewind に、plan-mode/ と todo.ts は未使用のため削除（どちらも pi 本体の examples/extensions 由来の vendored コピーで、0.84.3 時点でもネイティブ相当は無いが運用していない）。otty-integration.ts は SSOT に存在しないライブ側の孤児なので obsoleteFiles で掃除する。ledger 管理下の 4 件は SSOT から消せば push 時に prune される",
+		"2026-08-14: pi-codex-conversion 導入下では apply_patch が block-edit-on-main.sh を、exec_command が enforce-gwm-for-worktree.sh / rtk-rewrite.sh 等の Bash 系ガードを素通りするインシデントが発生した（claude-hooks-bridge.ts の PI_TO_CLAUDE_TOOL が bash/edit/write/read しか知らず、pi-codex-conversion 側のツール名にマップされていなかったため）。対応として bridge に exec_command→Bash・apply_patch→Write のマッピングを追加し（exec_command は cmd↔command、apply_patch は input キーそのまま）、enforce-gwm-for-worktree.sh を pi の Bash matcher グループにも配線した。apply_patch は file_path を持たないため、block-edit-on-main.sh 側も tool_input.input（Codex patch envelope）から `*** Add/Update/Delete File:` / `*** Move to:` のパスを抽出して判定し、抽出できない場合は cwd 自体をガード対象にする fail-closed に変更した",
+		"2026-08-28: pi-codex-conversion を 2.2.14 → 3.0.23 に上げた。3.0.0 で legacy PATH mode が廃止され設定スキーマが変わったため、pi-codex-conversion.json も新形式に移した: mode（\"normal\" | \"path\"）は executionMode（\"normal\" | \"code\" | \"notebook\"）に置き換わり、beta.codeMode は executionMode、beta.responsesLite は openai.proxyResponsesLite に移動した。旧形式のままでも extension 側 migrateCodexConversionConfigIfNeeded が起動時に書き換えるが、そのままだとライブ側が SSOT と毎回ドリフトするので SSOT を新形式で持つ。Lite パッケージは未使用なので削除要件は無関係",
+		"2026-08-30: subagent 拡張を @narumitw/pi-subagents 2.1.4 → @gotgenes/pi-subagents 21.0.0 に乗り換えた。@narumitw は 3.0.0 で bounded-job runtime に全面置換し、カスタム agent カタログ・per-agent モデル設定・カスタムプロンプトを撤去する予告を出したが、agents/*.md（scout / planner / worker / reviewer にモデルと thinking を割り当てる構成）がそれに全面依存しているため追従できない。@gotgenes は @tintinweb/pi-subagents のフォークで同じ設計を維持しており、グローバル定義 $PI_CODING_AGENT_DIR/agents/<name>.md（= 既定 ~/.pi/agent/agents/、harness の配布先そのもの）を公式にサポートする（プロジェクト側 .pi/agents/ が同名を上書き）。frontmatter は thinkingLevel → thinking にリネームが必要で、値の語彙（off/minimal/low/medium/high/xhigh/max）は据え置き。tool surface は subagent / get_subagent_result / steer_subagent。peerDependencies は pi-coding-agent >=0.81.0（実機 0.84.4 で充足）。package 名は scripts/pi-regression.py の SUBAGENT_PACKAGE と対で持つので、次にフォークを替えるときは 2 箇所を揃える",
+		"skill collision 警告は二重配布のサイン: pi は ~/.pi/agent/skills と ~/.agents/skills の両方をスキャンするため、同名 skill があると起動時に警告が出る。配布先は ~/.agents/skills（shared-agents）に一本化する。旧 AGENTS.md の Known Issues 節から移設（常駐から外した）"
+	]
+}

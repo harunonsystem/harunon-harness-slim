@@ -1,0 +1,5 @@
+{
+  "$comment": "skills ディレクトリに居るが harness（core / extras）も rulesync も配布しないものの明示許可。.githooks/pre-push の未管理 skill guard、sync-settings --pull、distribute の --prune が参照する（宣言済みの skill は manifest に無くても孤児扱いせず削除しない）。キー = ディレクトリ名、値 = 管理外にする理由。",
+  "agmsg": "fujibee/agmsg は install.sh で入れるアプリ（server / db / scripts を持つ）。rulesync は skill 直下のファイルしか取れず scripts/ が欠けるため upstream の installer に任せる",
+  "orchestration": "Orca アプリが ~/.agents/skills に配置し ~/.claude/skills から symlink する skill。Orca 側の更新で内容が変わるため harness で pin しない（2026-08-29）"
+}

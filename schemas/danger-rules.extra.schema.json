@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Harness danger-rules extras table",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "rules"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "notes": { "type": "string", "pattern": "\\S" },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "$defs": {
+    "runtime": {
+      "type": "string",
+      "enum": ["claude", "opencode", "omp", "pi", "codex"]
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "action", "impl", "targets"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "action": {
+          "type": "string",
+          "enum": ["block", "confirm", "warn"]
+        },
+        "impl": {
+          "type": "string",
+          "enum": ["table", "custom"]
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/runtime" }
+        },
+        "absent": { "$ref": "#/$defs/absentMap" },
+        "overrides": { "$ref": "#/$defs/overridesMap" },
+        "match": { "$ref": "#/$defs/match" },
+        "message": { "type": "string" },
+        "prose": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/proseEntry" }
+        },
+        "notes": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "autoMode": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/autoModeEntry" }
+        }
+      }
+    },
+    "absentMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claude": { "type": "string", "pattern": "\\S" },
+        "opencode": { "type": "string", "pattern": "\\S" },
+        "omp": { "type": "string", "pattern": "\\S" },
+        "pi": { "type": "string", "pattern": "\\S" },
+        "codex": { "type": "string", "pattern": "\\S" }
+      }
+    },
+    "override": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "reason"],
+      "properties": {
+        "action": { "type": "string", "enum": ["block", "confirm", "warn"] },
+        "reason": { "type": "string", "pattern": "\\S" }
+      }
+    },
+    "overridesMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claude": { "$ref": "#/$defs/override" },
+        "opencode": { "$ref": "#/$defs/override" },
+        "omp": { "$ref": "#/$defs/override" },
+        "pi": { "$ref": "#/$defs/override" },
+        "codex": { "$ref": "#/$defs/override" }
+      }
+    },
+    "globsMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claude": { "type": "array", "items": { "type": "string" } },
+        "opencode": { "type": "array", "items": { "type": "string" } },
+        "omp": { "type": "array", "items": { "type": "string" } },
+        "pi": { "type": "array", "items": { "type": "string" } },
+        "codex": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "match": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ere": { "type": "string" },
+        "js": { "type": "string" },
+        "jsFlags": { "type": "string" },
+        "origin": { "type": "string", "enum": ["default", "chain-only", "none"] },
+        "wordEnd": { "type": "boolean" },
+        "globs": { "$ref": "#/$defs/globsMap" }
+      }
+    },
+    "proseEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "token"],
+      "properties": {
+        "file": { "type": "string", "pattern": "\\S" },
+        "token": { "type": "string", "pattern": "\\S" }
+      }
+    },
+    "autoModeEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier", "prose"],
+      "properties": {
+        "tier": { "type": "string", "enum": ["hard_deny", "soft_deny"] },
+        "prose": { "type": "string", "pattern": "\\S" }
+      }
+    }
+  }
+}

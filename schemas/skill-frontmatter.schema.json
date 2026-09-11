@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/harunon/harunon-harness/schemas/skill-frontmatter.schema.json",
+  "description": "Schema for YAML frontmatter in SKILL.md files. Frontmatter is delimited by --- markers at the top of the file.",
+  "type": "object",
+  "required": ["name"],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^([a-z][a-z0-9-]*:)?[a-z][a-z0-9-]*$",
+      "description": "Canonical skill identifier. Lowercase kebab-case, optionally prefixed with a namespace and colon for vendored skills (e.g. 'cr', 'ckm:brand')."
+    },
+    "description": {
+      "type": "string",
+      "description": "One-line summary of what the skill does and when to trigger it. Used in skill discovery and the skill listing."
+    },
+    "agent": {
+      "type": "string",
+      "description": "Name of a specific subagent type to use when running this skill (e.g. 'reviewer')."
+    },
+    "argument-hint": {
+      "type": "string",
+      "description": "Short usage hint shown alongside the skill name (e.g. '[PR番号 | staged | branch]')."
+    },
+    "tools": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ],
+      "description": "Tool restrictions for this skill. Single string or list of allowed tool names / patterns."
+    },
+    "allowed-tools": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ],
+      "description": "Explicit allowlist of tools the skill may use. Same semantics as 'tools'; prefer 'allowed-tools' for clarity."
+    },
+    "paths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "File glob patterns; the skill is auto-suggested when an active file matches one of these patterns."
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier for vendored/third-party skills (e.g. 'MIT')."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Arbitrary key-value metadata (e.g. author, version, mcp-server). Not interpreted by the harness."
+    }
+  }
+}

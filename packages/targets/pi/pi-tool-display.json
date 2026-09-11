@@ -1,0 +1,11 @@
+{
+  "registerToolOverrides": {
+    "grep": false,
+    "find": false
+  },
+  "customToolOverrides": {
+    "ffgrep": { "enabled": true, "kind": "generic", "outputMode": "hidden" },
+    "fffind": { "enabled": true, "kind": "generic", "outputMode": "hidden" },
+    "fff-multi-grep": { "enabled": true, "kind": "generic", "outputMode": "hidden" }
+  }
+}

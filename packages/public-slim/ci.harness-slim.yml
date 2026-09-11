@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# slim 用の CI。private 側の CI が持つ rulesync（curated skill の取得）・pi 本体の smoke（mise の pin を読む）・
+# extras 前提の step は slim には無いので含めない。
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Bridge extension tests
+        run: node --test "scripts/tests/node/*.test.ts"
+
+      - name: Validate harness meta consistency
+        run: python3 scripts/validate-harness.py
+
+      - name: Smoke test target distribution
+        run: |
+          set -euo pipefail
+          distribution_root="${RUNNER_TEMP}/harness-distribution"
+          for config in packages/targets/*/config.json; do
+            target="$(basename "$(dirname "$config")")"
+            destination="${distribution_root}/${target}"
+            mkdir -p "$destination"
+            python3 scripts/distribute.py "$target" --push --dest "$destination"
+            python3 scripts/distribute.py "$target" --check --live "$destination"
+          done
+
+      - name: Check runtime adapter syntax
+        run: |
+          find packages/runtimes packages/core/opencode-plugins packages/core/pi-extensions packages/core/omp-extensions packages/core/hook-runner \
+            \( -name '*.js' -o -name '*.mjs' \) -type f -print0 | xargs -0 -n1 node --check
+
+      - name: Shellcheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          shellcheck -S warning packages/core/hooks/*.sh packages/core/hooks/lib/*.sh packages/runtimes/opencode-launcher/opencode scripts/*.sh .githooks/pre-commit .githooks/pre-push
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/2", "2/2"]
+    name: unit-tests (${{ matrix.shard }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run unit tests
+        run: python3 scripts/run-tests.py --shard "${{ matrix.shard }}"

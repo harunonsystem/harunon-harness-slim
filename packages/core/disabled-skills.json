@@ -1,0 +1,34 @@
+{
+	"_comment": "target 名 → 配布から除外する core skill 名。全 skill 配布（skill pack 廃止: 2026-08-19）後の唯一の除外機構で、互換性理由（Claude 専用・MCP 依存 skill）のみを宣言する。common は非 Claude ランタイム共通の除外、target キーは固有差分。shared-agents（~/.agents、codex/omp/pi/opencode が共有で読む）も common を適用して配布段階で除外する。resolver の _core_disabled_skills が targets に列挙された target にのみ common + target キーをマージする（claude は targets に含めないため一切影響しない）",
+	"targets": [
+		"codex",
+		"omp",
+		"pi",
+		"opencode",
+		"shared-agents"
+	],
+	"common": [
+		"cr",
+		"daily-report",
+		"efficient-fable",
+		"empirical-prompt-tuning",
+		"figma-implement",
+		"posthog-ops",
+		"pre-review-check",
+		"prototype",
+		"sentry-fix",
+		"setup-matt-pocock-skills",
+		"skill-creator"
+	],
+	"codex": [],
+	"omp": [
+		"codex-pre-review-check",
+		"review"
+	],
+	"pi": [
+		"codex-pre-review-check",
+		"review"
+	],
+	"opencode": [],
+	"shared-agents": []
+}

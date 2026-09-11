@@ -1,0 +1,54 @@
+{
+  "name": "change",
+  "initialState": "intake",
+  "entryStates": {
+    "change": "intake",
+    "publish": "review"
+  },
+  "states": {
+    "intake": {
+      "requirements_ambiguous": "clarify",
+      "requirements_clear": "isolate"
+    },
+    "clarify": {
+      "clarified": "isolate"
+    },
+    "isolate": {
+      "isolated": "plan"
+    },
+    "plan": {
+      "planned": "implement"
+    },
+    "implement": {
+      "implemented": "verify"
+    },
+    "verify": {
+      "checks_passed": "checkpoint"
+    },
+    "checkpoint": {
+      "committed": "review"
+    },
+    "review": {
+      "review_attached": "decide"
+    },
+    "decide": {
+      "accepted": "publish",
+      "fix_selected": "implement",
+      "findings_deferred": "publish"
+    },
+    "publish": {
+      "published": "complete"
+    },
+    "complete": {}
+  },
+  "actions": {
+    "pr.create": {
+      "allowedStates": ["publish"],
+      "requires": ["local-review-current-head"]
+    },
+    "pr.merge": {
+      "allowedStates": ["publish", "complete"],
+      "requires": ["trusted-review-current-head"]
+    }
+  }
+}

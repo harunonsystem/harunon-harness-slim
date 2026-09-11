@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|EnterWorktree|Write|Edit|write_file|edit_file|apply_patch|mcp__.*github.*)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${PLUGIN_ROOT}/scripts/codex_hook.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(Write|Edit|apply_patch|write_file|edit_file)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${PLUGIN_ROOT}/scripts/codex_hook.py"
+          }
+        ]
+      }
+    ]
+  }
+}

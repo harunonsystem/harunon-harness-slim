@@ -1,0 +1,22 @@
+#!/bin/sh
+# Start OpenCode with external Claude skill discovery disabled.
+set -eu
+
+export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1
+
+if [ -n "${OPENCODE_REAL_BIN:-}" ]; then
+  exec "$OPENCODE_REAL_BIN" "$@"
+fi
+
+for candidate in \
+  "$HOME/.opencode/bin/opencode" \
+  "/opt/homebrew/bin/opencode" \
+  "/usr/local/bin/opencode"
+do
+  if [ -x "$candidate" ]; then
+    exec "$candidate" "$@"
+  fi
+done
+
+echo "ERROR: real OpenCode binary not found; set OPENCODE_REAL_BIN" >&2
+exit 127

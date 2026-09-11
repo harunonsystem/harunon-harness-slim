@@ -1,0 +1,315 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://github.com/harunon/harunon-harness/schemas/target-config.schema.json",
+	"description": "Schema for packages/targets/*/config.json — declares how a target AI coding tool receives distributed files from the harness.",
+	"type": "object",
+	"required": [
+		"name",
+		"displayName",
+		"configDir",
+		"configFile",
+		"instructionsFile",
+		"distribute"
+	],
+	"additionalProperties": false,
+	"properties": {
+		"$schema": {
+			"type": "string",
+			"description": "JSON Schema reference URI."
+		},
+		"name": {
+			"type": "string",
+			"description": "Canonical identifier for the target (e.g. 'claude', 'codex', 'opencode'). Keep as plain string to allow future targets."
+		},
+		"displayName": {
+			"type": "string",
+			"description": "Human-readable name shown in logs and reports."
+		},
+		"configDir": {
+			"type": "string",
+			"pattern": "^~/",
+			"description": "Absolute home-relative path to the target's config directory (e.g. '~/.claude')."
+		},
+		"configDirEnv": {
+			"type": "string",
+			"pattern": "^[A-Z][A-Z0-9_]*$",
+			"description": "Optional environment variable that overrides configDir for managed runtimes."
+		},
+		"configFile": {
+			"type": "string",
+			"pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).*$",
+			"description": "Name of the target's primary config file inside configDir (e.g. 'settings.json', 'config.toml', 'opencode.json'). May be empty for targets without a primary config file."
+		},
+		"instructionsFile": {
+			"type": "string",
+			"description": "Name of the primary instructions/memory file (e.g. 'CLAUDE.md', 'AGENTS.md')."
+		},
+		"obsoleteFiles": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+			},
+			"uniqueItems": true,
+			"description": "Exact configDir-relative files previously managed by this target. Push backs them up and removes them; unrelated files are preserved."
+		},
+		"executables": {
+			"type": "array",
+			"items": { "type": "string" },
+			"uniqueItems": true,
+			"description": "Exact distributed destination paths that must be executable."
+		},
+		"auxiliary": {
+			"type": "boolean",
+			"description": "True for a distribution helper that is not an AI runtime and does not participate in the Core Workflow contract or runtime comparison table."
+		},
+		"distribute": {
+			"type": "object",
+			"description": "Map from destination path (relative to configDir) to a distribute entry describing where to copy it from.",
+			"additionalProperties": {
+				"$ref": "#/$defs/distributeEntry"
+			}
+		},
+		"extrasOverlay": {
+			"type": "boolean",
+			"description": "When true, --push applies extras env.json / settings-overlay.json merge and skill-overrides for this target."
+		},
+		"settingsSync": {
+			"type": "object",
+			"description": "Declares which keys in the configFile are managed by the harness SSOT template (others are local-only).",
+			"required": [
+				"source",
+				"keys"
+			],
+			"additionalProperties": false,
+			"properties": {
+				"source": {
+					"type": "string",
+					"pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+",
+					"description": "Repo-relative path to the authoritative settings template."
+				},
+				"format": {
+					"type": "string",
+					"enum": [
+						"json",
+						"toml",
+						"yaml"
+					],
+					"description": "Config file format. Defaults to json for existing settingsSync declarations."
+				},
+				"keys": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "Top-level keys in the config file that are synced from source (others are preserved locally)."
+				},
+				"removeKeys": {
+					"type": "array",
+					"items": { "type": "string" },
+					"uniqueItems": true,
+					"description": "Obsolete dotted keys to remove from an existing JSON, TOML, or YAML config during push."
+				},
+				"checkOnlyKeys": {
+					"type": "array",
+					"items": { "type": "string" },
+					"uniqueItems": true,
+					"description": "Live-first dotted keys (e.g. plugin enablement) that push never writes. --check reports entries present in the live config but absent from the template as 'unreconciled' so live-side additions get flowed back into the SSOT template."
+				},
+				"localSource": {
+					"type": "string",
+					"pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+",
+					"description": "Repo-relative path to a machine-local settings file (gitignored). When present with localKeys, those keys are merged into the live config from this file."
+				},
+				"localKeys": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "Keys from localSource to merge into the live config. Only applied when localSource exists on disk."
+				},
+				"extrasSource": {
+					"type": "string",
+					"pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+",
+					"description": "Repo-relative path to a company/contract-specific overlay settings file (typically inside the private extras submodule). Skipped silently when absent (e.g. CI without the submodule)."
+				},
+				"extrasKeys": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "Keys synced from extrasSource instead of the SSOT template. Use for values that must not be committed to the public harness (company names, contract-dependent providers)."
+				},
+				"computedFeatures": {
+					"type": "object",
+					"description": "Derives settingsSync keys/removeKeys from a feature table (packages/targets/codex/features.json) instead of listing features.* by hand: entries with declare true become keys, declare false become removeKeys.",
+					"required": ["table", "prefix"],
+					"additionalProperties": false,
+					"properties": {
+						"table": {
+							"type": "string",
+							"pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+",
+							"description": "Repo-relative path to the feature table JSON (see schemas/codex-features.schema.json)."
+						},
+						"prefix": {
+							"type": "string",
+							"description": "Dotted-key prefix each feature name is placed under (e.g. 'features')."
+						}
+					}
+				},
+				"computedGlobs": {
+					"type": "object",
+					"description": "Declares a computed overlay layer merged into the template before sync: danger-rules.json permission globs for this target are merged into mergeKey, so checked-in source files don't duplicate the SSOT danger-rules table.",
+					"required": [
+						"table",
+						"target",
+						"mergeKey",
+						"mergeShape"
+					],
+					"additionalProperties": false,
+					"properties": {
+						"table": {
+							"type": "string",
+							"pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+",
+							"description": "Repo-relative path to the danger-rules.json SSOT table."
+						},
+						"target": {
+							"type": "string",
+							"description": "Target name passed to danger_rules.permission_globs() (e.g. 'opencode', 'omp')."
+						},
+						"mergeKey": {
+							"type": "string",
+							"description": "Dotted key path in the parsed template where computed globs are merged."
+						},
+						"mergeShape": {
+							"type": "string",
+							"enum": [
+								"flat",
+								"orderedPatterns"
+							],
+							"description": "'flat': mergeKey holds a glob->action map (merged via dict update). 'orderedPatterns': mergeKey holds a first-match-wins list of {match, approval} entries; computed deny entries are placed first, then prompt entries, then any pre-existing non-computed entries (omp bash.patterns)."
+						}
+					}
+				},
+				"computedSkillIgnores": {
+					"type": "object",
+					"description": "Declares a computed overlay layer merged into the template before sync: the disabled-skills.json names for this target are merged into mergeKey as a list. For tools that also read another target's skills directory, where excluding a skill from distribution does not hide it.",
+					"required": [
+						"target",
+						"mergeKey"
+					],
+					"additionalProperties": false,
+					"properties": {
+						"target": {
+							"type": "string",
+							"description": "Target name resolved against disabled-skills.json (core + extras)."
+						},
+						"mergeKey": {
+							"type": "string",
+							"description": "Dotted key path in the parsed template holding the ignored-skill name list."
+						}
+					}
+				}
+			}
+		},
+		"notes": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "Human-readable notes about this target's distribution setup."
+		},
+		"skillsTransform": {
+			"type": "object",
+			"description": "Controls frontmatter filtering applied to skill files during distribution.",
+			"required": [
+				"keepFrontmatterFields"
+			],
+			"additionalProperties": false,
+			"properties": {
+				"keepFrontmatterFields": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "Frontmatter fields to retain; all others are stripped before distribution."
+				}
+			}
+		},
+		"configManagedResources": {
+			"type": "object",
+			"description": "Documents resources that the target manages via its own config rather than harness file distribution. Values are explanatory strings.",
+			"additionalProperties": {
+				"type": "string"
+			}
+		},
+		"disabledPlugins": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "Plugin filenames (without .js extension) to exclude during distribution. Allows per-target flexible plugin control without runtime checks."
+		},
+		"differences": {
+			"type": "object",
+			"description": "Documents behavioural or structural differences between this target and the Claude Code reference target. Values are explanatory strings.",
+			"additionalProperties": {
+				"type": "string"
+			}
+		},
+		"todoInvestigate": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "Open questions to investigate about this target."
+		},
+		"deprecates": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "Commands or workflows that this target's configuration supersedes."
+		}
+	},
+	"$defs": {
+		"distributeEntry": {
+			"type": "object",
+			"description": "Describes a single file or directory to distribute to the target's configDir.",
+			"required": [
+				"source"
+			],
+			"additionalProperties": false,
+			"properties": {
+				"source": {
+					"oneOf": [
+						{
+							"type": "string",
+							"description": "Single repo-relative source path."
+						},
+						{
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"minItems": 1,
+							"description": "Multiple repo-relative source paths merged in order (later entries win on conflict)."
+						}
+					]
+				},
+				"expandIncludes": {
+					"type": "boolean",
+					"description": "When true, `<!-- include: <repo-path> -->` directives in this file are expanded with the referenced fragment's content during distribution."
+				},
+				"transform": {
+					"type": "string",
+					"description": "Named transform to apply during distribution (e.g. 'removeClaude専用Frontmatter')."
+				},
+				"hookLibClosure": {
+					"type": "boolean",
+					"description": "Only valid on a `<hooks dir>/lib/` directory destination whose source is the shared hook lib directory. Instead of copying the whole directory, distribute only the transitive closure of `$HOOK_DIR/lib/<name>.sh` references made by the hook files distributed directly under `<hooks dir>/` (libs sourcing libs are followed). A referenced lib missing from the source fails the manifest."
+				}
+			}
+		}
+	}
+}

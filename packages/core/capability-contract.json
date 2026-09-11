@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "dimensions": [
+    "instruction_routing",
+    "deterministic_distribution",
+    "workflow_state",
+    "pr_create_gate",
+    "pr_merge_gate",
+    "review_head_binding",
+    "safety_policy",
+    "role_model_routing"
+  ],
+  "claims": {
+    "claude": {
+      "instruction_routing": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/core/CLAUDE.md", "contains": ["rules/codex-review-policy.md"] }]
+      },
+      "deterministic_distribution": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/targets/claude/config.json", "contains": ["distribute"] }]
+      },
+      "workflow_state": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/core/workflows/change.json", "contains": ["initialState"] }]
+      },
+      "pr_create_gate": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/hooks/block-pr-without-codex-review.sh", "contains": ["gh pr create"] },
+          { "path": "packages/targets/claude/config.json", "contains": ["hooks/", "packages/core/hooks/"] },
+          { "path": "packages/core/settings.json", "contains": ["block-pr-without-codex-review.sh"] }
+        ]
+      },
+      "pr_merge_gate": {
+        "verdict": "PARTIAL",
+        "statement": "The workflow declares a merge action, but the Claude hard gate is explicitly evidenced for PR creation only; static evidence does not prove merge enforcement.",
+        "evidence": [
+          { "path": "packages/core/workflows/change.json", "contains": ["pr.merge"] },
+          { "path": "packages/core/policy/danger-rules.json", "contains": ["gh-pr-merge-close"] }
+        ]
+      },
+      "review_head_binding": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["evidence[\"subjectSha\"] == head"] }]
+      },
+      "safety_policy": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/core/policy/danger-rules.json", "contains": ["gh-pr-merge-close"] }]
+      },
+      "role_model_routing": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/core/CLAUDE.md", "contains": ["orchestrator"] }]
+      }
+    },
+    "codex": {
+      "instruction_routing": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/targets/codex/AGENTS.md", "contains": ["<!-- include: packages/core/fragments/agents-md/routing.md -->"] }]
+      },
+      "deterministic_distribution": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/targets/codex/config.json", "contains": ["distribute"] }]
+      },
+      "workflow_state": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/workflows/change.json", "contains": ["initialState"] },
+          { "path": "packages/targets/codex/config.json", "contains": ["Core Workflow adapter"] }
+        ]
+      },
+      "pr_create_gate": {
+        "verdict": "PARTIAL",
+        "statement": "Codex's adapter and review flow are wired, while PR approval remains at the Codex native permissions boundary; static evidence does not prove a runtime PR-create hook.",
+        "evidence": [
+          { "path": "packages/targets/codex/AGENTS.md", "contains": ["Codex native permissions"] }
+        ]
+      },
+      "pr_merge_gate": {
+        "verdict": "PARTIAL",
+        "statement": "The shared workflow declares a merge action, while approval remains at the Codex native permissions boundary; static evidence does not prove live merge enforcement.",
+        "evidence": [
+          { "path": "packages/core/workflows/change.json", "contains": ["pr.merge"] },
+          { "path": "packages/targets/codex/AGENTS.md", "contains": ["native permissions"] }
+        ]
+      },
+      "review_head_binding": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/policy/harnessctl.py", "contains": ["evidence[\"subjectSha\"] == head"] }
+        ]
+      },
+      "safety_policy": {
+        "verdict": "PARTIAL",
+        "statement": "Shared policy artifacts and the Codex native permissions boundary are wired; static evidence does not prove every live approval path.",
+        "evidence": [
+          { "path": "packages/core/policy/danger-rules.json", "contains": ["gh-pr-merge-close"] },
+          { "path": "packages/targets/codex/AGENTS.md", "contains": ["native permissions"] }
+        ]
+      },
+      "role_model_routing": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/targets/codex/config.toml", "contains": ["gpt-5.6-sol"] },
+          { "path": "packages/targets/codex/agents/worker.toml", "contains": ["gpt-5.6-luna"] }
+        ]
+      }
+    },
+    "opencode": {
+      "instruction_routing": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/targets/opencode/AGENTS.md", "contains": ["<!-- include: packages/core/fragments/agents-md/routing.md -->"] }]
+      },
+      "deterministic_distribution": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/targets/opencode/config.json", "contains": ["distribute"] }]
+      },
+      "workflow_state": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/workflows/change.json", "contains": ["initialState"] },
+          { "path": "packages/core/opencode-plugins/harness-workflow.js", "contains": ["harness_workflow", "assignment.create", "assignment.dispatched", "assignment.report", "assignment.abandon"] }
+        ]
+      },
+      "pr_create_gate": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/opencode-plugins/harness-policy.js", "contains": ["pr.create"] },
+          { "path": "packages/targets/opencode/config.json", "contains": ["runtime/harunon-opencode/", "packages/core/opencode-plugins/"] }
+        ]
+      },
+      "pr_merge_gate": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/opencode-plugins/harness-policy.js", "contains": ["pr.merge"] },
+          { "path": "packages/targets/opencode/config.json", "contains": ["runtime/harunon-opencode/", "packages/core/opencode-plugins/"] }
+        ]
+      },
+      "review_head_binding": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["evidence[\"subjectSha\"] == head"] }]
+      },
+      "safety_policy": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/policy/danger-rules.json", "contains": ["gh-pr-merge-close"] },
+          { "path": "packages/targets/opencode/AGENTS.md", "contains": ["permission deny"] }
+        ]
+      },
+      "role_model_routing": {
+        "verdict": "UNKNOWN",
+        "statement": "OpenCode agent model selection is machine/auth dependent and is intentionally not claimed by static wiring evidence."
+      }
+    },
+    "pi": {
+      "instruction_routing": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/targets/pi/AGENTS.md", "contains": ["<!-- include: packages/core/fragments/agents-md/routing.md -->"] }]
+      },
+      "deterministic_distribution": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/targets/pi/config.json", "contains": ["distribute"] }]
+      },
+      "workflow_state": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/workflows/change.json", "contains": ["initialState"] },
+          { "path": "packages/core/pi-extensions/harness-policy.js", "contains": ["harnessctl.py"] }
+        ]
+      },
+      "pr_create_gate": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/pi-extensions/harness-policy.js", "contains": ["pr.create"] },
+          { "path": "packages/targets/pi/config.json", "contains": ["extensions/harness-policy.js", "packages/core/pi-extensions/harness-policy.js"] }
+        ]
+      },
+      "pr_merge_gate": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/pi-extensions/harness-policy.js", "contains": ["pr.merge"] },
+          { "path": "packages/targets/pi/config.json", "contains": ["extensions/harness-policy.js", "packages/core/pi-extensions/harness-policy.js"] }
+        ]
+      },
+      "review_head_binding": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["evidence[\"subjectSha\"] == head"] }]
+      },
+      "safety_policy": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/policy/danger-rules.json", "contains": ["gh-pr-merge-close"] },
+          { "path": "packages/targets/pi/AGENTS.md", "contains": ["confirm-destructive"] }
+        ]
+      },
+      "role_model_routing": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/targets/pi/settings.json", "contains": ["defaultModel"] },
+          { "path": "packages/targets/pi/agents/planner.md", "contains": ["gpt-5.6-sol"] }
+        ]
+      }
+    },
+    "omp": {
+      "instruction_routing": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/targets/omp/AGENTS.md", "contains": ["<!-- include: packages/core/fragments/agents-md/routing.md -->"] }]
+      },
+      "deterministic_distribution": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/targets/omp/config.json", "contains": ["distribute"] }]
+      },
+      "workflow_state": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/workflows/change.json", "contains": ["initialState"] },
+          { "path": "packages/targets/omp/config.json", "contains": ["workflows/"] }
+        ]
+      },
+      "pr_create_gate": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/pi-extensions/harness-policy.js", "contains": ["pr.create"] },
+          { "path": "packages/targets/omp/config.json", "contains": ["extensions/harness-policy.js", "packages/core/pi-extensions/harness-policy.js"] }
+        ]
+      },
+      "pr_merge_gate": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/pi-extensions/harness-policy.js", "contains": ["pr.merge"] },
+          { "path": "packages/targets/omp/config.json", "contains": ["extensions/harness-policy.js", "packages/core/pi-extensions/harness-policy.js"] }
+        ]
+      },
+      "review_head_binding": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["evidence[\"subjectSha\"] == head"] }]
+      },
+      "safety_policy": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/core/policy/danger-rules.json", "contains": ["gh-pr-merge-close"] },
+          { "path": "packages/targets/omp/AGENTS.md", "contains": ["bash.patterns"] }
+        ]
+      },
+      "role_model_routing": {
+        "verdict": "SUPPORTED",
+        "statement": "Static repository wiring only; this does not prove live behavior.",
+        "evidence": [
+          { "path": "packages/targets/omp/config.yml", "contains": ["modelRoles"] },
+          { "path": "packages/targets/omp/AGENTS.md", "contains": ["model role"] }
+        ]
+      }
+    }
+  }
+}

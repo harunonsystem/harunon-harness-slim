@@ -1,0 +1,96 @@
+## Frequently Used Commands
+
+> **skill は全件配布**（skill pack によるキュレーションは 2026-08-19 に廃止）。以下の表のコマンドは原則どのランタイムでも使えます。例外は Claude 専用・MCP 依存の skill で、非 Claude ランタイムには配布されません（宣言は `packages/core/disabled-skills.json` が唯一の SSOT）。
+
+> **upstream 由来 skill の読み替え**: `mattpocock/skills` から vendoring した skill は本文を逐語で保つため、harness に無い名前を指すことがあります。`to-spec` → `/to-prd`、`to-tickets` → `/to-issues`、upstream の code-review skill → Claude では同名の native skill、他 runtime では `/cr` と読み替えてください。issue tracker の規約は `rules/core-standards.md`「Issue tracker の規約」節。
+
+### Review / Code Quality
+
+| Command | Purpose |
+| --- | --- |
+| `/cr` | コードレビュー（reviewer エージェント）。組み込みの `/review` とは別物 |
+| `/pre-review-check` | /codex:review 前の統合自己チェック（11 カテゴリ検証 → similarity-check / simplify で機械クリーンアップ） |
+| `/codex:review` | Codex コードレビュー（push 前1回のみ） |
+| `/codex:rescue` | Codex に実装・調査を委譲 |
+| `/difit` | difit で差分レビュー依頼 / findings コメント付き差分表示 |
+| `/ocr-review` | OpenCodeReview CLI を canonical な diff レビュー engine として実行（pi / omp 用） |
+| `/similarity-check` | AST ベースの重複コード検出（similarity-ts/py） |
+
+### Plan / Design
+
+| Command | Purpose |
+| --- | --- |
+| `/derive-optimal-solution` | 問題の再構成・上流追跡・帰結予測（`/grill-implementation` の前段） |
+| `/grilling` | インタビューの本体。決定ツリーをラウンド単位で聞き、フロンティアが空になるまで回す（upstream 逐語） |
+| `/grill-implementation` | `/grilling` の上に実装着手の契約（決定軸8つ・Phase 5 合意サマリー・スキップ基準・合意の保持）を載せる。実装系の必須初動 |
+| `/grill-me` | upstream の alias。`/grilling` を回すだけで実装着手の契約は持たない（実装前は `/grill-implementation` を使う） |
+| `/grill-with-docs` | ADR / glossary を残しながらのインタビュー。記録が目的なので `/grilling` を回す |
+| `/improve` | コードベース監査 → 他モデル実行用の自己完結プラン生成（read-only、shadcn/improve） |
+| `/source-driven-development` | フレームワーク判断を一次情報で検証する |
+
+### Diagram / Architecture
+
+| Command | Purpose |
+| --- | --- |
+| `/show-me` | コード・処理フロー・UI構造を最小限の図・Mermaid・コード形状で視覚的に説明 |
+
+### Implementation
+
+| Command | Purpose |
+| --- | --- |
+| `/run-change` | Agentを跨いで共有できるCore Workflowを開始・再開する |
+| `/implement-issue` | PRD または GitHub/Linear issue から実装 |
+
+### Issue / PRD
+
+| Command | Purpose |
+| --- | --- |
+| `/to-prd` | 会話文脈を PRD 化して tracker に publish |
+| `/to-issues` | PRD/プランを vertical slice issue に分割 |
+| `/decompose-issues` | 機能・エピックの Issue 分解 |
+
+### Figma / Design System
+
+| Command | Purpose |
+| --- | --- |
+| `/figma-implement` | Figma デザインから UI 実装 |
+| `/uiux-workflow` | baoyu-design → 実装 → better-interface → frontend-verify のUI/UX workflow |
+
+Design System監査は常駐coreにvendoringせず、必要なプロジェクトでupstreamのDesign System Opsを外部installする。
+
+UI/UX workflowの外部依存は必要なプロジェクトだけ導入する。**install 前に取得先の SKILL.md を実際に読み、エージェントへの指示として妥当か確認する。** サードパーティ skill の本文はそのままエージェントの信頼された指示になり、install コマンドは upstream のデフォルトブランチ HEAD を都度取得するため、差し替わったことに気づける手段はこの確認しかない。
+
+```bash
+pnpm dlx skills add JimLiu/baoyu-design
+pnpm dlx skills add jakubkrehel/skills -s better-interface
+```
+
+### Browser / 検証
+
+| Command | Purpose |
+| --- | --- |
+| `/frontend-verify` | フロントエンド UI のスクリーンショット検証 |
+
+### PR / Issue 補助
+
+| Command | Purpose |
+| --- | --- |
+| `/sentry-fix` | Sentry issue のスキャン → チケット → 実装 → PR |
+
+### Harness / Settings
+
+| Command | Purpose |
+| --- | --- |
+| `/upgrade` | 開発ツール一括アップグレード（mise / OpenCode / Homebrew） |
+
+### Meta（skill / プロンプト改善）
+
+| Command | Purpose |
+| --- | --- |
+| `/writing-for-agents` | agent向け文書・skill執筆のベストプラクティス |
+| `/agent-cli-design` | エージェントに使わせる CLI の設計基準・readiness test・適合性レビュー |
+| `/skill-creator` | skill 作成ガイド（構造・progressive disclosure） |
+| `/skill-improvement` | 既存 skill の設計・文書・empirical 評価をオーケストレーション |
+| `/empirical-prompt-tuning` | プロンプト/スキルの実証的改善 |
+
+> プロジェクト/会社固有のスキル（移行・日報・スキーマ同期等）は `packages/extras/<codename>/` で個別に有効化される。

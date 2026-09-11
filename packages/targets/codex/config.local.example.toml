@@ -1,0 +1,9 @@
+# codex の machine-local な sandbox 書き込み許可パス（マシンごとに異なる絶対パス）。
+# このファイルをコピーして config.local.toml を作り、自分のマシンのパスを設定する。
+# config.local.toml は gitignore 済み（コミットされない）。bootstrap.sh が初回に対話生成する。
+
+[sandbox_workspace_write]
+writable_roots = [
+  "/path/to/worktrees",
+  "/path/to/harunon-harness/.git",
+]

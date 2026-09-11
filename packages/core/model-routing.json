@@ -1,0 +1,344 @@
+{
+  "version": 1,
+  "notes": [
+    "ADR-010（Codex / pi / omp の Sol・Luna ルーティング）の役割別モデル割当を機械可読にした SSOT。danger-rules.json / hook-pipeline.json と同じ「1 table + per-runtime projection + validator」型で、各 runtime の宣言ファイル（codex の toml / pi の settings.json と agents frontmatter / opencode の agents frontmatter / omp の config.yml modelRoles）はこの表の投影（生成物）。scripts/sync-model-routing.py が値だけを書き込み、scripts/harness_lib/model_routing.py が一致を検証する。読むのは distribute / validator だけで runtime は読まないため、runtime が実行時に読む table を置く packages/core/policy/ ではなく capability-contract.json と同じ packages/core/ 直下に置く（hookProtocol fixture と同じ判断。policy/ は shared-agents / opencode へ丸ごと配布されるため、置くと未使用ファイルが配られる）。",
+    "この表は portable prompt のモデル前提ではなく、交換可能な model/provider adapter の current policy ledger である。共有 Skills / rules / AGENTS.md に model id を書かず、モデルの差し替えはこの表と target projection で完結させる。",
+    "以前は約 18 ファイルに散った model id を scripts/tests/test_model_routing.py の文字列一致アサート 21 個だけが束ねており、ADR 改定のたびに宣言とテスト期待値を両方書き換えていた（c62aaad はテストが値に後追いしただけの事故を記録）。この表の導入でルーティング判断は変えない。",
+    "purpose は ADR-010 の 2 分類: design（設計・計画・レビュー = Sol medium）と build（実装・スクリプト・探索・親タスク = Luna max）。Astra は models に置かない: team / Business Standard plan では 5h あたり 5〜45 local messages という別枠で、default に据えると親タスクが数セッションで枠を使い切る（2026-09-10 に実測。ADR-010 Amendment 参照）。使うときは picker で手動選択する。defaults と異なる model / effort を持つ route は reason 必須（逸脱理由を表に残す）。逸脱していない route に reason を書くことは禁止（stale な理由文が残るのを防ぐ）。",
+    "projection の format ごとに model の描き方が決まる: toml / json は bare id（codex は model_provider を別キーで持つ。pi の defaultModel は bare 必須 — pi/config.json の notes 参照）、frontmatter は provider/model、omp-roles は provider/model:effort（modelRoles の 1 値に model と thinking が同居する）。format が描き方を決めるので projection 側に style 指定は無い。",
+    "omp の config.yml と codex の config.toml は settingsSync も所有するファイル（他キーが同居する）。この表が触るのは model / effort を運ぶキーだけで、テキスト差し替えは該当行の値部分に限定する（sync-auto-mode-rules.py が settings.json の autoMode 値だけを差し替えるのと同じ規律）。settingsSync の keys 宣言（codex の model / model_reasoning_effort / plan_mode_reasoning_effort / agents.*、omp の modelRoles）が live へ push する経路は従来どおり。",
+    "投影先の model key に table の models 以外の model id が現れることは validator が拒否する。散文（AGENTS.md / config.json の notes）の model 言及は投影対象外で、omp の散文 ↔ config.yml の整合だけ test_model_routing.py が引き続き見る。"
+  ],
+  "models": {
+    "sol": "gpt-5.6-sol",
+    "luna": "gpt-5.6-luna"
+  },
+  "defaults": {
+    "design": { "model": "sol", "effort": "medium" },
+    "build": { "model": "luna", "effort": "max" }
+  },
+  "routes": [
+    {
+      "runtime": "codex",
+      "role": "default",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "max",
+      "projections": [
+        {
+          "path": "packages/targets/codex/config.toml",
+          "format": "toml",
+          "modelKey": "model",
+          "effortKeys": ["model_reasoning_effort", "plan_mode_reasoning_effort"]
+        }
+      ]
+    },
+    {
+      "runtime": "codex",
+      "role": "subagent-default",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "max",
+      "projections": [
+        {
+          "path": "packages/targets/codex/config.toml",
+          "format": "toml",
+          "modelKey": "agents.default_subagent_model",
+          "effortKeys": ["agents.default_subagent_reasoning_effort"]
+        }
+      ]
+    },
+    {
+      "runtime": "codex",
+      "role": "review",
+      "purpose": "design",
+      "model": "sol",
+      "effort": "medium",
+      "projections": [
+        {
+          "path": "packages/targets/codex/config.toml",
+          "format": "toml",
+          "modelKey": "review_model",
+          "effortKeys": []
+        },
+        {
+          "path": "packages/targets/codex/profiles/review.config.toml",
+          "format": "toml",
+          "modelKey": "model",
+          "effortKeys": ["model_reasoning_effort"]
+        }
+      ]
+    },
+    {
+      "runtime": "codex",
+      "role": "review-high",
+      "purpose": "design",
+      "model": "sol",
+      "effort": "medium",
+      "projections": [
+        {
+          "path": "packages/targets/codex/profiles/review-high.config.toml",
+          "format": "toml",
+          "modelKey": "model",
+          "effortKeys": ["model_reasoning_effort"]
+        }
+      ]
+    },
+    {
+      "runtime": "codex",
+      "role": "explorer",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "max",
+      "projections": [
+        {
+          "path": "packages/targets/codex/agents/explorer.toml",
+          "format": "toml",
+          "modelKey": "model",
+          "effortKeys": ["model_reasoning_effort"]
+        }
+      ]
+    },
+    {
+      "runtime": "codex",
+      "role": "worker",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "max",
+      "projections": [
+        {
+          "path": "packages/targets/codex/agents/worker.toml",
+          "format": "toml",
+          "modelKey": "model",
+          "effortKeys": ["model_reasoning_effort"]
+        }
+      ]
+    },
+    {
+      "runtime": "codex",
+      "role": "reviewer",
+      "purpose": "design",
+      "model": "sol",
+      "effort": "medium",
+      "projections": [
+        {
+          "path": "packages/targets/codex/agents/reviewer.toml",
+          "format": "toml",
+          "modelKey": "model",
+          "effortKeys": ["model_reasoning_effort"]
+        }
+      ]
+    },
+    {
+      "runtime": "pi",
+      "role": "default",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "medium",
+      "reason": "ADR-010 Amendment 2026-08-30: main セッションは計画・統合・検収に徹するため毎ターン最大推論を掛けない（小さな修正に 1 時間半かかった実例）。重い推論は scout / worker（Luna max）への委譲で確保する",
+      "projections": [
+        {
+          "path": "packages/targets/pi/settings.json",
+          "format": "json",
+          "provider": "openai-codex",
+          "providerKey": "defaultProvider",
+          "modelKey": "defaultModel",
+          "effortKeys": ["defaultThinkingLevel"]
+        }
+      ]
+    },
+    {
+      "runtime": "pi",
+      "role": "web-search",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "max",
+      "projections": [
+        {
+          "path": "packages/targets/pi/pi-codex-conversion.json",
+          "format": "json",
+          "modelKey": "openai.webSearchModel",
+          "effortKeys": []
+        }
+      ]
+    },
+    {
+      "runtime": "pi",
+      "role": "planner",
+      "purpose": "design",
+      "model": "sol",
+      "effort": "medium",
+      "projections": [
+        {
+          "path": "packages/targets/pi/agents/planner.md",
+          "format": "frontmatter",
+          "provider": "openai-codex",
+          "modelKey": "model",
+          "effortKeys": ["thinking"]
+        }
+      ]
+    },
+    {
+      "runtime": "pi",
+      "role": "reviewer",
+      "purpose": "design",
+      "model": "sol",
+      "effort": "medium",
+      "projections": [
+        {
+          "path": "packages/targets/pi/agents/reviewer.md",
+          "format": "frontmatter",
+          "provider": "openai-codex",
+          "modelKey": "model",
+          "effortKeys": ["thinking"]
+        }
+      ]
+    },
+    {
+      "runtime": "pi",
+      "role": "scout",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "max",
+      "projections": [
+        {
+          "path": "packages/targets/pi/agents/scout.md",
+          "format": "frontmatter",
+          "provider": "openai-codex",
+          "modelKey": "model",
+          "effortKeys": ["thinking"]
+        }
+      ]
+    },
+    {
+      "runtime": "pi",
+      "role": "worker",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "max",
+      "projections": [
+        {
+          "path": "packages/targets/pi/agents/worker.md",
+          "format": "frontmatter",
+          "provider": "openai-codex",
+          "modelKey": "model",
+          "effortKeys": ["thinking"]
+        }
+      ]
+    },
+    {
+      "runtime": "opencode",
+      "role": "reviewer",
+      "purpose": "design",
+      "model": "sol",
+      "effort": "medium",
+      "projections": [
+        {
+          "path": "packages/targets/opencode/agents/reviewer.md",
+          "format": "frontmatter",
+          "provider": "openai",
+          "modelKey": "model",
+          "effortKeys": ["reasoningEffort"]
+        }
+      ]
+    },
+    {
+      "runtime": "omp",
+      "role": "default",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "max",
+      "projections": [
+        {
+          "path": "packages/targets/omp/config.yml",
+          "format": "omp-roles",
+          "provider": "openai-codex",
+          "modelKey": "modelRoles.default",
+          "effortKeys": []
+        }
+      ]
+    },
+    {
+      "runtime": "omp",
+      "role": "slow",
+      "purpose": "design",
+      "model": "luna",
+      "effort": "max",
+      "reason": "ADR-010 Amendment 2026-08-20: omp は全 role を Luna max に統一する。設計・レビューを Sol medium に分ける役割ルーティングは Codex と pi に残す",
+      "projections": [
+        {
+          "path": "packages/targets/omp/config.yml",
+          "format": "omp-roles",
+          "provider": "openai-codex",
+          "modelKey": "modelRoles.slow",
+          "effortKeys": []
+        }
+      ]
+    },
+    {
+      "runtime": "omp",
+      "role": "plan",
+      "purpose": "design",
+      "model": "luna",
+      "effort": "max",
+      "reason": "ADR-010 Amendment 2026-08-20: omp は全 role を Luna max に統一する。設計・レビューを Sol medium に分ける役割ルーティングは Codex と pi に残す",
+      "projections": [
+        {
+          "path": "packages/targets/omp/config.yml",
+          "format": "omp-roles",
+          "provider": "openai-codex",
+          "modelKey": "modelRoles.plan",
+          "effortKeys": []
+        }
+      ]
+    },
+    {
+      "runtime": "omp",
+      "role": "smol",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "max",
+      "projections": [
+        {
+          "path": "packages/targets/omp/config.yml",
+          "format": "omp-roles",
+          "provider": "openai-codex",
+          "modelKey": "modelRoles.smol",
+          "effortKeys": []
+        }
+      ]
+    },
+    {
+      "runtime": "omp",
+      "role": "task",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "max",
+      "projections": [
+        {
+          "path": "packages/targets/omp/config.yml",
+          "format": "omp-roles",
+          "provider": "openai-codex",
+          "modelKey": "modelRoles.task",
+          "effortKeys": []
+        }
+      ]
+    },
+    {
+      "runtime": "omp",
+      "role": "commit",
+      "purpose": "build",
+      "model": "luna",
+      "effort": "max",
+      "projections": [
+        {
+          "path": "packages/targets/omp/config.yml",
+          "format": "omp-roles",
+          "provider": "openai-codex",
+          "modelKey": "modelRoles.commit",
+          "effortKeys": []
+        }
+      ]
+    }
+  ]
+}

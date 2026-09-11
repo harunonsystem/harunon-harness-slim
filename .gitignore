@@ -1,0 +1,63 @@
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Local overrides
+settings.local.json
+.codex/
+*.local.json
+packages/targets/codex/config.local.toml
+.env
+.env.*
+!.env.example
+
+# Skill-local config (use config.example.yml as template)
+packages/core/skills/*/config.yml
+packages/core/skills/*/config.local.yml
+
+# Claude runtime artifacts (should never be committed)
+backups/
+cache/
+file-history/
+history.jsonl
+paste-cache/
+projects/
+plugins/
+shell-snapshots/
+todos/
+ide/
+debug/
+statsig/
+scheduled_tasks.json
+mcp-needs-auth-cache.json
+policy-limits.json
+stats-cache.json
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Test artifacts
+.coverage
+coverage*.json
+
+# Logs
+*.log
+
+# Pi OpenAI Codex account state (credentials stay in ~/.pi/agent)
+openai-codex-accounts.json
+openai-codex-account-settings.json
+openai-codex-account-rotation.log
+
+# Rulesync curated sources (reproducible from rulesync.lock)
+.rulesync/rules/.curated/
+.rulesync/skills/.curated/
+rulesync.local.jsonc
+
+# Bootstrap で展開される作業用ディレクトリ
+/skills/
+/build/

@@ -1,0 +1,23 @@
+# implement-issue 設定
+# config.yml にコピーして環境に合わせて編集すること。
+# スキル実行時に config.yml が Read される。
+
+# メインリポジトリのパス（単一リポジトリ運用）
+main_repo: ~/projects/your-project
+
+# 複数リポジトリ運用の場合: issue ID の prefix (例: ABC-123 の "ABC") → リポジトリパス
+# 定義されている場合は main_repo より優先される
+# repos:
+#   ABC: ~/projects/repo-a
+#   XYZ: ~/projects/repo-b
+
+# worktree管理コマンド（add / list サブコマンドを持つこと）
+# example: gwm, git worktree
+worktree_cmd: gwm
+
+# PR Templateのパス（リポジトリルートからの相対パス）
+pr_template: .github/PULL_REQUEST_TEMPLATE.md
+
+# lint修正コマンド
+# example: pnpm run lint:write, npm run lint -- --fix
+lint_fix_cmd: pnpm run lint:write

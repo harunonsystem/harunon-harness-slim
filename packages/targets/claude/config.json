@@ -1,0 +1,118 @@
+{
+	"$schema": "../../../schemas/target-config.schema.json",
+	"name": "claude",
+	"displayName": "Claude Code",
+	"configDir": "~/.claude",
+	"extrasOverlay": true,
+	"configFile": "settings.json",
+	"instructionsFile": "CLAUDE.md",
+	"settingsSync": {
+		"source": "packages/core/settings.json",
+		"keys": [
+			"hooks",
+			"sandbox",
+			"permissions.deny",
+			"permissions.ask",
+			"autoMode.hard_deny",
+			"autoMode.soft_deny",
+			"fallbackModel",
+			"switchModelsOnFlag",
+			"env.HARNESS_RUNTIME",
+			"env.NODE_USE_ENV_PROXY"
+		],
+		"checkOnlyKeys": [
+			"enabledPlugins",
+			"extraKnownMarketplaces"
+		],
+		"removeKeys": [
+			"enabledPlugins.mattpocock-skills@mattpocock",
+			"extraKnownMarketplaces.mattpocock"
+		]
+	},
+	"distribute": {
+		"CLAUDE.md": {
+			"source": "packages/core/CLAUDE.md",
+			"expandIncludes": true
+		},
+		"commands.md": {
+			"source": "packages/core/commands.md"
+		},
+		"agents/": {
+			"source": "packages/core/agents/"
+		},
+		"commands/": {
+			"source": "packages/core/commands/"
+		},
+		"hooks/": {
+			"source": "packages/core/hooks/"
+		},
+		"policy/": {
+			"source": [
+				"packages/core/policy/"
+			]
+		},
+		"workflows/": {
+			"source": "packages/core/workflows/"
+		},
+		"rules/": {
+			"source": [
+				"packages/core/rules/"
+			]
+		},
+		"skills/": {
+			"source": [
+				"packages/core/skills/"
+			]
+		}
+	},
+	"obsoleteFiles": [
+		"HEADROOM.md",
+		"commands/plain-copy.md",
+		"rules/coding-policy.md",
+		"rules/correction-lessons.md",
+		"rules/ai-antipattern-prevention.md",
+		"rules/security-review-sinks.md",
+		"rules/git-safety.md",
+		"rules/hook-skip.md",
+		"rules/available-models.md",
+		"rules/worktree-directory-change.md",
+		"knowledge-notes/NOTICE.txt",
+		"knowledge-notes/component-bestiary-reference.md",
+		"knowledge-notes/component-governance.md",
+		"knowledge-notes/design-to-code-contract.md",
+		"knowledge-notes/output-discipline.md",
+		"knowledge-notes/token-architecture.md",
+		"skills/component-audit/SKILL.md",
+		"skills/design-to-code-check/SKILL.md",
+		"skills/drift-detection/SKILL.md",
+		"skills/ds-triage/SKILL.md",
+		"skills/token-audit/SKILL.md",
+		"skills/token-compliance/SKILL.md",
+		"skills/writing-great-skills/SKILL.md",
+		"skills/writing-great-skills/GLOSSARY.md",
+		"skills/codex-reset-credits/SKILL.md",
+		"skills/codex-reset-credits/scripts/check-reset-credits.mjs"
+	],
+	"notes": [
+		"Startup Self-Check セクションは Claude 固有（model ID 検証）",
+		"obsoleteFiles: 常駐 rules と退役 skill / knowledge-notes の掃除。frontmatter に paths: を持たない rules/*.md は毎セッション注入されるため、SSOT から消しただけではライブに残って常駐コストを払い続ける（実測: 統合済み 3 ファイル + sink 表で 28.8KB が約 1 か月残存）。distribution ledger は「今回配ったもの」しか記録しないため、ledger 未保有マシンでは旧配布物が永久に残る。退役ファイルはここに exact path で宣言する",
+		"engineering skills のうち rulesync が upstream から配る分（codebase-design / diagnosing-bugs / tdd / triage 等）は packages/core/skills/ に vendored コピーを持たず、upstream を正本とする（ADR-011）。skills/ の source 配列に .rulesync/skills/.curated/ を追加してあり、他の source と同じ distribution ledger（--check で drift 検出、--push --prune で退役分を削除）で管理する（ADR-011 Update 2026-08-30。旧 bootstrap Step 2.5 の bash rm -rf コピーは廃止）。取得（rulesync install --frozen）は bootstrap.sh が push 前に fail-closed で実行するので、rules が /diagnosing-bugs 等を名指し参照しても不在のまま配布完了にはならない。Claude だけ native plugin を canonical source にする案は、正本が Claude と他 runtime で 2 系統に割れる・plugin 宣言（settings.json の enabledPlugins / marketplace）が settingsSync の keys 外で配布経路を持たない、の 2 点で今も採らない",
+		"Hook updatedInput rewrite 対応済み",
+		"patches なし（SSOT そのものがこのターゲット）",
+		"rules/ と skills/ と policy/ の source は配列対応。core → extras の順で配布（bootstrap.sh は distribute.py の殻）",
+		"policy/ の extras source は danger-rules.extra.json（会社・プロジェクト固有の危険コマンドルール）。block-dangerous-in-bash.sh が core table とあわせて実行時に読む。固有名を core に書かないための分離で、schema は danger_rules.py が存在時に検証する",
+		"skill は core + extras の全件を配布する（skill pack によるキュレーションは 2026-08-19 に廃止。『SSOT にはあるが配布されていない』ズレで skill 不在エラーが頻発したため）。除外は互換性理由のみ disabled-skills.json で宣言するが、claude は全 skill が動く前提で targets に含めない。baoyu-design と better-interface は必要なプロジェクトで外部installする",
+		"bootstrap.sh は distribute.py の殻。この宣言が唯一の真実（SSOT-first 原則）",
+		"extrasOverlay: --push 時に extras の env.json / settings-overlay.json マージと skill-overrides を適用する（claude のみ宣言）",
+		"settingsSync: settings.json の hooks / sandbox / permissions.deny / permissions.ask / fallbackModel / switchModelsOnFlag / env.HARNESS_RUNTIME / env.NODE_USE_ENV_PROXY キーのみ SSOT テンプレートで同期（--check で drift 検出）。plugin のインストール・有効化状態は Claude CLI が管理するため同期しない",
+		"env.NODE_USE_ENV_PROXY: Node の undici は HTTP_PROXY 系の環境変数をデフォルトで無視するため、Bash sandbox のネットワークが filtering proxy 経由の環境では Node 製ツールだけが getaddrinfo ENOTFOUND で落ちる（同じホストに curl は 200 で通る）。これが rulesync install を失敗させ bootstrap を fail-closed で止めていた原因で、sandbox.network.allowedDomains には api.github.com が最初から入っていた。この 1 変数で sandbox 内でも完走する（2026-09-10 実測、Node v26.8.1）。他ターゲットへ波及させないのは、codex の sandbox が sandbox_workspace_write.network_access の allow/deny 方式で filtering proxy を経由せず同じ失敗が起きないため（将来 proxy 起因の失敗が別ターゲットで出たらこの前提から見直す）。settings.json の同期キーが変わる配布だけは live が write deny なので sandbox 外が必要で、1 ターゲットの設定キーだけなら distribute.py <target> --push が sandbox 内で通る",
+		"env.HARNESS_RUNTIME は dotted key で同期する（permissions.deny と同様、env 配下の他キーは触らない）。hooks/ は配布されても env.HARNESS_RUNTIME が live に届かないと block-dangerous-in-bash.sh が fail-closed で全 Bash を deny する（HARNESS_EXPECTED_PLAN 等のユーザー env や extras env.json 由来のキーは env.HARNESS_RUNTIME 追加後も影響を受けない。Codex review P1、2026-08-27）",
+		"fallbackModel: [] と switchModelsOnFlag: false はモデル信頼性ポリシー（下位モデルへの自動フォールバック禁止・safeguard 発動時の自動切替禁止 = セッション一時停止）。マシン間で揃える必要があるため SSOT 同期対象に昇格（2026-07-27）。effortLevel はローカル蓄積キーのまま同期しない",
+		"permissions.deny / permissions.ask は dotted key で同期する。permissions.allow はセッション中に育つローカル蓄積キーなので同期対象にしない（deny と ask を SSOT が所有する）。ask は auto mode（classifier）が git push / gh pr create（rtk-rewrite 後の rtk 形式含む）を無確認で通すのを防ぐ確認ゲートで、classifier より先に評価される。deny を同期対象に入れたのは、ガードの実体が Write/Edit 経由で書き換えられる穴を塞ぐため: sandbox.filesystem の deny は Bash 系サブプロセスにしか効かず、Read/Edit/Write ツールは permission 系で判定されるため、live の permissions.deny が空だと ~/.claude/hooks/ の hook コード自体も agent が編集できる（2026-07-26 に Write / Edit ツールで実測）",
+		"autoMode は danger-rules.json の rule.autoMode から scripts/sync-auto-mode-rules.py が投影する生成物（SSOT は danger-rules.json）。同期対象は autoMode.hard_deny と autoMode.soft_deny の 2 キーを必ず対で宣言する（classifier は両 tier が揃っている必要がある）。autoMode.environment は /auto-mode-setup がマシン固有の棚卸しとして live に書くキーなので permissions.allow と同じ live 専用扱いにし、同期・drift 検出の対象外（2026-09-05）",
+		"Edit(...) の deny は Write / NotebookEdit も覆う。Write(path) 形式は受理されるがファイル permission 判定にマッチせず起動時に警告が出るため使わない（Claude Code v2.1.210 以降）。パス構文は permission 系と sandbox 系で異なる: permission は ~/ が home・単一 / が設定ソース基準・絶対パスは //、sandbox.filesystem は / が絶対パス",
+		"sandbox.filesystem.denyWrite は policy/ と rigor-patterns.json / rigor.local.json だけを列挙する。hooks/ と agents/ の Bash 書き込みは Claude Code 組み込みの deny が既に覆っているが、harness 独自パスである policy/（danger-rules.json）と rigor パターンは組み込みの対象外で、table の action を block から warn に書き換えるだけで全ガードを無効化できた",
+		"removeKeys: テンプレートから消しただけでは live から消えない。settings.json が存在しないマシンでは初回 push でテンプレート全体がコピーされるため、d550f44 が main にあった期間に bootstrap したマシンには mattpocock の enabledPlugins / marketplace 宣言が残る。以降の同期は hooks / sandbox しか触らないので removeKeys で明示的に除去する",
+		"sandbox は security 設定のため SSOT 同期対象。excludedCommands に docker/gh/gcloud/terraform を含むのは Go 製 CLI が Sandboxed Bash 配下で TLS 検証に失敗するため（macOS Seatbelt との既知の非互換）"
+	]
+}

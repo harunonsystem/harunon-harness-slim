@@ -1,0 +1,47 @@
+modelRoles:
+  default: openai-codex/gpt-5.6-luna:max
+  slow: openai-codex/gpt-5.6-luna:max
+  plan: openai-codex/gpt-5.6-luna:max
+  smol: openai-codex/gpt-5.6-luna:max
+  task: openai-codex/gpt-5.6-luna:max
+  commit: openai-codex/gpt-5.6-luna:max
+hideThinkingBlock: true
+tools:
+  approvalMode: yolo
+plan:
+  enabled: true
+  defaultOnStartup: false
+display:
+  hideToolActivity: true
+bash:
+  # 値は danger-rules.json（SSOT）から settingsSync.computedGlobs（mergeShape:
+  # orderedPatterns）が計算して埋める。first-match-wins のため deny を先頭、
+  # prompt をその後に置く。ここは空の宣言だけを置く。
+  patterns: []
+skills:
+  # 値は disabled-skills.json（SSOT）から settingsSync.computedSkillIgnores が
+  # 計算して埋める。ここは形だけ宣言する。
+  ignoredSkills: []
+enabledModels:
+  - cursor/composer-2.5-fast
+  - openai-codex/*
+  - opencode-zen/big-pickle
+  - opencode-zen/hy3-free
+  - opencode-zen/hy3-preview-free
+  - opencode-zen/laguna-s-2.1-free
+  - opencode-zen/ling-2.6-flash-free
+  - opencode-zen/mimo-v2-flash-free
+  - opencode-zen/mimo-v2-omni-free
+  - opencode-zen/mimo-v2-pro-free
+  - opencode-zen/mimo-v2.5-free
+  - opencode-zen/minimax-m2.5-free
+  - opencode-zen/minimax-m3-free
+  - opencode-zen/muse-spark-1.2-contributor-free
+  - opencode-zen/nemotron-3-super-free
+  - opencode-zen/nemotron-3-ultra-free
+  - opencode-zen/nemotron-3.5-lightning-free
+  - opencode-zen/north-mini-code-free
+  - opencode-zen/qwen3.6-plus-free
+  - opencode-zen/ring-2.6-1t-free
+  - opencode-zen/trinity-large-preview-free
+  - opencode-zen/x-preview-f-free

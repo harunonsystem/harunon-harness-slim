@@ -1,0 +1,123 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://github.com/harunon/harunon-harness/schemas/codex-features.schema.json",
+	"description": "Schema for packages/targets/codex/features.json — the SSOT for which codex [features] flags the harness declares and which it removes from live configs. settingsSync keys/removeKeys are derived from this table.",
+	"type": "object",
+	"required": ["measuredWith", "measuredAt", "features"],
+	"additionalProperties": false,
+	"properties": {
+		"$schema": {
+			"type": "string"
+		},
+		"measuredWith": {
+			"type": "string",
+			"description": "codex-cli version the defaults were measured against (e.g. 'codex-cli 0.153.4'). Defaults drift between releases, so record what was measured."
+		},
+		"measuredAt": {
+			"type": "string",
+			"pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+			"description": "Date the defaults were measured (YYYY-MM-DD)."
+		},
+		"notes": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "Why this table exists and how to re-measure it."
+		},
+		"features": {
+			"type": "object",
+			"description": "Feature name -> declaration. Every codex feature the harness has an opinion about, including ones it deliberately does not declare.",
+			"minProperties": 1,
+			"additionalProperties": {
+				"type": "object",
+				"required": ["stage", "declare", "why"],
+				"additionalProperties": false,
+				"properties": {
+					"stage": {
+						"type": "string",
+						"enum": [
+							"stable",
+							"experimental",
+							"under development",
+							"deprecated",
+							"removed",
+							"absent"
+						],
+						"description": "Stage reported by `codex features list`. 'absent' means the flag no longer exists in the measured version and is kept only to retire it from live configs."
+					},
+					"default": {
+						"type": "boolean",
+						"description": "Effective value with an empty CODEX_HOME. Required unless stage is 'absent'."
+					},
+					"shape": {
+						"type": "string",
+						"enum": ["bool", "table"],
+						"description": "Form the codex parser accepts. Required unless stage is 'absent'."
+					},
+					"fields": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"minItems": 1,
+						"uniqueItems": true,
+						"description": "Sub-keys accepted by a table-shaped flag. codex rejects unknown fields by failing the whole config load, so this must match the parser exactly."
+					},
+					"declare": {
+						"type": "boolean",
+						"description": "true: written to config.toml and synced (becomes a settingsSync key). false: never written and removed from live configs (becomes a removeKey)."
+					},
+					"why": {
+						"type": "string",
+						"description": "Reason for the declare decision, in the author's own words."
+					}
+				},
+				"allOf": [
+					{
+						"if": {
+							"properties": {
+								"stage": {
+									"not": {
+										"const": "absent"
+									}
+								}
+							}
+						},
+						"then": {
+							"required": ["default", "shape"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"shape": {
+									"const": "table"
+								}
+							},
+							"required": ["shape"]
+						},
+						"then": {
+							"required": ["fields"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"shape": {
+									"const": "bool"
+								}
+							},
+							"required": ["shape"]
+						},
+						"then": {
+							"not": {
+								"required": ["fields"]
+							}
+						}
+					}
+				]
+			}
+		}
+	}
+}

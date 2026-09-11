@@ -1,0 +1,27 @@
+# 3台目以降の開発マシン向け global mise の例。
+#
+# これはプロジェクトの mise.toml ではない。内容を確認してから、
+# `scripts/setup-machine.sh` または mise use --global で ~/.config/mise/config.toml
+# に反映する。
+
+[tools]
+# Pi 本体。バージョンは ~/.config/mise/config.toml 側で pin する。
+pnpm = "11.20.0"
+"npm:@earendil-works/pi-coding-agent" = "0.84.3"
+"npm:@oh-my-pi/pi-coding-agent" = "18.0.8"
+"npm:@jackwener/opencli" = "1.8.6"
+"npm:difit" = "5.0.9"
+# ocr-review skill が canonical な diff レビュー engine として呼ぶ CLI。
+# skill だけ配っても CLI が無いマシンでは起動できないので宣言に含める。
+"npm:@alibaba-group/open-code-review" = "1.1.10"
+
+# CLIはglobal pnpmを使うmise npm backendで管理する。npx fallbackは禁止。
+
+[env]
+# harness が全マシン共通で要求する環境変数はここに宣言する（shell rc に書かない）。
+# harness-doctor / bootstrap がこの表と live の差分を警告し、setup-machine.sh が
+# 確認付きで反映する。PI_FFF_MODE は pi target の extensions/harness-fff-mode.js が
+# 未設定時に override へ寄せるので、ここには置かない（明示した値は尊重される）。
+
+[settings.npm]
+package_manager = "pnpm"

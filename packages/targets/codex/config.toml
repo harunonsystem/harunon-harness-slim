@@ -1,0 +1,60 @@
+# model / model_reasoning_effort は Codex app 再起動時の medium リセットを防ぐため
+# settingsSync で push 同期する。
+model = "gpt-5.6-luna"
+model_provider = "openai"
+model_reasoning_effort = "max"
+plan_mode_reasoning_effort = "max"
+model_reasoning_summary = "concise"
+model_verbosity = "low"
+model_context_window = 272000
+model_auto_compact_token_limit = 240000
+review_model = "gpt-5.6-sol"
+
+approval_policy = "on-request"
+approvals_reviewer = "guardian_subagent"
+default_permissions = ":workspace"
+personality = "pragmatic"
+sandbox_mode = "workspace-write"
+suppress_unstable_features_warning = true
+
+[sandbox_workspace_write]
+network_access = true
+
+# codex features list の実測 default と同値のフラグはここに書かない。
+# 残すのは default off で意図的に有効化しているものだけ（codex-cli 0.153.4 で実測）。
+# hooks / guardian_approval / multi_agent / goals は stable かつ default true、
+# network_proxy / chronicle は default false、terminal_resize_reflow / js_repl は removed。
+[features]
+memories = true            # default false
+
+# context_management の table は experimental_mode だけを受け付ける（enabled は拒否される。
+# multi_agent_v2 とは別スキーマ）。bool true も同義だが、公式が案内している表記に合わせ、
+# 将来フィールドが増えたときに書き足せる table 形で持つ。
+[features.context_management]
+experimental_mode = true
+
+# multi_agent_v2 は bool にすると codex 既定の tool_namespace = "collaboration" /
+# hide_spawn_agent_metadata = true に戻ってしまう。enabled = true 付きの table で
+# 明示値を保持する（enabled が無い table は bool として解釈され読み込みに失敗する）。
+[features.multi_agent_v2]
+enabled = true
+hide_spawn_agent_metadata = false
+tool_namespace = "agents"
+usage_hint_enabled = true
+
+[agents]
+max_threads = 6
+max_depth = 1
+default_subagent_model = "gpt-5.6-luna"
+default_subagent_reasoning_effort = "max"
+
+[memories]
+disable_on_external_context = true
+generate_memories = true
+use_memories = true
+
+[tui]
+status_line = ["model-with-reasoning", "current-dir", "git-branch", "context-remaining", "model-name", "project-root", "context-window-size"]
+
+[notice]
+fast_default_opt_out = true

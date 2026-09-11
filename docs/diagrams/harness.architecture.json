@@ -1,0 +1,388 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "harunon-harness 配布アーキテクチャ",
+    "output": "harness-architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1060,
+      570
+    ],
+    "views": [
+      {
+        "id": "distribution",
+        "label": "配布の主経路",
+        "focus": [
+          "core",
+          "config",
+          "dist",
+          "claude",
+          "codex"
+        ],
+        "note": "SSOT から宣言を解決し、7 つの配布先へ push するまでの主経路。"
+      },
+      {
+        "id": "sources",
+        "label": "SSOT の 3 系統",
+        "focus": [
+          "core",
+          "extras",
+          "curated",
+          "config"
+        ],
+        "note": "共有・私有・upstream vendored の 3 系統が 1 つの manifest に合流する。"
+      },
+      {
+        "id": "runtime-policy",
+        "label": "実行時 policy",
+        "focus": [
+          "policy",
+          "runner",
+          "agents3",
+          "claude"
+        ],
+        "note": "配布された policy table を各 runtime が実行時に読み、guard→rewrite の順で適用する。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "core",
+      "type": "database",
+      "label": "packages/core",
+      "sublabel": "配布物の SSOT",
+      "tag": "skills 77 / hooks 43",
+      "pos": [
+        40,
+        180
+      ],
+      "size": [
+        170,
+        70
+      ]
+    },
+    {
+      "id": "extras",
+      "type": "database",
+      "label": "extras/_active",
+      "sublabel": "private submodule",
+      "pos": [
+        40,
+        295
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "curated",
+      "type": "external",
+      "label": ".rulesync curated",
+      "sublabel": "upstream skills (ADR-011)",
+      "pos": [
+        40,
+        405
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "config",
+      "type": "backend",
+      "label": "targets/*/config.json",
+      "sublabel": "配布宣言（唯一の真実）",
+      "tag": "distribute / settingsSync / obsoleteFiles",
+      "pos": [
+        300,
+        285
+      ],
+      "size": [
+        200,
+        80
+      ]
+    },
+    {
+      "id": "validate",
+      "type": "security",
+      "label": "validate-harness.py",
+      "sublabel": "メタ整合 28 check",
+      "pos": [
+        300,
+        120
+      ],
+      "size": [
+        200,
+        64
+      ]
+    },
+    {
+      "id": "dist",
+      "type": "backend",
+      "label": "Distribution",
+      "sublabel": "resolve → inspect → apply → pull",
+      "tag": "distribute.py / bootstrap.sh",
+      "pos": [
+        580,
+        285
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "claude",
+      "type": "cloud",
+      "label": "~/.claude",
+      "sublabel": "Claude Code",
+      "tag": "extras overlay あり",
+      "pos": [
+        850,
+        100
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "codex",
+      "type": "cloud",
+      "label": "~/.codex",
+      "sublabel": "Codex Desktop",
+      "pos": [
+        850,
+        200
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "agents3",
+      "type": "cloud",
+      "label": "~/.pi · ~/.omp · opencode",
+      "sublabel": "hook-runner を持つ 3 runtime",
+      "pos": [
+        850,
+        400
+      ],
+      "size": [
+        170,
+        74
+      ]
+    },
+    {
+      "id": "shared",
+      "type": "cloud",
+      "label": "~/.agents · ~/.local/bin",
+      "sublabel": "共有 skills / launcher",
+      "pos": [
+        850,
+        300
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "policy",
+      "type": "security",
+      "label": "policy/*.json",
+      "sublabel": "hook-pipeline / danger-rules",
+      "tag": "hook 6 · rule 38",
+      "pos": [
+        300,
+        460
+      ],
+      "size": [
+        200,
+        74
+      ]
+    },
+    {
+      "id": "runner",
+      "type": "security",
+      "label": "hook-runner.js / codex_hook.py",
+      "sublabel": "guard → rewrite を逐次実行",
+      "pos": [
+        580,
+        460
+      ],
+      "size": [
+        190,
+        74
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "harunon-harness リポジトリ（SSOT・ここだけを編集する）",
+      "wraps": [
+        "core",
+        "extras",
+        "curated",
+        "config",
+        "validate",
+        "dist",
+        "policy"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "実行時 policy 層",
+      "wraps": [
+        "policy",
+        "runner"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "core-to-config",
+      "from": "core",
+      "to": "config",
+      "label": "manifest 解決",
+      "variant": "emphasis"
+    },
+    {
+      "id": "extras-to-config",
+      "from": "extras",
+      "to": "config",
+      "label": "overlay",
+      "labelDy": 16
+    },
+    {
+      "id": "curated-to-config",
+      "from": "curated",
+      "to": "config",
+      "label": "vendored skills"
+    },
+    {
+      "id": "config-to-dist",
+      "from": "config",
+      "to": "dist",
+      "label": "宣言を実行",
+      "variant": "emphasis"
+    },
+    {
+      "id": "validate-config",
+      "from": "validate",
+      "to": "config",
+      "label": "宣言と実体を検証",
+      "variant": "security",
+      "labelDy": 24
+    },
+    {
+      "id": "dist-claude",
+      "from": "dist",
+      "to": "claude",
+      "label": "push / --check",
+      "variant": "emphasis"
+    },
+    {
+      "id": "dist-codex",
+      "from": "dist",
+      "to": "codex"
+    },
+    {
+      "id": "dist-agents3",
+      "from": "dist",
+      "to": "agents3"
+    },
+    {
+      "id": "dist-shared",
+      "from": "dist",
+      "to": "shared"
+    },
+    {
+      "id": "pull-back",
+      "from": "claude",
+      "to": "core",
+      "label": "--pull で還流",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [
+        [
+          935,
+          50
+        ],
+        [
+          125,
+          50
+        ]
+      ]
+    },
+    {
+      "id": "dist-policy",
+      "from": "dist",
+      "to": "policy",
+      "label": "table を配布",
+      "fromSide": "bottom",
+      "toSide": "right"
+    },
+    {
+      "id": "policy-runner",
+      "from": "policy",
+      "to": "runner",
+      "label": "実行時に読む",
+      "variant": "security",
+      "labelDx": 2,
+      "labelDy": 26
+    },
+    {
+      "id": "runner-agents3",
+      "from": "runner",
+      "to": "agents3",
+      "label": "deny / コマンド書き換え",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "via": [
+        [
+          935,
+          497
+        ]
+      ],
+      "labelAt": [
+        860,
+        520
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "SSOT-first",
+      "items": [
+        "編集するのは packages/ 側だけ",
+        "ライブ（~/.claude 等）を直すと次の push で無言で巻き戻る"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "宣言が唯一の真実",
+      "items": [
+        "どのファイルがどこへ行くかは config.json だけが決める",
+        "settingsSync はキー単位マージ（宣言外は手編集として残す）",
+        "obsoleteFiles が退役ファイルの唯一の出口"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "policy は runtime ごとに実効範囲が違う",
+      "items": [
+        "hook 6 本 × 5 runtime の配線は hook-pipeline.json が宣言",
+        "danger rule 38 本の実効範囲は rule ごとの targets / absent が真実"
+      ]
+    }
+  ]
+}

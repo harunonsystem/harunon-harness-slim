@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Harunon Harness Task State",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "revision",
+    "phase",
+    "task",
+    "workflow",
+    "context",
+    "evidence",
+    "reviewAttempts",
+    "assignments"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "revision": { "type": "integer", "minimum": 0 },
+    "reviewAttempts": { "type": "integer", "minimum": 0 },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "intake",
+        "clarify",
+        "isolate",
+        "plan",
+        "implement",
+        "verify",
+        "checkpoint",
+        "review",
+        "decide",
+        "publish",
+        "complete"
+      ]
+    },
+    "task": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "const": "change" },
+        "version": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "context": {
+      "type": "object",
+      "required": ["gitDir", "worktreeRoot"],
+      "properties": {
+        "gitDir": { "type": "string", "minLength": 1 },
+        "worktreeRoot": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "trust"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["local-review", "worker-report"] },
+          "trust": { "const": "audit-only" },
+          "provider": { "type": "string", "minLength": 1 },
+          "subjectSha": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+          "artifact": { "type": "string", "minLength": 1 },
+          "rereviewReason": { "type": "string", "minLength": 1 },
+          "assignmentIndex": { "type": "integer", "minimum": 0 },
+          "executor": { "type": "string", "minLength": 1 },
+          "workerId": { "type": "string", "minLength": 1 },
+          "resultSha": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["command", "exitCode"],
+              "properties": {
+                "command": { "type": "string", "minLength": 1 },
+                "exitCode": { "type": "integer" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "rereviewApproval": {
+      "type": "object",
+      "required": ["reason"],
+      "properties": {
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "assignments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["role", "executor", "workerId", "status", "correlationId", "subjectSha"],
+        "properties": {
+          "role": { "type": "string", "enum": ["implement", "review"] },
+          "executor": { "type": "string", "minLength": 1 },
+          "workerId": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["assigned", "dispatched", "reported", "abandoned"] },
+          "correlationId": { "type": "string", "minLength": 1 },
+          "subjectSha": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+          "dispatch": {
+            "type": "object",
+            "required": ["transport", "ref", "at"],
+            "properties": {
+              "transport": { "type": "string", "minLength": 1 },
+              "ref": { "type": "object" },
+              "at": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          },
+          "resultSha": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+          "abandonReason": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
