@@ -158,12 +158,22 @@ class TestBlockEditOnMain(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0)
 
-    def test_harunon_harness_repo_is_exempted_even_on_main(self):
-        # harness リポジトリ自体は main で直接作業する運用のため常に許可される
-        repo = _make_git_repo(self.root, name="harunon-harness", branch="main")
+    def test_harness_checkout_is_exempted_even_on_main(self):
+        # harness リポジトリ自体は main で直接作業する運用のため常に許可される。
+        # 判定はディレクトリ名ではなく構造（packages/targets + scripts/distribute.py）
+        repo = _make_git_repo(self.root, name="any-clone-name", branch="main")
+        (repo / "packages/targets").mkdir(parents=True)
+        (repo / "scripts").mkdir()
+        (repo / "scripts/distribute.py").write_text("")
         file_path = str(repo / "file.txt")
         result = _run(file_path, cwd=str(repo), home=str(self.fake_home))
         self.assertEqual(result.returncode, 0)
+
+    def test_repo_named_like_harness_without_structure_is_still_blocked(self):
+        repo = _make_git_repo(self.root, name="harunon-harness", branch="main")
+        file_path = str(repo / "file.txt")
+        result = _run(file_path, cwd=str(repo), home=str(self.fake_home))
+        self.assertEqual(result.returncode, 2)
 
     def test_apply_patch_envelope_relative_path_on_main_is_blocked(self):
         # pi の apply_patch は file_path を持たず、tool_input.input に Codex patch

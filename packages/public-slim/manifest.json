@@ -78,9 +78,9 @@
 		"patternSources": [
 			"blockedTerms",
 			"submoduleNames",
-			"localUsername"
+			"localHome"
 		],
-		"patternSourcesNote": "ゲートに使う値を manifest に持たない。このファイル自身が公開対象なので、ここに固有名や repo 名を書けばそれ自体が漏洩経路になる。実装（harness_lib/public_slim.py の PATTERN_SOURCES）が source ごとに実行時へ解決する: blockedTerms は .env の BLOCKED_TERMS（.env.example が契約を示し、.githooks/pre-commit と値を共有する既存 SSOT）、submoduleNames は .gitmodules に宣言された submodule の URL から導いた名前、localUsername は HOME のディレクトリ名",
+		"patternSourcesNote": "ゲートに使う値を manifest に持たない。このファイル自身が公開対象なので、ここに固有名や repo 名を書けばそれ自体が漏洩経路になる。実装（harness_lib/public_slim.py の PATTERN_SOURCES）が source ごとに実行時へ解決する: blockedTerms は .env の BLOCKED_TERMS（.env.example が契約を示し、.githooks/pre-commit と値を共有する既存 SSOT）、submoduleNames は .gitmodules に宣言された submodule の URL から導いた名前、localHome は HOME の絶対パス（ユーザー名の裸の文字列で当てると GitHub Actions の runner が hook-runner 等に誤爆する）",
 		"failClosed": true,
 		"failClosedNote": "blockedTerms が空または読めない場合は build を落とす（exit 2）。.env は追跡外なので、未設定の環境（clone 直後・CI）では検出なしで通ってしまう。公開は不可逆なので、パターンが 0 件のまま生成させない",
 		"suspiciousPatterns": [

@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 
@@ -36,8 +37,9 @@ class TestBuildPublicSlim(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.tmp = tempfile.TemporaryDirectory(prefix="public-slim-test.")
         cls.output = Path(cls.tmp.name) / "out"
-        # 実 .env に依存しない: テスト専用の env file を渡して fail-close を回避する
-        cls.env_file = _env_file_with_terms(Path(cls.tmp.name), "zz-test-blocked-term")
+        # 実 .env に依存しない: テスト専用の env file を渡して fail-close を回避する。
+        # 語は実行時に作る（固定文字列だと、このテストファイル自身が slim に含まれて自己ヒットする）
+        cls.env_file = _env_file_with_terms(Path(cls.tmp.name), f"zz-{uuid.uuid4().hex}")
         result = subprocess.run(
             [sys.executable, str(BUILDER), "--output", str(cls.output), "--env-file", str(cls.env_file)],
             cwd=REPO_ROOT, capture_output=True, text=True, timeout=300,
@@ -169,7 +171,7 @@ class TestBuildPublicSlim(unittest.TestCase):
             self.env_file,
         )
         self.assertTrue(result.ok)
-        self.assertGreaterEqual(result.pattern_count, 2)  # blockedTerms + localUsername は必ずある
+        self.assertGreaterEqual(result.pattern_count, 2)  # blockedTerms + localHome は必ずある
 
     def test_gate_hits_planted_blocked_term(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

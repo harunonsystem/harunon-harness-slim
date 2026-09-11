@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -377,15 +376,19 @@ def _submodule_names(repo: Path, env_file: Path | None = None) -> list[str]:
     return names
 
 
-def _local_username(repo: Path, env_file: Path | None = None) -> list[str]:
-    """絶対パスの漏れは build を回すマシンのユーザー名に依存するので実行時に解決する。"""
-    return [Path(os.path.expanduser("~")).name]
+def _local_home(repo: Path, env_file: Path | None = None) -> list[str]:
+    """絶対パスの漏れは build を回すマシンの HOME に依存するので実行時に解決する。
+
+    ユーザー名の裸の文字列ではなく HOME のパスで当てる。裸だと GitHub Actions の
+    `runner` が hook-runner 等に当たって誤爆する（2026-09-11 に slim の CI で実測）。
+    """
+    return [str(Path.home())]
 
 
 PATTERN_SOURCES: dict[str, Callable[[Path, Path | None], list[str]]] = {
     "blockedTerms": _blocked_terms,
     "submoduleNames": _submodule_names,
-    "localUsername": _local_username,
+    "localHome": _local_home,
 }
 
 

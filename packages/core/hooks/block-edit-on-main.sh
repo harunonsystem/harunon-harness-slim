@@ -10,6 +10,13 @@ source "$HOOK_DIR/lib/rigor-profile.sh"
 # casual profile では main ブランチ直編集ガードを課さない（ADR-009）。
 [ "$(rigor_profile)" = "casual" ] && exit 0
 
+# harness の SSOT checkout かどうかを構造で判定する（配布宣言 + distribute 本体）。
+# ディレクトリ名で判定すると clone 先の名前や slim 生成物（harunon-harness-slim）で
+# main 直編集が deny される（2026-09-11 に slim の CI で実測）。
+_is_harness_checkout() {
+  [ -d "$1/packages/targets" ] && [ -f "$1/scripts/distribute.py" ]
+}
+
 if [ -n "${TOOL_INPUT:-}" ]; then
   INPUT="$TOOL_INPUT"
 else
@@ -139,12 +146,12 @@ check_candidate_path() {
   # harness リポジトリ自体はスルー（main で作業する運用）
   local repo_name
   repo_name=$(basename "$git_root")
-  [ "$repo_name" = "harunon-harness" ] && return 0
+  _is_harness_checkout "$git_root" && return 0
 
   # harness の submodule（packages/extras/_active 等）も同じ main 直運用（SSOT-first）
   local superproject
   superproject=$(git -C "$git_root" rev-parse --show-superproject-working-tree 2>/dev/null || echo "")
-  if [ -n "$superproject" ] && [ "$(basename "$superproject")" = "harunon-harness" ]; then
+  if [ -n "$superproject" ] && _is_harness_checkout "$superproject"; then
     return 0
   fi
 
