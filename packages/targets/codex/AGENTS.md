@@ -6,6 +6,8 @@
 
 <!-- include: packages/core/fragments/agents-md/routing.md -->
 
+<!-- include: packages/core/fragments/agents-md/routing-browser.md -->
+
 <!-- include: packages/core/fragments/agents-md/lesson.md -->
 
 ## Language

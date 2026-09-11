@@ -59,35 +59,56 @@ def load_manifest(repo: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def enumerate_files(repo: Path) -> list[str]:
+def enumerate_files(repo: Path, *, allow_walk: bool = False) -> list[str]:
     """公開候補の相対パス一覧。
 
-    git 管理下なら `git ls-files`（追跡ファイルのみ。.env / build/ / skills/ 等の untracked と
-    submodule の gitlink は自然に落ちる）。git が無い tree（テストの temp copy）は walk に
-    fallback し、.gitignore 相当の判定はしない。
+    `.git` がある tree では `git ls-files` だけを信用する（追跡ファイルのみ。.env / build/ /
+    skills/ 等の untracked と submodule の gitlink は自然に落ちる）。ls-files が失敗したら
+    fail-close（git 不在・dubious ownership・壊れた index を「git 無し」と同一視すると
+    .gitignore が効かない全走査に落ち、config.local.toml 等のローカルファイルが候補に入る）。
+    `.git` の無い tree は、呼び出し元が allow_walk で明示した場合（テストの sanitized な
+    temp copy）だけ walk する。
     """
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(repo), "ls-files", "-z", "--cached"],
-            capture_output=True, check=True,
-        ).stdout
-    except (OSError, subprocess.CalledProcessError):
-        out = None
-    if out is not None:
+    if (repo / ".git").exists():
+        try:
+            out = subprocess.run(
+                ["git", "-C", str(repo), "ls-files", "-z", "--cached"],
+                capture_output=True, check=True,
+            ).stdout
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise SlimBuildError(
+                f"git ls-files が失敗したため公開候補を列挙できない（fail-close）: {error}"
+            ) from error
         rels = [p.decode("utf-8") for p in out.split(b"\0") if p]
-        return sorted(r for r in rels if (repo / r).is_file())
+        return sorted(r for r in rels if (repo / r).is_file() or (repo / r).is_symlink())
+    if not allow_walk:
+        raise SlimBuildError(
+            f"{repo} は git 管理下ではない。追跡外ファイルの混入を防ぐため walk では列挙しない"
+            "（sanitized な tree だと分かっている場合だけ allow_walk=True）"
+        )
     rels = []
     for path in repo.rglob("*"):
         rel = path.relative_to(repo)
         if any(part in SKIP_DIRS for part in rel.parts):
             continue
-        if path.is_file():
+        if path.is_file() or path.is_symlink():
             rels.append(rel.as_posix())
     return sorted(rels)
 
 
-def _matches(path: str, prefixes: list[str]) -> bool:
-    return any(path == p or path.startswith(p) for p in prefixes)
+def _matches(path: str, entries: list[str]) -> bool:
+    """`/` 終端の宣言はディレクトリ prefix、それ以外は完全一致。
+
+    全部 prefix にすると `CLAUDE.md` の宣言で `CLAUDE.md.private` も選ばれ、allowlist の
+    契約（宣言したものだけ出す）が破れる。
+    """
+    for entry in entries:
+        if entry.endswith("/"):
+            if path.startswith(entry):
+                return True
+        elif path == entry:
+            return True
+    return False
 
 
 def select_files(files: list[str], manifest: dict) -> list[str]:
@@ -100,11 +121,26 @@ def select_files(files: list[str], manifest: dict) -> list[str]:
 # harness-slim tree
 
 
+def _copy_file_no_symlink(source_root: Path, rel: str, dest: Path) -> None:
+    """symlink は配布しない。
+
+    追跡された symlink が repo 外（~/.ssh 等）や除外パスを指していると copy2 が実体を
+    埋め込む。includes.py / resolver._collect_dir と同じ境界。
+    """
+    source = source_root / rel
+    if source.is_symlink():
+        raise SlimBuildError(f"symlink は公開対象にできない: {rel}")
+    try:
+        source.resolve().relative_to(source_root.resolve())
+    except ValueError:
+        raise SlimBuildError(f"公開対象が source tree の外を指している: {rel}") from None
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, dest)
+
+
 def _copy_selected(repo: Path, selected: list[str], out: Path) -> None:
     for rel in selected:
-        dest = out / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(repo / rel, dest)
+        _copy_file_no_symlink(repo, rel, out / rel)
 
 
 def _drop_dangling_include_lines(out: Path) -> list[str]:
@@ -141,12 +177,18 @@ def _write_json_like_source(path: Path, data: dict) -> None:
     )
 
 
-def _drop_excluded_sources(out: Path) -> list[str]:
-    """packages/targets/*/config.json の distribute エントリから、出力 tree に無い source を落とす。
+def _drop_excluded_sources(repo: Path, out: Path) -> list[str]:
+    """packages/targets/*/config.json の distribute エントリから、slim で落とした source を消す。
 
-    source が文字列なら実体が無ければエントリごと削除、リストなら無い要素だけ落とし、空に
-    なったらエントリ削除。settingsSync.source が無ければ settingsSync を落とす。
+    「落とした」= SSOT には実体があるのに出力 tree に無い。SSOT にも無い source
+    （`.rulesync/skills/.curated/` のように bootstrap が後で取得するもの）は distribute が
+    実行時に skip する契約なので残す。source が文字列ならエントリごと削除、リストなら該当
+    要素だけ落とし、空になったらエントリ削除。settingsSync.source も同じ。
     """
+
+    def excluded(source: str) -> bool:
+        return (repo / source).exists() and not (out / source).exists()
+
     dropped: list[str] = []
     for config_path in sorted((out / "packages/targets").glob("*/config.json")):
         cfg = json.loads(config_path.read_text(encoding="utf-8"))
@@ -157,30 +199,70 @@ def _drop_excluded_sources(out: Path) -> list[str]:
             spec = distribute[dest_key]
             source = spec.get("source")
             if isinstance(source, str):
-                if not (out / source).exists():
+                if excluded(source):
                     del distribute[dest_key]
                     dropped.append(f"{label}: {dest_key} ({source})")
                     changed = True
             elif isinstance(source, list):
-                present = [s for s in source if (out / s).exists()]
-                if present != source:
+                kept = [s for s in source if not excluded(s)]
+                if kept != source:
                     changed = True
-                    missing = [s for s in source if s not in present]
-                    if not present:
+                    missing = [s for s in source if s not in kept]
+                    if not kept:
                         del distribute[dest_key]
                         dropped.append(f"{label}: {dest_key} ({', '.join(missing)})")
                     else:
-                        spec["source"] = present
+                        spec["source"] = kept
                         dropped.append(f"{label}: {dest_key} members {', '.join(missing)}")
         sync = cfg.get("settingsSync")
         if isinstance(sync, dict) and isinstance(sync.get("source"), str):
-            if not (out / sync["source"]).exists():
+            if excluded(sync["source"]):
                 del cfg["settingsSync"]
                 dropped.append(f"{label}: settingsSync ({sync['source']})")
                 changed = True
         if changed:
             _write_json_like_source(config_path, cfg)
     return dropped
+
+
+# 配布される指示文書。ここに slim に無い依存への参照が残ると、読者は毎セッション存在しない
+# ものへ誘導される（Codex review 2026-09-11 P1）。ADR / CONTEXT / README は設計の説明として
+# private 側の構成を語ってよいので対象外。
+INSTRUCTION_DOC_GLOBS = (
+    "packages/core/CLAUDE.md",
+    "packages/core/commands.md",
+    "packages/core/rules/*.md",
+    "packages/core/fragments/**/*.md",
+    "packages/targets/*/AGENTS.md",
+)
+# exclude された依存の字面。manifest の exclude から機械的に導けないもの（RTK.md は
+# `@RTK.md` / `RTK.md` の両方で参照される）だけ列挙する。
+EXCLUDED_DEPENDENCY_TOKENS = ("RTK.md", "packages/extras", "packages/restricted")
+
+
+def _verify_references(out: Path) -> None:
+    """出力 tree の指示文書が、slim に無い依存を参照していないことを検証する（残れば fail）。"""
+    from .validators.references import _POSIX_ROOT_DIRS, _PROSE_SKILL_REF_RE, _known_invocable_names
+    from .validators.skills import BUILTIN_COMMANDS
+
+    known = _known_invocable_names(out) | BUILTIN_COMMANDS | _POSIX_ROOT_DIRS
+    tokens = [t for t in EXCLUDED_DEPENDENCY_TOKENS if not (out / t).exists()]
+    problems: list[str] = []
+    for pattern in INSTRUCTION_DOC_GLOBS:
+        for path in sorted(out.glob(pattern)):
+            rel = path.relative_to(out).as_posix()
+            text = path.read_text(encoding="utf-8")
+            for token in tokens:
+                if token in text:
+                    problems.append(f"{rel}: {token}")
+            for match in _PROSE_SKILL_REF_RE.finditer(text):
+                if match.group(1) not in known:
+                    problems.append(f"{rel}: /{match.group(1)}")
+    if problems:
+        raise SlimBuildError(
+            "指示文書に slim に無い依存への参照が残っている（SSOT 側で fragment 化するか文面を直す）:\n  "
+            + "\n  ".join(problems)
+        )
 
 
 def _drop_ghost_command_rows(out: Path) -> list[str]:
@@ -190,6 +272,7 @@ def _drop_ghost_command_rows(out: Path) -> list[str]:
     その実体が無く commands-vs-skills が error になる。known の判定は validator と同じ関数を使う。
     表以外の行に ghost が残った場合は落とさず SlimBuildError にする（手で SSOT を直す）。
     """
+    from .curated_skills import list_curated_skills
     from .validators.skills import (  # 遅延 import: validators は public_slim を import しない
         BUILTIN_COMMANDS,
         _extract_commands_from_commands_md,
@@ -199,7 +282,8 @@ def _drop_ghost_command_rows(out: Path) -> list[str]:
     commands_md = out / "packages/core/commands.md"
     if not commands_md.is_file():
         return []
-    known = harness_skill_names(out) | BUILTIN_COMMANDS
+    # curated（rulesync.lock 宣言）は bootstrap が取得するので実体が無くても known
+    known = harness_skill_names(out) | list_curated_skills(out) | BUILTIN_COMMANDS
     ghosts = _extract_commands_from_commands_md(commands_md) - known
     if not ghosts:
         return []
@@ -278,13 +362,15 @@ def build_harness_slim(repo: Path, manifest: dict, out: Path) -> HarnessSlimRepo
     if manifest.get("dropIncludes"):
         report.dropped_includes = _drop_dangling_include_lines(out)
     if manifest.get("dropExcludedSources"):
-        report.dropped_sources = _drop_excluded_sources(out)
+        report.dropped_sources = _drop_excluded_sources(repo, out)
     _add_files(repo, manifest, out)
     # addFiles（lessons の空 ledger 等）を置いた後に、出力 tree の実体で数え直す
     if manifest.get("dropGhostCommands"):
         report.dropped_commands = _drop_ghost_command_rows(out)
     if manifest.get("rewriteScaleCounts"):
         report.scale_rewrites = _rewrite_scale_counts(out)
+    if manifest.get("verifyReferences"):
+        _verify_references(out)
     return report
 
 
@@ -292,8 +378,13 @@ def build_harness_slim(repo: Path, manifest: dict, out: Path) -> HarnessSlimRepo
 # pi-agent-slim payload
 
 
-def build_pi_agent_slim(repo: Path, harness_slim: Path, out: Path) -> dict:
-    """harness-slim tree から pi payload を組む。戻り値は install-manifest の内容。"""
+def build_pi_agent_slim(harness_slim: Path, out: Path) -> dict:
+    """harness-slim tree から pi payload を組む。戻り値は install-manifest の内容。
+
+    静的ファイル（install.sh 等）も private tree ではなく harness-slim から取る。private の
+    packages/public-slim/pi-agent/ を直接 copytree すると、同ディレクトリの .gitignore が
+    挙げるローカル成果物（auth.json 等）が allowlist を通らずに payload へ入る。
+    """
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
@@ -316,10 +407,17 @@ def build_pi_agent_slim(repo: Path, harness_slim: Path, out: Path) -> dict:
         elif path.exists():
             path.unlink()
 
-    static = repo / PI_AGENT_STATIC_REL
+    static = harness_slim / PI_AGENT_STATIC_REL
     if not static.is_dir():
-        raise SlimBuildError(f"pi-agent の静的ファイルが無い: {PI_AGENT_STATIC_REL}")
-    shutil.copytree(static, out, dirs_exist_ok=True)
+        raise SlimBuildError(
+            f"pi-agent の静的ファイルが harness-slim に無い: {PI_AGENT_STATIC_REL}"
+            "（manifest の include に packages/public-slim/ が要る）"
+        )
+    for path in sorted(static.rglob("*")):
+        if path.is_dir() and not path.is_symlink():
+            continue
+        rel = path.relative_to(static).as_posix()
+        _copy_file_no_symlink(static, rel, out / rel)
 
     cfg = json.loads((harness_slim / PI_CONFIG_REL).read_text(encoding="utf-8"))
     managed = {key.rstrip("/") for key in (cfg.get("distribute") or {})}
@@ -452,14 +550,22 @@ def run_gate(repo: Path, manifest: dict, roots: dict[str, Path], env_file: Path 
     return GateResult(pattern_count=len(patterns), hits=hits, suspicious=suspicious)
 
 
+def redact(path: str, pattern: str) -> str:
+    """パス名にブロック語が含まれる場合、その部分を伏せる（ログに値を出さない）。"""
+    return re.sub(re.escape(pattern), "***", path, flags=re.IGNORECASE)
+
+
 def render_gate(result: GateResult) -> str:
-    """値（blocked term）は表示しない。件数とファイルだけ出す。"""
+    """値（blocked term）は表示しない。件数とファイルだけ出す。
+
+    ファイル名側にヒットしたときはパスに値そのものが入るので、その部分を伏せてから出す。
+    """
     lines = [f"gate: {result.pattern_count} patterns"]
     if not result.hits:
         lines.append("  hits: none")
-    for files in result.hits.values():
+    for pattern, files in result.hits.items():
         lines.append(f"  HIT {len(files)} files")
-        lines.extend(f"      {f}" for f in files[:20])
+        lines.extend(f"      {redact(f, pattern)}" for f in files[:20])
     for pat, files in sorted(result.suspicious.items()):
         lines.append(f"  suspicious [{pat}] {len(files)} files (listed only)")
         lines.extend(f"      {f}" for f in files[:20])
@@ -480,6 +586,7 @@ __all__ = [
     "build_pi_agent_slim",
     "enumerate_files",
     "load_manifest",
+    "redact",
     "render_gate",
     "resolve_gate_patterns",
     "run_gate",

@@ -14,4 +14,5 @@ openai-codex-account-rotation.log
 
 # install / distribute の実行痕
 .harness-distributed.json
+.harunon-pi-agent-slim.installed.json
 backups/

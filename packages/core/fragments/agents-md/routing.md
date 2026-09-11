@@ -12,6 +12,3 @@
 | skill / references / scenarios を変更した | `/skill-improvement`（通常の commit / PR は評価後） |
 | PR を作成 | `.github/PULL_REQUEST_TEMPLATE.md`（無ければ Summary / Changes / Test plan） |
 | 利用可能な skill / command 一覧 | `commands.md` |
-| トークン節約（rtk の使い方） | `RTK.md` |
-
-ブラウザ操作のデフォルトは `agent-browser`（headless。ユーザーの画面にウィンドウを出さない）。ユーザーのログイン済みタブが必要な時だけ OpenCLI を bind-first で使い、明示依頼なしに `open`・新規タブ・`INTERCEPT` を実行せず、bind できるタブがなければ中止して確認する。

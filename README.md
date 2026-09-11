@@ -22,7 +22,8 @@ skills・rules・hooks・agents・slash commands と、それらを各ランタ�
 - ライセンス上再配布できない vendored skill（`docs/adr/002-*.md` 参照）
 - 個人の作業記録（`plans/`）と作業履歴（`lessons.json`）
 - 個人好みのツール前提の常駐文書（rtk のチートシート、rtk / gwm 前提の CLAUDE.md 節）
-- 外部 skill の取得設定（rulesync）。`commands.md` の索引からも該当行を落としています
+
+外部 skill（`rulesync.jsonc` / `rulesync.lock` に宣言。tdd / diagnosing-bugs / opencli-* など）は vendored コピーを持たず、`bootstrap.sh` が `rulesync install --frozen` で upstream から取得して配ります。それぞれの upstream のライセンスに従ってください（`docs/adr/011-*.md`）。
 
 ## 前提ツール
 

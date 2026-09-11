@@ -61,7 +61,8 @@
 		},
 		"skills/": {
 			"source": [
-				"packages/core/skills/"
+				"packages/core/skills/",
+				".rulesync/skills/.curated/"
 			]
 		}
 	},

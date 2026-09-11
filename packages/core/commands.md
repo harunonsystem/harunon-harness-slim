@@ -10,11 +10,14 @@
 | --- | --- |
 | `/cr` | コードレビュー（reviewer エージェント）。組み込みの `/review` とは別物 |
 | `/pre-review-check` | /codex:review 前の統合自己チェック（11 カテゴリ検証 → similarity-check / simplify で機械クリーンアップ） |
+| `/unslop` | AIらしい定型表現・冗長な構文を削り、意味とトーンを保って自然な文章に整える |
 | `/codex:review` | Codex コードレビュー（push 前1回のみ） |
 | `/codex:rescue` | Codex に実装・調査を委譲 |
 | `/difit` | difit で差分レビュー依頼 / findings コメント付き差分表示 |
 | `/ocr-review` | OpenCodeReview CLI を canonical な diff レビュー engine として実行（pi / omp 用） |
 | `/similarity-check` | AST ベースの重複コード検出（similarity-ts/py） |
+| `/ponytail` | 本家 Ponytail の常時適用モード（lite / full / ultra） |
+| `/ponytail-review` | 本家 Ponytail の過剰設計レビュー |
 
 ### Plan / Design
 
@@ -25,6 +28,10 @@
 | `/grill-implementation` | `/grilling` の上に実装着手の契約（決定軸8つ・Phase 5 合意サマリー・スキップ基準・合意の保持）を載せる。実装系の必須初動 |
 | `/grill-me` | upstream の alias。`/grilling` を回すだけで実装着手の契約は持たない（実装前は `/grill-implementation` を使う） |
 | `/grill-with-docs` | ADR / glossary を残しながらのインタビュー。記録が目的なので `/grilling` を回す |
+| `/domain-modeling` | ドメインモデル構築・CONTEXT.md / ADR 更新（model-invoked） |
+| `/codebase-design` | deep module 設計の共通語彙（model-invoked） |
+| `/prototype` | 設計検証用プロト（単一 HTML の logic demo / UI variations） |
+| `/research` | 一次情報に当たる調査を background agent に投げ、Markdown で回収（`/wayfinder` の research チケットの解決手段） |
 | `/improve` | コードベース監査 → 他モデル実行用の自己完結プラン生成（read-only、shadcn/improve） |
 | `/source-driven-development` | フレームワーク判断を一次情報で検証する |
 
@@ -32,6 +39,7 @@
 
 | Command | Purpose |
 | --- | --- |
+| `/archify` | リポジトリやシステムの構成・workflow・sequence・dataflow・lifecycleを検証可能なHTML/SVGへ図式化 |
 | `/show-me` | コード・処理フロー・UI構造を最小限の図・Mermaid・コード形状で視覚的に説明 |
 
 ### Implementation
@@ -40,6 +48,10 @@
 | --- | --- |
 | `/run-change` | Agentを跨いで共有できるCore Workflowを開始・再開する |
 | `/implement-issue` | PRD または GitHub/Linear issue から実装 |
+| `/tdd` | Red-Green-Refactor で実装 |
+| `/diagnosing-bugs` | バグ・性能回帰の規律ある診断ループ（旧 diagnose） |
+| `/improve-codebase-architecture` | アーキ改善・deepening opportunity 発掘（バグ/セキュリティ/テスト/perf の一般監査で実行プランが欲しいときは `/improve`） |
+| `/resolving-merge-conflicts` | git merge/rebase conflict の解消 |
 
 ### Issue / PRD
 
@@ -47,6 +59,8 @@
 | --- | --- |
 | `/to-prd` | 会話文脈を PRD 化して tracker に publish |
 | `/to-issues` | PRD/プランを vertical slice issue に分割 |
+| `/triage` | 受信 issue / 外部 PR の state-machine トリアージ |
+| `/wayfinder` | 1セッションで持ちきれない規模の作業を issue tracker 上のチケット地図として計画し、1枚ずつ解決 |
 | `/decompose-issues` | 機能・エピックの Issue 分解 |
 
 ### Figma / Design System
@@ -69,6 +83,9 @@ pnpm dlx skills add jakubkrehel/skills -s better-interface
 
 | Command | Purpose |
 | --- | --- |
+| `/opencli-usage` | OpenCLI の adapter discovery と使い分け |
+| `/opencli-browser` | OpenCLI によるブラウザ自動操作 |
+| `/opencli-adapter-author` | OpenCLI の site adapter 作成・検証 |
 | `/frontend-verify` | フロントエンド UI のスクリーンショット検証 |
 
 ### PR / Issue 補助
@@ -92,5 +109,6 @@ pnpm dlx skills add jakubkrehel/skills -s better-interface
 | `/skill-creator` | skill 作成ガイド（構造・progressive disclosure） |
 | `/skill-improvement` | 既存 skill の設計・文書・empirical 評価をオーケストレーション |
 | `/empirical-prompt-tuning` | プロンプト/スキルの実証的改善 |
+| `/setup-matt-pocock-skills` | Matt Pocock 系 workflow skills のセットアップ |
 
-> プロジェクト/会社固有のスキル（移行・日報・スキーマ同期等）は `packages/extras/<codename>/` で個別に有効化される。
+> プロジェクト/会社固有のスキル（移行・日報・スキーマ同期等）は private の extras パッケージ（codename 別）で個別に有効化される。

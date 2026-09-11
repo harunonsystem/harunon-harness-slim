@@ -12,11 +12,9 @@
 		"packages/restricted/",
 		".gitmodules",
 		"plans/",
-		".rulesync/",
-		"rulesync.jsonc",
-		"rulesync.lock",
 		"packages/core/RTK.md",
 		"packages/core/fragments/claude-md/",
+		"packages/core/fragments/agents-md/routing-rtk.md",
 		"packages/core/lessons/lessons.json"
 	],
 	"excludeReasons": {
@@ -24,6 +22,7 @@
 		"plans/": "個人の作業記録。絶対パスの漏れ元（plans/015-*.report.md に /Users/<name>/ が入っている）",
 		"packages/core/RTK.md": "rtk 前提の常駐文書。rtk 未導入の読者には毎セッション無効な指示を読ませるだけ。各 target config の RTK.md 配布エントリは dropExcludedSources が落とす",
 		"packages/core/fragments/claude-md/": "個人ツール（rtk / gwm）前提の CLAUDE.md 節。配布時は expandIncludes で展開されるので自分の環境の内容は変わらない。CLAUDE.md 側の include 行は dropIncludes が落とす",
+		"packages/core/fragments/agents-md/routing-rtk.md": "AGENTS.md（codex / pi / omp / opencode）の Routing 表にある RTK.md 行。routing.md から 1 行だけ切り出した fragment で、4 つの AGENTS.md がこれを include する。slim では dropIncludes が include 行を落とすので表から消える",
 		"packages/core/lessons/lessons.json": "個人の作業履歴。公開価値の判断が別途必要なので初版では出さない",
 		"packages/restricted/": "ライセンス上 public 再配布不可の vendored 区画（ADR-002 Update 2026-09-11）。include に入れないので allowlist 上は自動的に落ちる。ここに列挙するのは意図の明示のため。他の vendored skill は improve=MIT / skill-creator=Apache-2.0 / source-driven-development=MIT で再配布可",
 		".github/workflows/ci.yml": "include に .github/ を入れていないので落ちる。private の CI は rulesync / mise.global.example.toml / extras 前提の step を持ち slim では回らないため、addFiles で slim 用 ci.yml を置く"
@@ -45,9 +44,14 @@
 		".gitignore",
 		".env.example",
 		"mise.toml",
-		"mise.global.example.toml"
+		"mise.global.example.toml",
+		"rulesync.jsonc",
+		"rulesync.lock",
+		".rulesync/"
 	],
-	"includeNote": "CLAUDE.md（repo のプロジェクト指示）と .claude/skills/（sync-settings / add-skill-to-repo。この repo を触る作業者向けの skill）は開発 workflow の一部なので出す。scripts/tests の documentation contract がこれらを読む。.claude/ 配下で追跡されているのはこの 2 skill だけ（settings.local.json 等は gitignore）",
+	"includeNote": "CLAUDE.md（repo のプロジェクト指示）と .claude/skills/（sync-settings / add-skill-to-repo。この repo を触る作業者向けの skill）は開発 workflow の一部なので出す。scripts/tests の documentation contract がこれらを読む。.claude/ 配下で追跡されているのはこの 2 skill だけ（settings.local.json 等は gitignore）。rulesync.jsonc / rulesync.lock / .rulesync/（README のみ追跡）は外部 skill の宣言（ADR-011: upstream を source とし vendored コピーを持たない）。初版では外していたが、CLAUDE.md / rules / routing が /tdd・/diagnosing-bugs・opencli-* を参照しており、宣言を落とすと読者を存在しない skill へ誘導する（Codex review 2026-09-11 P1）。validator と dropGhostCommands は rulesync.lock から curated 名を既知にする。include の宣言は `/` 終端がディレクトリ prefix、それ以外は完全一致",
+	"verifyReferences": true,
+	"verifyReferencesNote": "生成後、配布される指示文書（core/CLAUDE.md・commands.md・rules/*.md・fragments/**・targets/*/AGENTS.md）に slim に無い依存への参照が残っていないか検証し、残れば build を落とす。対象は exclude した依存の字面（RTK.md / packages/extras / packages/restricted。実装の EXCLUDED_DEPENDENCY_TOKENS）と、validator（prose-skill-references）と同じ正規表現で拾う `/skill` 参照のうち既知名（core skills + .claude/skills + commands + rulesync.lock の curated）に無いもの。ADR / CONTEXT / README は private 側の構成を説明してよいので対象外",
 	"keptTooling": {
 		"mise.toml": "toolchain の pin（node / python / rulesync）。個人情報を含まず、bootstrap.sh・pre-push・テスト（_helpers.make_bootstrap_repo / check-tool-updates / pinned-tool-version）が実体を前提にする。外すと slim 側で 20 クラス近いテストが落ちるので残す（初版 manifest では外していた）。mise.global.example.toml も同じ理由で残す",
 		"packages/core/hooks/rtk-rewrite.sh": "rtk 未導入なら exit 0（advisory rewrite hook）。残しても害がなく、外すと hook-pipeline.json / settings.json / target config / テストが dangling になる",
@@ -56,9 +60,9 @@
 	"dropIncludes": true,
 	"dropIncludesNote": "exclude された fragment を指す `<!-- include: ... -->` 行は、生成時に行ごと削除する。fragment が無いまま残すと dangling になり（expand_includes は FileNotFoundError で fail fast）、slim 側で配布が回らない。判定は『include 先が出力 tree に無い』の完全一致なので exclude の宣言から機械的に導ける",
 	"dropExcludedSources": true,
-	"dropExcludedSourcesNote": "出力 tree の packages/targets/*/config.json について、distribute エントリの source が出力に無ければエントリごと落とす（文字列 source）。リスト source は無い要素だけ落とし、空になればエントリを落とす。settingsSync.source が無ければ settingsSync を落とす。これで RTK.md の配布エントリと extras の rules が slim の distribute から消え、slim 側で distribute.py <target> --push が回る",
+	"dropExcludedSourcesNote": "出力 tree の packages/targets/*/config.json について、distribute エントリの source が『SSOT には実体があるのに出力に無い』ならエントリごと落とす（文字列 source）。リスト source は該当要素だけ落とし、空になればエントリを落とす。settingsSync.source も同じ。SSOT にも無い source（.rulesync/skills/.curated/ のように bootstrap が後で取得するもの）は distribute が実行時に skip する契約なので残す。これで RTK.md の配布エントリと extras の rules が slim の distribute から消え、slim 側で distribute.py <target> --push が回る",
 	"dropGhostCommands": true,
-	"dropGhostCommandsNote": "commands.md の表から、出力 tree に skill 実体が無いコマンド（restricted / extras / rulesync curated 由来）の行を落とす。known の判定は validator（commands-vs-skills）と同じ関数。表以外の本文に ghost が残れば build を落とす（SSOT 側で直す）",
+	"dropGhostCommandsNote": "commands.md の表から、出力 tree に skill 実体が無いコマンド（restricted / extras 由来）の行を落とす。known の判定は validator（commands-vs-skills）と同じ関数で、rulesync.lock の curated 名は既知として残る。表以外の本文に ghost が残れば build を落とす（SSOT 側で直す）",
 	"rewriteScaleCounts": true,
 	"rewriteScaleCountsNote": "CONTEXT.md「管理規模」の数字を出力 tree の実体で書き直す。restricted の skill が落ちて skills の数が変わるため。数え方は validator（context-scale-counts）の scale_actuals を共有する",
 	"addFiles": {
@@ -71,7 +75,7 @@
 	"piAgent": {
 		"staticDir": "packages/public-slim/pi-agent/",
 		"installManifest": "install-manifest.json",
-		"note": "harness-slim の packages/targets/pi/config.json（dropExcludedSources 適用後）から distribute の dest キーと settingsSync.keys を install-manifest.json に書き出す。install.sh はそれを jq で読んで rsync / settings merge する（管理パス配列を shell に直書きしない）。distribute --push が dest に残す ledger / backups は payload から外す（生成マシンの repo パスが載るため）"
+		"note": "harness-slim の packages/targets/pi/config.json（dropExcludedSources 適用後）から distribute の dest キーと settingsSync.keys を install-manifest.json に書き出す。install.sh はそれを jq で読んで rsync / settings merge し、配ったファイルを dest の ledger（.harunon-pi-agent-slim.installed.json）に記録して、次回は前回配って今回 payload に無いファイルだけ prune する（管理パス配列を shell に直書きしない）。staticDir の中身も private tree ではなく harness-slim から取る（private 側の同ディレクトリに .gitignore 対象のローカル成果物があっても payload に入らない）。distribute --push が dest に残す ledger / backups は payload から外す（生成マシンの repo パスが載るため）"
 	},
 	"gate": {
 		"_comment": "生成後のゲート。1 件でも当たれば build を落とす（exit 1）。両方の生成物を走査する。公開は不可逆なので CI でも同じチェックを回す（--check）",

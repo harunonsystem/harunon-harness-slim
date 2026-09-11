@@ -51,6 +51,8 @@ OpenCode セッションでは以下を**絶対に実行しない**。permission
 
 <!-- include: packages/core/fragments/agents-md/routing.md -->
 
+<!-- include: packages/core/fragments/agents-md/routing-browser.md -->
+
 <!-- include: packages/core/fragments/agents-md/lesson.md -->
 
 ## 委譲（サブエージェント）

@@ -19,6 +19,7 @@ scripts/harness_lib/public_slim.py。生成物は public 側の SSOT ではな�
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -40,6 +41,11 @@ def build(output: Path, only: str | None, env_file: Path | None) -> int:
     harness_out = output / public_slim.HARNESS_SLIM_DIR
     pi_out = output / public_slim.PI_AGENT_SLIM_DIR
     output.mkdir(parents=True, exist_ok=True)
+    # --only に関係なく両方の生成物を消してから組む。片方だけ組み直すと、前回の生成物が
+    # 再ゲートされないまま出力に残る（stale artifact）
+    for stale in (harness_out, pi_out):
+        if stale.exists():
+            shutil.rmtree(stale)
 
     report = public_slim.build_harness_slim(REPO_ROOT, manifest, harness_out)
     print(f"{public_slim.HARNESS_SLIM_DIR}: {len(report.included)} files")
@@ -54,7 +60,7 @@ def build(output: Path, only: str | None, env_file: Path | None) -> int:
 
     roots = {public_slim.HARNESS_SLIM_DIR: harness_out}
     if only != "harness":
-        install_manifest = public_slim.build_pi_agent_slim(REPO_ROOT, harness_out, pi_out)
+        install_manifest = public_slim.build_pi_agent_slim(harness_out, pi_out)
         print(
             f"{public_slim.PI_AGENT_SLIM_DIR}: {len(install_manifest['managedPaths'])} managed paths, "
             f"{len(install_manifest['settingsKeys'])} settings keys"
@@ -65,8 +71,6 @@ def build(output: Path, only: str | None, env_file: Path | None) -> int:
     print(public_slim.render_gate(result))
     if only == "pi-agent":
         # pi payload は harness-slim から導いた後なので、中間物は残さない
-        import shutil
-
         shutil.rmtree(harness_out)
     return 0 if result.ok else 1
 

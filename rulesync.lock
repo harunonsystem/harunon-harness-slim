@@ -1,0 +1,168 @@
+{
+  "lockfileVersion": 1,
+  "sources": {
+    "cloudflare/skills": {
+      "requestedRef": "main",
+      "resolvedRef": "d924cd8f59e75e08fd3dd52843bb2776de35c77e",
+      "resolvedAt": "2026-09-07T07:41:14.302Z",
+      "skills": {
+        "agents-sdk": {
+          "integrity": "sha256-fe9bb12f4c5719eaaf32c841ab788a005389d44930db3e6582953161b5dab64f"
+        },
+        "cloudflare-email-service": {
+          "integrity": "sha256-079c19b0c2785332f040848ee9e0d0887db305a97da83edf992e3f098fa4c8fd"
+        },
+        "cloudflare-one-migrations": {
+          "integrity": "sha256-fecdb1efad93b71de47b49f90253cf361706884488e734f0848b22ef210736ca"
+        },
+        "cloudflare-one": {
+          "integrity": "sha256-4836c3d93d50d9efcca42abce7ed48c0ffea349201dc8f28b840575db89188dc"
+        },
+        "cloudflare": {
+          "integrity": "sha256-51bc1a86a12e41792e6f485131558340168d15d0f8899b9f19a071c47764bba1"
+        },
+        "durable-objects": {
+          "integrity": "sha256-020137897ece787686d136e62f083531393ef2986d1f2d5a5347d1b4a2950a21"
+        },
+        "sandbox-migrate-to-next": {
+          "integrity": "sha256-77dec2d5dc2ec204949c70da59bf811280c9cf9567b9e46d0d1aa53ff5aaef24"
+        },
+        "sandbox-next": {
+          "integrity": "sha256-94a721a2e4164729443da56707d58fe4c013de1ddf2d0c44c2eb5ac33832eea4"
+        },
+        "sandbox-stable": {
+          "integrity": "sha256-63fd52bf420b3b04db65badbe158c30f79c520847c589dc65f6d9a8fee088b01"
+        },
+        "turnstile-spin": {
+          "integrity": "sha256-51bb59ae5168d5c355e816ff0417314052750394dea527940890fe73596c8d7b"
+        },
+        "web-perf": {
+          "integrity": "sha256-8f96cf1dd7d77f844c8547f0c0932e423d470a937911bedd291d7d7dff13be45"
+        },
+        "workers-best-practices": {
+          "integrity": "sha256-b0daf12626a8d3553359b8f82ccb06bc8deabe71296f821411bebd2936db52ed"
+        },
+        "wrangler": {
+          "integrity": "sha256-f526c527fe86f0b973f1741a1c66d6160e2e622cb236d74c32e75fc8ed774acf"
+        }
+      }
+    },
+    "mattpocock/skills": {
+      "requestedRef": "main",
+      "resolvedRef": "3cca18b368ae95cdbdebbff572ccafa662551015",
+      "resolvedAt": "2026-09-07T07:41:21.192Z",
+      "skills": {
+        "codebase-design": {
+          "integrity": "sha256-9f457cc65ef2d70eb5b8a44a4dae2b139840078b6596a67ee8c4e95f5a0e6f5c"
+        },
+        "diagnosing-bugs": {
+          "integrity": "sha256-bcdaec9e1033901c396437fcb102161d8ad3cd87632007aaf270b19e03e70117"
+        },
+        "domain-modeling": {
+          "integrity": "sha256-2bc3bb0a64ea9c6f5c3bcf78fc17f0fcdc7c062edc547ef006441de0b576d248"
+        },
+        "improve-codebase-architecture": {
+          "integrity": "sha256-86f5e0413fa5b42b8e954858a09ce5a73187c61169f1b3b199bc79416fd78086"
+        },
+        "prototype": {
+          "integrity": "sha256-492e4433fcd9cf88c0854aba063829ee248b208849e5827a45da8424199fd10f"
+        },
+        "research": {
+          "integrity": "sha256-75b7f9bbd7ccff6755a006f8b25d319a46ecbf6bd4b4c3323965ed9cb65e78ff"
+        },
+        "resolving-merge-conflicts": {
+          "integrity": "sha256-310fa72a34cddd1dd1a9790f9ebc17bf2c83caeae5cdf87e2485be8b1abec90e"
+        },
+        "setup-matt-pocock-skills": {
+          "integrity": "sha256-80cd6b5be4f67913f1b10f5acd97fccaeb6401682ae7ff3a971460cb73d86cbe"
+        },
+        "tdd": {
+          "integrity": "sha256-28b5e430968370f51b03b88b4b4a046286192733d2f45bd5b8049e16f45fd234"
+        },
+        "to-spec": {
+          "integrity": "sha256-f8041146ec1678c32304f46c9de99b73a4b5dadf664e35a8124be47c4cfe3196"
+        },
+        "to-tickets": {
+          "integrity": "sha256-597a1a0af4f7391ab459a02a3f33576109b6bc61ecdc5e7e05149336858b4f29"
+        },
+        "triage": {
+          "integrity": "sha256-461668611d1bd0eeb0533f347c11690a556c966a75938363a171914dcc42481a"
+        },
+        "wayfinder": {
+          "integrity": "sha256-93d2a866764b048ad641e82e27e7a1940fc370e7933470bffeb937fa1fb3922b"
+        }
+      }
+    },
+    "jackwener/opencli": {
+      "requestedRef": "main",
+      "resolvedRef": "8271afc67e8504bda94c147f446ee29775d08274",
+      "resolvedAt": "2026-09-07T07:41:24.589Z",
+      "skills": {
+        "opencli-adapter-author": {
+          "integrity": "sha256-0551dff951584a499edfd19cbd2312a860e92a8894983d729389daae66c3fab4"
+        },
+        "opencli-browser": {
+          "integrity": "sha256-e6f630841b04c35e4c7eabf3eba7d6396b25c694fb65a59ab11cf10d3584c3b1"
+        },
+        "opencli-usage": {
+          "integrity": "sha256-a65da4f59b48ba2b722b5261c1b49f4f61b3386b6b0da3e38421b2dff83ebc0a"
+        }
+      }
+    },
+    "cursor/plugins": {
+      "requestedRef": "main",
+      "resolvedRef": "93b00b89ef425a9c1bac0d0b317dfc49c930ac99",
+      "resolvedAt": "2026-09-07T07:41:25.608Z",
+      "skills": {
+        "unslop": {
+          "integrity": "sha256-00978a706b9c06b35d5705ef36aa243858fac1a8556a25c631c523eb8aecca7c"
+        }
+      }
+    },
+    "tt-a1i/archify": {
+      "requestedRef": "main",
+      "resolvedRef": "c6519401f7b91b9d43011657880893b0a8955548",
+      "resolvedAt": "2026-09-07T07:41:45.933Z",
+      "skills": {
+        "archify": {
+          "integrity": "sha256-649fe1a3e996540d6e9cbb34e8aeac2e3d904058b0d98db2c45ef5a4ec2b9db3"
+        }
+      }
+    },
+    "vercel-labs/skills": {
+      "requestedRef": "main",
+      "resolvedRef": "1682051d48c34f5eb135e6475c1a965dce05e820",
+      "resolvedAt": "2026-09-07T07:41:46.974Z",
+      "skills": {
+        "find-skills": {
+          "integrity": "sha256-b146008599c31057cef1c145774cea5d5afb30e8f43fa802e47a4b461419aaaf"
+        }
+      }
+    },
+    "dietrichgebert/ponytail": {
+      "requestedRef": "main",
+      "resolvedRef": "974d940a1c5344210874150b98ff0d2c861fab6a",
+      "resolvedAt": "2026-09-07T07:41:48.817Z",
+      "skills": {
+        "ponytail-audit": {
+          "integrity": "sha256-e3d9eddf58dd7b4dae504266d8a5eb7b306db1e69114710800d554ef386ccfd0"
+        },
+        "ponytail-debt": {
+          "integrity": "sha256-368db847eb919b0d841d253da745e8215e234cb217609b55b27528e8cb754c84"
+        },
+        "ponytail-gain": {
+          "integrity": "sha256-c6d2cc7d7af635acadb96571fd71d9922acb8d8d856d37dc678aafe76a06a7fb"
+        },
+        "ponytail-help": {
+          "integrity": "sha256-92f909eddf3b371e4737a85f60a8024cec6ae5cfb523561b8c56f86fcf3f52b0"
+        },
+        "ponytail-review": {
+          "integrity": "sha256-cd3715f0513d93e4caab8cc30ad09080ae62f763ed8b95304fd84efda5fbf0be"
+        },
+        "ponytail": {
+          "integrity": "sha256-388ec42c9551f47d12555b1723b1af67b8fe18a8afbea0a8db96cfb870eb3803"
+        }
+      }
+    }
+  }
+}
