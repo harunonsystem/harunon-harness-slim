@@ -29,6 +29,22 @@ class TestEnforceGwmForWorktree(unittest.TestCase):
     def tearDown(self):
         self._tmpdir.cleanup()
 
+    def test_config_without_worktree_base_still_denies_external_path(self):
+        root = Path(self._tmpdir.name)
+        config = root / ".config/gwm/config.toml"
+        config.parent.mkdir(parents=True)
+        config.write_text('editor = "code"\n')
+        env = dict(self._env)
+        env["HOME"] = str(root)
+        env["TOOL_INPUT"] = json.dumps(
+            {"tool_name": "EnterWorktree", "tool_input": {"path": str(root)}}
+        )
+        result = subprocess.run(
+            ["bash", str(HOOK)], env=env, capture_output=True, text=True, timeout=10,
+        )
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("gwm enforcer", result.stderr)
+
     def _run(self, command: str, tool_name: str = "Bash") -> subprocess.CompletedProcess:
         env = dict(self._env)
         env["TOOL_INPUT"] = json.dumps(

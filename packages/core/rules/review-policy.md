@@ -20,11 +20,13 @@ paths:
 
 ### diff baseline の導出
 
-「変更ファイル」の判定は baseline に依存するので、スコープ判定の前に baseline を確定する。
+「変更ファイル」の判定は対象に依存する。ユーザー指定の範囲を先に確定する。
 
-- 比較前に `git fetch origin <base>` する。stale な `origin/<base>` は base 側にある他人の変更を「変更ファイル」に混ぜ、diff 外の指摘を blocking として報告する（8 件中 5 件が diff 外だった実例: 2026-08）
-- baseline は `git merge-base origin/<base> HEAD` で求める。`origin/<base>..HEAD` の 2 点比較は使わない
-- `git diff --name-only <merge-base>..HEAD` の集合を「変更ファイル」とする。この集合に無いファイルの指摘は blocking にできず Out of scope に落とす
+- ローカル変更: `git diff HEAD` のtracked差分と、`git ls-files --others --exclude-standard` にある今回のuntrackedファイルを読む。別作業の変更は除外する。
+- staged: `git diff --cached`。commit: 指定commitの差分。これらにbranch比較を混ぜない。
+- branch / PR: 対象のbaseとheadを取得する。PRはPR metadataのbase/head SHA、名前付きbranchはそのrefを使い、現在のHEADと同一と仮定しない。
+- baseをfetchし、`git merge-base <base-ref> <head-ref>` を求めて `git diff <merge-base> <head-ref>` を使う。baseのブランチ名をmainに固定しない。fetch失敗時はローカルrefの利用と鮮度未確認を明記し、最新の差分を確認したとは報告しない。
+- 比較に使ったref/SHAと変更ファイル集合を各レビュアーへ共有する。集合外の指摘はOut of scopeとして非ブロッキングにする。
 
 ### スコープ判定
 
@@ -40,6 +42,8 @@ paths:
 ### REJECT 基準（必ず変更要求）
 
 以下のいずれかに該当すれば例外なく REJECT:
+
+各条件の成立を実コード・適用契約・検証結果で確認する。差分にテスト追加がないだけでは、既存テストが対象動作を検証していないとは断定できない。テスト本文や必要な契約を確認できなければ、不足資料を未確認として報告する。
 
 - テストなしの新しい振る舞い
 - 回帰テストなしのバグ修正
@@ -94,7 +98,7 @@ DRY指摘は統合先の妥当性も検証する。以下がすべて成り立�
 | する | しない |
 | --- | --- |
 | ファイルを開いて実コードを確認 | 「修正されているはず」と仮定 |
-| grep で呼び出し箇所と使用箇所を検索 | 記憶に基づいて指摘 |
+| `rg` で呼び出し箇所と使用箇所を検索 | 記憶に基づいて指摘 |
 | 型定義やスキーマとクロスリファレンス | コードがデッドだと推測 |
 | 生成ファイル（レポート等）とソースを区別 | 生成ファイルをソースとしてレビュー |
 
@@ -155,7 +159,7 @@ OK: 「src/auth/service.ts:45 — validateUser() が3箇所で重複。共有関
 
 ### 判定ルール
 
-- 変更ファイル内で検出された全指摘はブロッキング（REJECT対象）。変更前からそのコードがあったとしても
+- 変更ファイル内のcritical / majorは、変更前から存在していてもタスク範囲内ならブロッキング。minorやWarningをファイルの所在だけでREJECTへ昇格させない
 - 変更対象でないファイルの指摘のみ「既存問題」「非ブロッキング」に分類可能
 - 「コード自体は変更前から存在した」は非ブロッキングの理由にならない。変更ファイルにある限り Boy Scout Rule 適用
 - `critical` / `major` が 1 件でも残っていれば REJECT。「条件付き APPROVE」「警告付き APPROVE」「提案付き APPROVE」は禁止

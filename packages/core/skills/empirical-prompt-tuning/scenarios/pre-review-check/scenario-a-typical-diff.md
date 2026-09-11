@@ -37,13 +37,15 @@ export function UserListContainer(props: { title?: string }) {
 + import { UserListContainer } from '@/features/user/container/UserListContainer';
 ```
 
+fixture前提: このプロジェクトはpropsの直接参照を規約として宣言済み。上のhookは本番の一覧画面で実データの代わりにmockを返す。人名は架空のfixtureであり、実在PIIではない。未提示の型・variant定義は不整合の証拠としない。
+
 ## 要件チェックリスト
 
-1. [critical] 全 11 カテゴリが検証され、Finding もしくは OK として記録される
+1. [critical] 全 11 カテゴリが検証され、PASS / FAIL / N/A / 確認不可のいずれかに記録される
 2. [critical] Finding ID は `PRC-<番号>` 形式
-3. [critical] 最低 3 件の major finding が検出される（ダミーデータ直書き、分割代入、no-op onClick が最低限）
-4. BLOCKED / PASSED 判定が出る
-5. Output Contract のフォーマット（Summary + Findings + Next Action）に従う
+3. [critical] 最低 3 件の major finding が検出される（本番mock経路、明示規約違反、no-op操作。架空人名をPIIと断定しない）
+4. 未解決majorに対してBLOCKED判定が出る
+5. 対象、判定、Findings、11カテゴリ、検証と未確認、次の行動を報告する
 6. `/codex:review` 前に対処すべきものが明示される
 
 ## subagent 投入プロンプト
@@ -57,25 +59,23 @@ export function UserListContainer(props: { title?: string }) {
 ## シナリオ（typical diff、複数問題を含む）
 以下の diff がステージング予定として存在すると仮定。
 
-（↑ のコードブロックを貼る）
+（↑ のコードブロックとfixture前提を貼る）
 
 なお Linear issue 情報はこのシナリオでは参照不可（mock: 親 issue なし、兄弟 issue なし）として扱ってよい。
-
-## 要件チェックリスト
-（↑ の 6 項目を貼る）
 
 ## タスク
 pre-review-check スキルに従って上記 diff を検証し、Output Contract 通りのレポートを出力する。
 
 ## レポート構造
 - 成果物: pre-review-check レポート本体
-- 要件達成: 各項目 ○/×/部分的
 - 不明瞭点: SKILL.md で詰まった箇所
 - 裁量補完: 自分の判断で埋めた箇所
 - 再試行: 回数
 
 500 語以内で簡潔に。
 ```
+
+以下は旧fixture・旧出力契約での履歴。現在の回帰評価には local-ui.md / offline-base.md / staged-sql.md も使用する。チェックリストは評価者だけが持ち、実行者には渡さない。
 
 ## 最終実行結果
 

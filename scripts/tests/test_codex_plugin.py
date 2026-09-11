@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest import mock
 
@@ -46,6 +48,13 @@ def load_adapter(source: Path = None):
 
 
 class TestCodexPlugin(unittest.TestCase):
+    def test_hook_environment_keeps_system_commands_available(self):
+        adapter = load_adapter()
+        with mock.patch.dict(adapter.os.environ, {"PATH": "/custom/bin"}, clear=False):
+            env = adapter.hook_env()
+        self.assertEqual(env["HARNESS_RUNTIME"], "codex")
+        self.assertEqual(env["PATH"].split(os.pathsep)[-2:], ["/bin", "/usr/bin"])
+
     def test_manifest_and_single_hook_dispatcher_exist(self) -> None:
         manifest = json.loads(
             (PLUGIN_ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8")
@@ -202,6 +211,47 @@ class TestCodexPlugin(unittest.TestCase):
 
         self.assertEqual(code, 2)
         self.assertEqual(reason, "generic denial\nnext action: approve-push.sh")
+
+    def test_required_hook_timeout_denies(self) -> None:
+        adapter = load_adapter()
+        with tempfile.TemporaryDirectory() as directory:
+            wiring = ({"file": "guard.sh", "required": True, "when": {}},)
+            with mock.patch.object(adapter, "HOOKS", Path(directory)), mock.patch.object(
+                adapter, "candidate_hooks", return_value=wiring
+            ), mock.patch.object(
+                adapter.subprocess,
+                "run",
+                side_effect=subprocess.TimeoutExpired(["bash", "guard.sh"], 60),
+            ) as run:
+                code, reason = adapter.run_shell_pipeline(
+                    {"tool_name": "Bash", "tool_input": {"command": "echo hi"}},
+                    Path(directory),
+                )
+
+        self.assertEqual(code, 1)
+        self.assertIn("required security hook timed out", reason)
+        self.assertEqual(run.call_args.kwargs["timeout"], 60)
+
+    def test_advisory_hook_timeout_warns_and_continues(self) -> None:
+        adapter = load_adapter()
+        with tempfile.TemporaryDirectory() as directory:
+            wiring = ({"file": "advisory.sh", "when": {}},)
+            stderr = io.StringIO()
+            with mock.patch.object(adapter, "HOOKS", Path(directory)), mock.patch.object(
+                adapter, "candidate_hooks", return_value=wiring
+            ), mock.patch.object(
+                adapter.subprocess,
+                "run",
+                side_effect=subprocess.TimeoutExpired(["bash", "advisory.sh"], 60),
+            ):
+                with redirect_stderr(stderr):
+                    result = adapter.run_shell_pipeline(
+                        {"tool_name": "Bash", "tool_input": {"command": "echo hi"}},
+                        Path(directory),
+                    )
+
+        self.assertEqual(result, (0, ""))
+        self.assertIn("warning: hook timed out after 60s: advisory.sh", stderr.getvalue())
 
     def test_command_condition_gates_the_hook_inside_the_pipeline(self) -> None:
         """when.commandEre は pipeline 内で評価する（配線 = 実行ではない）。"""

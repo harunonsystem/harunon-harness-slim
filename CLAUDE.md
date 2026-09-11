@@ -17,8 +17,8 @@
 | `packages/core/` | 配布物の SSOT（CLAUDE.md, RTK.md, commands.md, skills/, rules/, hooks/, agents/, commands/, settings.json） |
 | `packages/extras/_active/` | 会社・プロジェクト固有（private submodule）。固有名が出るものは必ずこちら |
 | `packages/targets/*/config.json` | ターゲット別の配布宣言（変換は expandIncludes / transform）。bootstrap.sh は distribute.py の殻なので宣言が唯一の真実 |
-| `scripts/` | bootstrap（distribute.py の殻。外部 skill は curated-skills.py、codex local config は codex-local-config.py に委譲）/ distribute / validate-harness（check 実体は `harness_lib/validators/`、実行順は `validators.CHECKS`）+ tests |
-| `packages/public-slim/` | 公開 slim 配布の宣言（`manifest.json` の allowlist / 加工 / gate）と slim 用の静的ファイル（LICENSE・README・CI・pi-agent の install スクリプト）。生成は `scripts/build-public-slim.py`（ロジックは `harness_lib/public_slim.py`）。生成物は SSOT ではない |
+| `scripts/` | bootstrap（distribute.py の殻。外部skillの取得はrulesync install --frozen、合成はharness_lib/resolver.py、codex local configはcodex-local-config.pyに委譲）/ distribute / validate-harness（check 実体は `harness_lib/validators/`、実行順は `validators.CHECKS`）+ tests |
+| `packages/public-slim/` | 公開 slim 配布の宣言（`manifest.json` の allowlist / 加工 / gate）と slim 用の静的ファイル（LICENSE・README・CI・pi-agent の install スクリプト）。生成は `scripts/build-public-slim.py`（ロジックは `harness_lib/public_slim.py`）、配布先 CI と同じ条件での検証と配布先 repo への push は `scripts/publish-public-slim.sh`（`verify` / `publish`。`.github/workflows/publish-slim.yml` が main への push で実行）。生成物は SSOT ではない |
 | `.githooks/` | pre-commit（禁止語ガード）/ pre-push（submodule 同期・ドリフト警告）。`git config core.hooksPath .githooks` で有効化 |
 
 ## 編集時の注意

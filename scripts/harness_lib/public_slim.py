@@ -177,17 +177,24 @@ def _write_json_like_source(path: Path, data: dict) -> None:
     )
 
 
-def _drop_excluded_sources(repo: Path, out: Path) -> list[str]:
+def _drop_excluded_sources(repo: Path, out: Path, manifest: dict) -> list[str]:
     """packages/targets/*/config.json の distribute エントリから、slim で落とした source を消す。
 
-    「落とした」= SSOT には実体があるのに出力 tree に無い。SSOT にも無い source
-    （`.rulesync/skills/.curated/` のように bootstrap が後で取得するもの）は distribute が
-    実行時に skip する契約なので残す。source が文字列ならエントリごと削除、リストなら該当
-    要素だけ落とし、空になったらエントリ削除。settingsSync.source も同じ。
+    「落とした」= 出力 tree に無く、かつ SSOT に実体があるか manifest の exclude に該当する。
+    exclude 該当を実体の有無と独立に見るのは、extras submodule を取得しない環境（CI）では
+    SSOT 側にも実体が無く、「bootstrap が後で取得する source」と区別できないため
+    （2026-09-11 に CI で slim の distribute pi が extras の rules で dangling になった）。
+    SSOT にも無く exclude にも無い source（`.rulesync/skills/.curated/` のように bootstrap が
+    後で取得するもの）は distribute が実行時に skip する契約なので残す。source が文字列なら
+    エントリごと削除、リストなら該当要素だけ落とし、空になったらエントリ削除。
+    settingsSync.source も同じ。
     """
+    exclude = manifest.get("exclude", [])
 
     def excluded(source: str) -> bool:
-        return (repo / source).exists() and not (out / source).exists()
+        if (out / source).exists():
+            return False
+        return (repo / source).exists() or _matches(source, exclude)
 
     dropped: list[str] = []
     for config_path in sorted((out / "packages/targets").glob("*/config.json")):
@@ -362,7 +369,7 @@ def build_harness_slim(repo: Path, manifest: dict, out: Path) -> HarnessSlimRepo
     if manifest.get("dropIncludes"):
         report.dropped_includes = _drop_dangling_include_lines(out)
     if manifest.get("dropExcludedSources"):
-        report.dropped_sources = _drop_excluded_sources(repo, out)
+        report.dropped_sources = _drop_excluded_sources(repo, out, manifest)
     _add_files(repo, manifest, out)
     # addFiles（lessons の空 ledger 等）を置いた後に、出力 tree の実体で数え直す
     if manifest.get("dropGhostCommands"):

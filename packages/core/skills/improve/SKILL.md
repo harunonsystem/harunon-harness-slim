@@ -36,7 +36,7 @@ If the repo has no working verification command (no tests, broken build), record
 
 ### Phase 2 — Audit (parallel)
 
-Audit the codebase across the categories in [references/audit-playbook.md](references/audit-playbook.md) — read it now. Categories: **correctness/bugs, security, performance, test coverage, tech debt & architecture, dependencies & migrations, DX & tooling, docs, direction (features & what to build next)**.
+Select categories using the focus and effort level below, then read only those sections and "Finding format" in [references/audit-playbook.md](references/audit-playbook.md). Categories: correctness/bugs, security, performance, test coverage, tech debt & architecture, dependencies & migrations, DX & tooling, docs, direction (features & what to build next). Skip the audit playbook for plan-only or execution-only invocations.
 
 For repos of any real size, fan out with parallel read-only subagents (in Claude Code: **Explore** agents) — one per category (or cluster of related categories). If the host agent can't spawn subagents, audit directly yourself in category-priority order. **Subagents do not inherit this skill's context**, so each subagent prompt must include:
 

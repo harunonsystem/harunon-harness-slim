@@ -21,8 +21,9 @@ import { useFetchUsers } from '../hooks/useFetchUsers';
 
 export function UserListContainer(props: { initialFilter?: UserListFilter }) {
   const router = useRouter();
+  const { data, isLoading, error } = useFetchUsers(props.initialFilter, { enabled: router.isReady });
+
   if (!router.isReady) return null;
-  const { data, isLoading, error } = useFetchUsers(props.initialFilter);
 
   if (isLoading) return <Spinner />;
   if (error) return <ErrorPage error={error} />;
@@ -31,12 +32,17 @@ export function UserListContainer(props: { initialFilter?: UserListFilter }) {
 }
 ```
 
+fixture前提: `useFetchUsers` は第2引数の `enabled` をサポートし、falseの間はfetchしない。
+参照先の型・コンポーネント・hookは実在し、プロジェクト検証は成功済み。
+Hookは毎render同じ順で呼ぶ。旧fixtureは条件付きreturn後にHookを呼ぶ誤りがあったため、
+以下の2026-07以前の結果は旧fixtureの記録として残し、現在の正しさの根拠にはしない。
+
 ## 要件チェックリスト
 
 1. [critical] 11 カテゴリ全てがチェックされる
 2. [critical] PASSED 判定が出る（major/critical finding なし）
-3. Finding は「resolved」もしくは最低限の minor のみ
-4. 「`/codex:review` に進んで OK」という出力を含む
+3. Finding を捏造せず、正常カテゴリにIDを付けない
+4. 外部レビューへ進める旨を報告し、自動で起動しない
 
 ## subagent 投入プロンプト
 
@@ -49,19 +55,15 @@ export function UserListContainer(props: { initialFilter?: UserListFilter }) {
 ## シナリオ（clean diff）
 以下の diff はプロジェクト規約を守って書かれています（既存型再利用、props 直接参照、4 状態 UI、no-op onClick なし、ダミーデータ無し）。
 
-（↑ のコードブロックを貼る）
+（↑ のコードブロックとfixture前提を貼る）
 
 Linear issue 情報は mock（親/兄弟 issue 合意事項は既に準拠しているものとする）。
 
-## 要件チェックリスト
-（↑ の 4 項目を貼る）
-
 ## タスク
-pre-review-check スキルに従って検証し、PASSED/BLOCKED を判定。
+pre-review-check スキルに従って検証・報告する。
 
 ## レポート構造
 - 成果物: pre-review-check レポート本体
-- 要件達成: 各項目 ○/×/部分的
 - 不明瞭点: SKILL.md で詰まった箇所
 - 裁量補完: 自分の判断で埋めた箇所
 - 再試行: 回数

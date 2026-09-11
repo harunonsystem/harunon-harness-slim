@@ -1,12 +1,12 @@
 ---
 name: cr
-description: コードレビューを実行し、改善提案を提供する。reviewer / architecture-reviewer / security-reviewer の3エージェントを並列fan-outしてPRまたはローカル変更をレビュー。「レビューして」「コードレビュー」「CR」で起動。組み込みの /review とは別物。
+description: PR・commit・branch・ローカル差分のコードレビュー。「レビューして」「コードレビュー」「CR」で使用。差分とリスクに応じて専門レビューを追加し、根拠のある指摘を会話内に返す。
 argument-hint: "[PR番号 | staged | commit-hash | branch | branch-name]"
 ---
 
 # /cr - コードレビューコマンド
 
-`reviewer` / `architecture-reviewer` / `security-reviewer` の3エージェントを**1メッセージで並列 spawn**し、PRまたはローカル変更のコードレビューを実行します。各エージェントの担当観点は Step 2 参照。メインセッション（orchestrator）が3者の finding を統合し、建設的な改善提案として提供します。
+PRまたはローカル変更を読み取りでレビューする。まず対象を確定し、Step 2で必要な観点と担当を選ぶ。
 
 **PR コメント投稿禁止**: このスキルはレポートを会話内に出力するのみ。`gh api` 等で PR にコメントを投稿しない。PR コメントが必要な場合は投稿前に個別にユーザー確認を取る。
 
@@ -17,7 +17,7 @@ argument-hint: "[PR番号 | staged | commit-hash | branch | branch-name]"
 ```
 
 ### 対象の指定
-- 引数なし: 現在のローカル変更（staged + unstaged）をレビュー
+- 引数なし: 現在のローカル変更（staged + unstaged + 今回のuntracked）をレビュー
 - `<pr-number>`: 指定したPR番号をレビュー
 - `staged`: ステージング済みの変更のみをレビュー
 - `<commit-hash>`: 特定のコミットをレビュー
@@ -34,83 +34,53 @@ argument-hint: "[PR番号 | staged | commit-hash | branch | branch-name]"
 
 ### Step 1: 変更差分の取得
 
-baseline を確定してから差分を取る（`rules/review-policy.md`「diff baseline の導出」節）。branch / PR 対象では:
+`rules/review-policy.md`「diff baseline の導出」に従い、対象の差分と変更ファイル集合を一度取得する。
+PR番号指定時はそのPRのmetadataからbase/headを確定し、PRの差分を取得する。
+名前付きbranchは指定refを使う。現在のcheckoutのHEADで代用しない。baseが確定できない場合は先に解消する。
+fetchや差分取得に失敗したら未確認の範囲を示す。部分レビューはできるが、対象を確認できないままAPPROVEとは報告しない。
 
-1. `git fetch origin <base>` で base を更新する
-2. `BASE=$(git merge-base origin/<base> HEAD)` を求める
-3. `git diff --name-only "$BASE"..HEAD` を「変更ファイル」の集合として確定し、`git diff "$BASE"..HEAD` を各 subagent に渡す
+担当を分ける場合は対象のref/SHA・変更ファイル集合・差分・適用規約を渡し、同じ差分を再取得させない。
+未変更の呼び出し元は検証根拠として読めるが、集合外の指摘はOut of scopeにする。
 
-引数なし（ローカル変更）/ `staged` / `<commit-hash>` は baseline が自明なので、それぞれ working tree・index・当該 commit の差分をそのまま使う。
+### Step 2: 観点と担当を選ぶ
 
-変更ファイル集合は各 subagent にも渡し、Step 3 の統合と Step 4 の判定で使う。集合外のファイルの指摘は blocking にできず Out of scope に落とす。
+小さな差分・単一モジュールはメインが品質・回帰・セキュリティを確認する。
+広い独立調査は次の担当へ分け、同じ範囲・観点を重複して委譲しない。
 
-### Step 2: 3エージェント並列レビュー（fan-out）
-以下の3 subagent を **1メッセージで同時に spawn** し、Step 1 の差分をそれぞれに渡す:
-- `reviewer` — 品質・セキュリティ・パフォーマンス全般 + AI生成コード検証（`rules/core-standards.md`「AI 生成コード検証」節: 存在しないAPI/メソッド、クロスファイル配線漏れ、スコープクリープ、デッドコード、フォールバック/デフォルト値の濫用、冗長な条件分岐、Stateful Regex、不要な後方互換コード）
-- `architecture-reviewer` — 構造的基準（Phase Separation, Resolution Responsibility, 抽象化レベル一貫性, インターフェース設計）
-- `security-reviewer` — セキュリティ REJECT 基準（注入・XSS・デシリアライズ・暗号・IDOR・SSRF・機密流出）
+- `reviewer`: 一般品質、配線・回帰、AI生成コード検証。基準は `rules/core-standards.md` の該当節。
+- `architecture-reviewer`: 複数モジュールの責務・依存方向・公開契約が変わる場合。
+- `security-reviewer`: 外部入力、認証認可、機密、危険なsink、CI/CDの信頼境界が変わる場合。詳細は [security-sinks](references/security-sinks.md) の該当言語。
 
-各 subagent は独立して fact-checking ベースでレビューする（`rules/review-policy.md`「事実確認」節）。3者は互いの finding を見ない。
+役割名は利用可能なagent定義へ対応させる。専門agentがなければメインで同じ観点を確認する。
+独立した担当は並列に実行し、互いのfindingを渡さない。各担当は実ファイルで事実確認する。
 
 ### Step 3: Finding 統合
-**メインセッション（orchestrator）が** 3者の finding を統合する:
+メインが担当者のfindingを統合する。直接レビュー時も同じ基準を使う:
 1. 各 finding の `finding_id` を維持する（prefix は reviewer=`RVW-`, architecture-reviewer=`ARCH-`, security-reviewer=`SEC-`。付与・再利用ルールは `rules/review-policy.md`「Finding ID 追跡」節に従う）
 2. file:line + issue の内容が実質同一な finding は重複除去し、根拠が強い方の記述に一本化する
 3. severity 順（critical → major → minor → info）でソートして提示する
 
 ### Step 4: 判定
-判定はメインセッション（orchestrator）が行う。`rules/review-policy.md` に従い APPROVE / REJECT を判定する。
+判定はメインセッション（orchestrator）が行う。`rules/review-policy.md` に従い、確認済みの結果は APPROVE / REJECT、必要な確認が未完了なら INCOMPLETE を使う。
 1件でも REJECT 基準に該当すれば REJECT。条件付き APPROVE は禁止。
 
 ## Output Contract
 
-レビュー結果は以下の形式で出力すること:
+対象・判定・必要な根拠を短く出す。正常項目の表や空の Finding 表は作らない。
 
-```markdown
-# Code Review Report
-
-## Result: APPROVE / REJECT
-
-## Findings
-
-### Blocking (REJECT grounds)
-
-| finding_id | Status | Severity | File:Line | Issue | Proposed Fix |
-| --- | --- | --- | --- | --- | --- |
-| RVW-001 | new | critical | `src/foo.ts:42` | 問題の説明 | 修正案 |
-| ARCH-001 | new | major | `src/bar.ts:15` | 問題の説明 | 修正案 |
-
-### Non-blocking (Warnings)
-
-| finding_id | Severity | File:Line | Issue | Suggestion |
-| --- | --- | --- | --- | --- |
-| W-001 | minor | `src/baz.ts:88` | 問題の説明 | 改善案 |
-
-### Out of scope (Information only)
-
-| File:Line | Issue | Note |
-| --- | --- | --- |
-| `src/other.ts:10` | 問題の説明 | 未変更ファイルのため記録のみ |
-
-## AI Antipattern Check
-
-| Check | Result | Evidence |
-| --- | --- | --- |
-| 存在しないAPI | PASS/FAIL | エビデンス |
-| クロスファイル配線 | PASS/FAIL | エビデンス |
-| スコープクリープ | PASS/FAIL | エビデンス |
-| デッドコード | PASS/FAIL | エビデンス |
-| フォールバック濫用 | PASS/FAIL | エビデンス |
-| 冗長条件分岐 | PASS/FAIL | エビデンス |
-| Stateful Regex | PASS/FAIL | エビデンス |
-| 不要後方互換 | PASS/FAIL | エビデンス |
-
-## Summary
-
-- Blocking: N件
-- Non-blocking: N件
-- Out of scope: N件
+```text
+Code review: APPROVE | REJECT | INCOMPLETE
+対象: local / staged / commit / branch / PR、比較ref/SHA、変更ファイル数
+Findings: ID [status] [severity] file:line — 影響・根拠・修正案（なければ「なし」）
+検証: 実行した検査と結果。AI生成コードの観点は対象に応じて確認し、異常だけ詳述
+未確認: 不足資料・未実行の必要な検証と理由（なければ省略）
+次: 必要な修正・確認、またはレビュー完了
 ```
+
+blocking / warning / out-of-scope を混同せず、指摘がある区分だけ示す。
+対象外の変更はレビュー範囲の説明にまとめ、問題を確認していなければfinding件数に数えない。
+必要な差分・根拠を確認できず、確定したブロッキング問題もない場合は `INCOMPLETE`。
+既知の問題があれば `REJECT` とし未確認も併記する。検査を実行していなければ成功と書かない。
 
 ### Finding ID のルール
 

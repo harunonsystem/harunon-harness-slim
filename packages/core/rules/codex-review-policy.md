@@ -45,7 +45,7 @@ paths:
 
 ### 標準フロー
 
-1. push 前に `/pre-review-check`（推奨、事前に潰せば 1 周で通る率が上がる。自己チェックに加え similarity-check / simplify の機械クリーンアップを含む）
+1. push 前に `/pre-review-check`（推奨。差分に適用する観点を選び、必要な場合だけ重複・簡素化の補助チェックを使う）
 2. `/codex:review` を **1 回**だけ実行
 3. レビュー結果をユーザーに提示
 4. ユーザーの選択肢:
@@ -77,5 +77,5 @@ done flag は記録時の HEAD を 2 行目に保持する。同名ブランチ�
 
 ### 関連ファイル
 
-- `skills/pre-review-check/SKILL.md`: レビュー前の自己チェック + similarity/simplify（事前に済ませると指摘が減る）
+- `skills/pre-review-check/SKILL.md`: レビュー前の自己チェックと、必要時の補助チェック
 - `hooks/*`: Codex レビューの 2 回目以降を機械的にブロックする PreToolUse hook

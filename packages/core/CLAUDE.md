@@ -35,7 +35,7 @@ High-stakes な判断（アーキテクチャ選定・後戻りコストの大�
 
 ## Core Standards（コーディング基準・AI 検証・過去の教訓）
 
-`rules/core-standards.md` に統合済み（コーディング基準 + AI 生成コード検証 + 過去の修正指示から学んだ禁忌）。
+実装・レビュー・runtime診断・Git公開操作の前に `rules/core-standards.md` の該当節をReadする。非常駐なので、参照名を見ただけで適用済みとしない。
 
 ## Development Philosophy
 
@@ -107,7 +107,7 @@ sandbox の read deny / write allowlist に当たる操作は、retry で 1 つ�
 
 - `git push` / `pull` / `fetch` と `gh` コマンド全般（credential helper が `~/.config/gh` を、SSH remote が `~/.ssh` を読む。どちらも read deny）
 - `codex-companion.mjs` / `codex app-server`（sqlite state init が syscall 制限で失敗。`rules/codex-review-policy.md`）
-- `~/.claude/settings.json` の同期キーが変わる配布（write deny のため）。`bootstrap.sh` 自体は sandbox 内で完走する
+- `./scripts/bootstrap.sh`（配布前の rulesync install --frozen が `api.github.com` へ出るため sandbox 内では fail-closed で配布全体が止まる。1 ターゲットの設定キーだけなら `distribute.py <target> --push` が sandbox 内で通る）
 
 一時ファイルは `/tmp/` 直下ではなく `$TMPDIR` に書く。`~/.claude/settings.json`・`skills/`・`hooks/` への write deny は SSOT-first の意図どおりなので、外さずこのリポジトリ側を直す。
 

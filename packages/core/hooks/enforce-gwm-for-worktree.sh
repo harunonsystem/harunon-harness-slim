@@ -33,8 +33,8 @@ case "$TOOL_NAME" in
     # gwm の worktree_base_path を config から取得
     GWM_BASE=""
     if [ -f "$HOME/.config/gwm/config.toml" ]; then
-      GWM_BASE=$(grep -E '^\s*worktree_base_path\s*=' "$HOME/.config/gwm/config.toml" \
-        | sed 's/.*=[[:space:]]*"\(.*\)"/\1/' | head -1)
+      GWM_BASE=$(perl -ne 'if (/^\s*worktree_base_path\s*=\s*"([^"]*)"/) { print "$1\n"; exit }' \
+        "$HOME/.config/gwm/config.toml")
     fi
     # ~ を $HOME に展開
     GWM_BASE="${GWM_BASE/#\~/$HOME}"

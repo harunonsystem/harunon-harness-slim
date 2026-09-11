@@ -38,8 +38,8 @@ HOOK_CWD=$(echo "$INPUT" | jq -r '.cwd // ""')
 # gwm の worktree_base_path を取得（全候補パスの判定で共有する）
 GWM_BASE=""
 if [ -f "$HOME/.config/gwm/config.toml" ]; then
-  GWM_BASE=$(command grep -E '^\s*worktree_base_path\s*=' "$HOME/.config/gwm/config.toml" \
-    | sed 's/.*=[[:space:]]*"\(.*\)"/\1/' | head -1)
+  GWM_BASE=$(perl -ne 'if (/^\s*worktree_base_path\s*=\s*"([^"]*)"/) { print "$1\n"; exit }' \
+    "$HOME/.config/gwm/config.toml")
 fi
 GWM_BASE="${GWM_BASE/#\~/$HOME}"
 : "${GWM_BASE:=$HOME/projects/worktrees}"

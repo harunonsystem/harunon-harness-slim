@@ -5,6 +5,7 @@ skills・rules・hooks・agents・slash commands と、それらを各ランタ�
 
 このリポジトリは **生成物** です。SSOT は `harunon-harness`（private）で、`scripts/build-public-slim.py` が
 `packages/public-slim/manifest.json` の allowlist に従って組み立てています。ここで直接編集した内容は次の生成で巻き戻ります。
+更新は SSOT 側の `publish-slim` workflow（`scripts/publish-public-slim.sh`）が行い、この repo の CI と同じ検査を生成物の中で通してから push します。
 
 ## 入っているもの
 

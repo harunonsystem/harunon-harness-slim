@@ -7,7 +7,7 @@ description: Upgrade all development tools — mise, OpenCode, Homebrew — in o
 
 ## Process
 
-Run each step in order. Continue to the next step even if one fails (`|| true` for non-critical failures), then report which succeeded and which failed.
+Run the requested upgrades in order and record each command's exit status. Independent upgrades may continue after a failure; preserve the failure in the report instead of hiding it with `|| true`.
 
 ### 1. Upgrade mise
 
@@ -25,10 +25,9 @@ opencode upgrade
 
 ```bash
 brew upgrade
-brew cleanup
 ```
 
-`brew cleanup` removes old package versions to free disk space.
+Run `brew cleanup` only when cleanup is also requested; it removes old package versions.
 
 ### 4. Summary
 
@@ -36,4 +35,4 @@ Report which of mise / OpenCode / Homebrew succeeded or failed.
 
 ## Notes
 
-- Each step is idempotent — safe to run repeatedly.
+- Record versions before and after the upgrades. Retry a failed step after resolving its cause; do not repeat successful upgrades just to check them.

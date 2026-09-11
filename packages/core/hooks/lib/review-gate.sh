@@ -264,7 +264,7 @@ _codex_review_command_matches() {
 # **push/PR 対象の repo** で解決するため。
 review_gate_resolve_target_repo() {
   local cmd="$1"
-  local base result status
+  local base result status error_file
 
   REVIEW_GATE_UNRESOLVABLE_REASON=""
 
@@ -278,12 +278,30 @@ review_gate_resolve_target_repo() {
   fi
 
   base="$(pwd)"
-  result=$(printf '%s' "$cmd" | python3 "$_REPO_TARGET_CLI" resolve --base "$base" 2>&1)
+  error_file=$(mktemp "${TMPDIR:-/tmp}/harness-repo-target.XXXXXX") || {
+    REVIEW_GATE_UNRESOLVABLE_REASON="repo 解決の診断用一時ファイルを作成できません"
+    return 1
+  }
+  # shim の警告は exit 0 でも stderr に出る。成功時の stdout はパスだけとして扱う。
+  result=$(printf '%s' "$cmd" | python3 "$_REPO_TARGET_CLI" resolve --base "$base" 2>"$error_file")
   status=$?
   if [ "$status" -ne 0 ]; then
-    REVIEW_GATE_UNRESOLVABLE_REASON="$result"
+    local error_output
+    error_output="$(cat "$error_file")"
+    if [ -n "$result" ] && [ -n "$error_output" ]; then
+      REVIEW_GATE_UNRESOLVABLE_REASON="$(printf '%s\n%s' "$result" "$error_output")"
+    elif [ -n "$result" ]; then
+      REVIEW_GATE_UNRESOLVABLE_REASON="$result"
+    else
+      REVIEW_GATE_UNRESOLVABLE_REASON="$error_output"
+    fi
+    if [ -z "$REVIEW_GATE_UNRESOLVABLE_REASON" ]; then
+      REVIEW_GATE_UNRESOLVABLE_REASON="repo_target.py resolve が失敗しました (exit $status)"
+    fi
+    rm -f "$error_file"
     return 1
   fi
+  rm -f "$error_file"
 
   if ! cd "$result" 2>/dev/null; then
     # このファイル内では読まないが、呼び出し元（各 hook）が deny メッセージに使う。

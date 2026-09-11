@@ -83,6 +83,32 @@ class TestBuildPublicSlim(unittest.TestCase):
             self.assertTrue((self.harness / m.group("path")).is_file(), msg=m.group("path"))
         self.assertNotIn("fragments/claude-md/", text)
 
+    def test_excluded_source_is_dropped_even_when_absent_from_ssot(self) -> None:
+        # CI は extras submodule を取得しないので SSOT 側にも実体が無い。exclude 該当なら
+        # 実体の有無に関係なく落とし、exclude 外で SSOT にも無い source（curated）は残す
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            out = Path(tmp) / "out"
+            cfg_dir = out / "packages/targets/x"
+            cfg_dir.mkdir(parents=True)
+            (out / "packages/core/rules").mkdir(parents=True)
+            repo.mkdir()
+            cfg = {
+                "distribute": {
+                    "rules/": {"source": ["packages/core/rules/", "packages/extras/_active/rules/"]},
+                    "skills/": {"source": [".rulesync/skills/.curated/"]},
+                    "RTK.md": {"source": "packages/core/RTK.md"},
+                }
+            }
+            (cfg_dir / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+            manifest = {"exclude": ["packages/extras/", "packages/core/RTK.md"]}
+            dropped = public_slim._drop_excluded_sources(repo, out, manifest)
+            result = json.loads((cfg_dir / "config.json").read_text(encoding="utf-8"))["distribute"]
+            self.assertEqual(result["rules/"]["source"], ["packages/core/rules/"])
+            self.assertEqual(result["skills/"]["source"], [".rulesync/skills/.curated/"])
+            self.assertNotIn("RTK.md", result)
+            self.assertEqual(len(dropped), 2)
+
     def test_excluded_distribute_sources_are_dropped_from_target_configs(self) -> None:
         for config in sorted((self.harness / "packages/targets").glob("*/config.json")):
             cfg = json.loads(config.read_text(encoding="utf-8"))

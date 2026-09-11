@@ -13,7 +13,9 @@ exit code / stdout / フラグファイルを検証する。
 import hashlib
 import json
 import os
+import shlex
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -115,6 +117,45 @@ def _review_command_input(extra: str = "") -> str:
     if extra:
         command = f"{command} {extra}"
     return json.dumps({"tool_input": {"command": command}})
+
+
+class TestTargetResolverStreams(unittest.TestCase):
+    def run_resolver(self, *, fail=False):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shim = root / "python3"
+            shim.write_text(
+                "#!/bin/bash\n"
+                "echo 'shim diagnostic' >&2\n"
+                + ("echo 'resolver output'\nexit 42\n" if fail else f"exec {shlex.quote(sys.executable)} \"$@\"\n")
+            )
+            shim.chmod(0o755)
+            env = dict(os.environ, PATH=f"{root}:{os.environ['PATH']}", TMPDIR=tmp)
+            result = subprocess.run(
+                ["bash", "-c", '''
+source "$1"
+if review_gate_resolve_target_repo 'git status'; then
+    pwd
+else
+    printf '%s\\n' "$REVIEW_GATE_UNRESOLVABLE_REASON"
+    exit 1
+fi
+''', "test", str(HOOKS_DIR / "lib" / "review-gate.sh")],
+                cwd=root, env=env, capture_output=True, text=True, timeout=10,
+            )
+            self.assertEqual(sorted(p.name for p in root.iterdir()), ["python3"])
+            return result, str(root.resolve())
+
+    def test_successful_resolver_diagnostic_does_not_corrupt_path(self):
+        result, expected = self.run_resolver()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.strip(), expected)
+
+    def test_resolver_failure_keeps_diagnostic_and_denies(self):
+        result, _ = self.run_resolver(fail=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("resolver output", result.stdout)
+        self.assertIn("shim diagnostic", result.stdout)
 
 
 class ReviewGateTestCase(unittest.TestCase):

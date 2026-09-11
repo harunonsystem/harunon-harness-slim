@@ -1,8 +1,8 @@
 ## Frequently Used Commands
 
-> **skill は全件配布**（skill pack によるキュレーションは 2026-08-19 に廃止）。以下の表のコマンドは原則どのランタイムでも使えます。例外は Claude 専用・MCP 依存の skill で、非 Claude ランタイムには配布されません（宣言は `packages/core/disabled-skills.json` が唯一の SSOT）。
+> **skill は全件配布**（skill pack によるキュレーションは 2026-08-19 に廃止）。これはコマンド総覧です。runtimeごとの利用可否はcoreとextrasの `disabled-skills.json` に従い、実際に利用可能なskillを選んでください。
 
-> **upstream 由来 skill の読み替え**: `mattpocock/skills` から vendoring した skill は本文を逐語で保つため、harness に無い名前を指すことがあります。`to-spec` → `/to-prd`、`to-tickets` → `/to-issues`、upstream の code-review skill → Claude では同名の native skill、他 runtime では `/cr` と読み替えてください。issue tracker の規約は `rules/core-standards.md`「Issue tracker の規約」節。
+> **upstream 由来 skill の読み替え**: `mattpocock/skills` からrulesyncで取得するskill は本文を逐語で保つため、harness に無い名前を指すことがあります。`to-spec` → `/to-prd`、`to-tickets` → `/to-issues`、upstream の code-review skill → Claude では同名の native skill、他runtimeではその環境で利用可能なレビュー機能を選んでください。`/cr` は非Claude向け配布から除外されています。issue tracker の規約は `rules/core-standards.md`「Issue tracker の規約」節。
 
 ### Review / Code Quality
 

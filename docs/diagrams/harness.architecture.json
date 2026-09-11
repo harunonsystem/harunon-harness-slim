@@ -52,7 +52,7 @@
       "type": "database",
       "label": "packages/core",
       "sublabel": "配布物の SSOT",
-      "tag": "skills 77 / hooks 43",
+      "tag": "skills 29 / hooks 36",
       "pos": [
         40,
         180
@@ -196,7 +196,7 @@
       "type": "security",
       "label": "policy/*.json",
       "sublabel": "hook-pipeline / danger-rules",
-      "tag": "hook 6 · rule 38",
+      "tag": "hook 7 · rule 39",
       "pos": [
         300,
         460
@@ -380,8 +380,8 @@
       "dot": "rose",
       "title": "policy は runtime ごとに実効範囲が違う",
       "items": [
-        "hook 6 本 × 5 runtime の配線は hook-pipeline.json が宣言",
-        "danger rule 38 本の実効範囲は rule ごとの targets / absent が真実"
+        "hook 7 本 × 5 runtime の配線は hook-pipeline.json が宣言",
+        "danger rule 39 本の実効範囲は rule ごとの targets / absent が真実"
       ]
     }
   ]

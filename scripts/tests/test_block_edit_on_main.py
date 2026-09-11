@@ -114,6 +114,14 @@ class TestBlockEditOnMain(unittest.TestCase):
         result = _run(file_path, cwd=str(repo), home=str(self.fake_home))
         self.assertEqual(result.returncode, 2)
 
+    def test_config_without_worktree_base_still_blocks_main_edit(self):
+        config = self.fake_home / ".config/gwm/config.toml"
+        config.parent.mkdir(parents=True)
+        config.write_text('editor = "code"\n')
+        repo = _make_git_repo(self.root, branch="main")
+        result = _run(str(repo / "file.txt"), cwd=str(repo), home=str(self.fake_home))
+        self.assertEqual(result.returncode, 2, result.stderr)
+
     def test_edit_on_feature_branch_is_allowed(self):
         repo = _make_git_repo(self.root, branch="feature-x")
         file_path = str(repo / "file.txt")

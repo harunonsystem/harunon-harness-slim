@@ -77,6 +77,17 @@
 		"installManifest": "install-manifest.json",
 		"note": "harness-slim の packages/targets/pi/config.json（dropExcludedSources 適用後）から distribute の dest キーと settingsSync.keys を install-manifest.json に書き出す。install.sh はそれを jq で読んで rsync / settings merge し、配ったファイルを dest の ledger（.harunon-pi-agent-slim.installed.json）に記録して、次回は前回配って今回 payload に無いファイルだけ prune する（管理パス配列を shell に直書きしない）。staticDir の中身も private tree ではなく harness-slim から取る（private 側の同ディレクトリに .gitignore 対象のローカル成果物があっても payload に入らない）。distribute --push が dest に残す ledger / backups は payload から外す（生成マシンの repo パスが載るため）"
 	},
+	"publish": {
+		"harunon-harness-slim": {
+			"repo": "harunonsystem/harunon-harness-slim",
+			"branch": "main"
+		},
+		"harunon-pi-agent-slim": {
+			"repo": "harunonsystem/harunon-pi-agent-slim",
+			"branch": "main"
+		}
+	},
+	"publishNote": "生成物ディレクトリ名 → 配布先 repo / branch。scripts/publish-public-slim.sh がここだけを読む（repo 名を script や workflow に書かない）。流れ: SSOT の main に push → .github/workflows/publish-slim.yml の verify-slim が build し、生成物の中で配布先 CI と同じ条件（別 HOME・main checkout・/tmp 外）で run-tests / validate-harness / node --test / distribute --list / shellcheck / pi の install 往復を回す → 通ったら publish-slim が各 repo の branch に『Regenerate from harunon-harness@<sha>』を 1 commit 積む（差分が無ければ push しない）。PR では verify だけ。配布先 repo は生成物なので手で編集しない",
 	"gate": {
 		"_comment": "生成後のゲート。1 件でも当たれば build を落とす（exit 1）。両方の生成物を走査する。公開は不可逆なので CI でも同じチェックを回す（--check）",
 		"patternSources": [

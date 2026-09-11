@@ -29,12 +29,26 @@ CODEX_TO_CLAUDE_TOOL = {
     "edit_file": "Edit",
 }
 EDIT_TOOLS = frozenset(CODEX_TO_CLAUDE_TOOL)
+# JS hook-runner の DEFAULT_TIMEOUT_MS = 60_000 と同じ上限。PreToolUse の hook が
+# 無期限にぶら下がると、Codex 側の tool call 全体も返らなくなる。
+HOOK_TIMEOUT_SECONDS = 60
 # PreToolUse で pipeline に載せるツール。ここに無いツールは hook を通さない。
 PRE_TOOL_USE_TOOLS = {
     "bash": "Bash",
     "enterworktree": "EnterWorktree",
     **CODEX_TO_CLAUDE_TOOL,
 }
+
+
+def hook_env() -> dict[str, str]:
+    """Return the runtime environment shared by every shell hook invocation."""
+    entries = [entry for entry in os.environ.get("PATH", "").split(os.pathsep) if entry]
+    for entry in ("/bin", "/usr/bin"):
+        if entry not in entries:
+            entries.append(entry)
+    return {**os.environ, "PATH": os.pathsep.join(entries), "HARNESS_RUNTIME": "codex"}
+
+
 _PATCH_FILE_RE = re.compile(r"^\*\*\* (?:Update|Add) File: (.+)$", re.MULTILINE)
 
 
@@ -97,7 +111,7 @@ def candidate_hooks(event: dict[str, Any]) -> tuple[dict[str, Any], ...]:
 
 
 def run_shell_pipeline(event: dict[str, Any], repo: Path) -> tuple[int, str]:
-    env = {**os.environ, "HARNESS_RUNTIME": "codex"}
+    env = hook_env()
     tool_input = dict(event.get("tool_input") or {})
     input_changed = False
     for hook in candidate_hooks(event):
@@ -107,14 +121,22 @@ def run_shell_pipeline(event: dict[str, Any], repo: Path) -> tuple[int, str]:
             continue
         name = hook["file"]
         required = hook.get("required") is True
-        result = subprocess.run(
-            ["bash", str(HOOKS / name)],
-            input=json.dumps({**event, "tool_input": tool_input}),
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            env=env,
-        )
+        try:
+            result = subprocess.run(
+                ["bash", str(HOOKS / name)],
+                input=json.dumps({**event, "tool_input": tool_input}),
+                cwd=repo,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=HOOK_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            message = f"hook timed out after {HOOK_TIMEOUT_SECONDS}s: {name}"
+            if required:
+                return 1, f"required security {message}"
+            print(f"warning: {message}", file=sys.stderr)
+            continue
         output = result.stdout.strip()
         if result.returncode != 0:
             reason = "\n".join(
@@ -186,6 +208,7 @@ def post_edit_context(event: dict[str, Any]) -> str:
             result = subprocess.run(
                 ["bash", str(POST_EDIT_CHECKS), str(path)],
                 capture_output=True, text=True, check=False, timeout=30,
+                env=hook_env(),
             )
         except subprocess.TimeoutExpired:
             continue

@@ -357,12 +357,26 @@ class TestRoutingAdjacentContracts(unittest.TestCase):
             "keepRecentTokens": 20000,
         })
         packages = settings["packages"]
-        self.assertIn("npm:@howaboua/pi-codex-conversion@3.0.23", packages)
-        self.assertIn("npm:@gotgenes/pi-subagents@21.0.0", packages)
+        # Package versions are upgraded independently; the contract here is that
+        # these integrations stay explicitly pinned to a concrete semver.
+        for package_name in (
+            "@howaboua/pi-codex-conversion",
+            "@gotgenes/pi-subagents",
+            "pi-web-access",
+            "pi-mcp-adapter",
+        ):
+            with self.subTest(package=package_name):
+                matches = [
+                    package for package in packages
+                    if package.startswith(f"npm:{package_name}@")
+                ]
+                self.assertEqual(len(matches), 1, matches)
+                self.assertRegex(
+                    matches[0],
+                    rf"^npm:{re.escape(package_name)}@\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$",
+                )
         self.assertNotIn("pi-code-reviewer", " ".join(packages))
         self.assertNotIn("pi-observational-memory", " ".join(packages))
-        self.assertIn("npm:pi-web-access@0.27.0", packages)
-        self.assertIn("npm:pi-mcp-adapter@2.31.0", packages)
 
     def test_pi_compaction_does_not_leave_stale_adapter_helpers(self):
         conversion = json.loads(self.read("packages/targets/pi/pi-codex-conversion.json"))
