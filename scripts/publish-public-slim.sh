@@ -19,6 +19,8 @@
 #
 # 認証: SLIM_DEPLOY_TOKEN があれば https://x-access-token:<token>@github.com/... で clone / push する
 # （URL は表示しない）。無ければ素の https URL でローカルの credential helper に任せる。
+# token は配布先 repo を対象にした fine-grained PAT で、Contents と Workflows の両方が Read and write
+# であること。生成物に .github/workflows/ が含まれるため、Workflows 権限が無いと push が拒否される。
 set -euo pipefail
 
 REPO_ROOT="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
