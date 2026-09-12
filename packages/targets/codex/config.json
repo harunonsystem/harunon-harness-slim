@@ -34,7 +34,8 @@
 			"memories.generate_memories",
 			"memories.use_memories",
 			"tui.status_line",
-			"notice.fast_default_opt_out"
+			"notice.fast_default_opt_out",
+			"desktop.avatar-overlay-pet-visible"
 		],
 		"removeKeys": [
 			"model_catalog_json"
@@ -129,7 +130,7 @@
 		"AGENTS.md は Codex 専用の薄い常駐テンプレート（packages/targets/codex/AGENTS.md が SSOT）。共通ルール全文を常時ロードさせず、必要時に rules/ · skills/ · commands.md を読ませるルーティングのみを常駐させる。core/CLAUDE.md（Claude の source）とは分離",
 		"AGENTS.md が参照する RTK.md / commands.md もコピー配布（dangling 参照防止）",
 		"Core Workflow adapterはpackages/runtimes/codex/harunon-coreからCodex pluginとして配布し、公開操作の承認はCodex native permissionsに委ねる。plugin移行前のliveな ~/.codex/hooks.json + hooks/ は obsoleteFiles として退役させる",
-		"config.toml はsettingsSyncで意図的なユーザー設定キー（model/approval/personality/features/memories/tui.status_line 等）を同期。writable_rootsはマシン固有のためlocal管理。会社・契約固有の値（dictationDictionary の固有名 / cursorapi provider）は extrasSource/extrasKeys で extras submodule から同期し、harness 本体に固有名を置かない。marketplaces/plugins/projects/hooks.state/desktop テーマ/notify/service_tier/tui.model_availability_nux はアプリ管理状態のため対象外。harunon-core pluginはbuild-codex-plugin.pyでSSOTから組み立てる",
+		"config.toml はsettingsSyncで意図的なユーザー設定キー（model/approval/personality/features/memories/tui.status_line 等）を同期。writable_rootsはマシン固有のためlocal管理。会社・契約固有の値（dictationDictionary の固有名 / cursorapi provider）は extrasSource/extrasKeys で extras submodule から同期し、harness 本体に固有名を置かない。marketplaces/plugins/projects/hooks.state/desktop テーマ/notify/service_tier/tui.model_availability_nux はアプリ管理状態のため対象外（desktop.avatar-overlay-pet-visible だけは例外で同期する。Codex Desktop の Pet を消す hidden 設定で UI から変更できず、アプリが config.toml を書き戻すため SSOT で保持しないと再出現する）。harunon-core pluginはbuild-codex-plugin.pyでSSOTから組み立てる",
 		"harunon-core plugin の live 配備は bootstrap の対象外（Codex がアプリ管理する plugins/cache と config.toml の [plugins.*] に書き込むと本体の管理と衝突する）。組み立て済みを codex plugin add で入れる運用で、未インストール・未更新の検知は harness-doctor.sh が担う（そこに具体的なコマンドが出る）。CI は build できることしか見ないため、この検知が無いと配備漏れが緑のまま残る",
 		"keybindings.json（dictation キーバインド）と review*.config.toml（レビュー用モデルプロファイル）は targets/codex 配下で SSOT 化。review-high.config.toml は既存呼び出し互換の Sol medium alias として残す。cursor*.config.toml（Cursor 契約時専用プロファイル 3 件）は extras 配下から配布。~/.codex/prompts/opsx-*.md は OpenSpec CLI 生成物のため対象外、~/.codex/skills/ は旧配布の残骸（現行は shared-agents → ~/.agents/skills）のため対象外",
 		"agents/ は Codex カスタムサブエージェント（explorer/worker/reviewer）を配布。config.toml の [agents] max_threads / max_depth も settingsSync で同期",
