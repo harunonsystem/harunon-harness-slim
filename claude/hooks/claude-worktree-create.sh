@@ -29,8 +29,8 @@ fi
 # worktree は「cwd を含む最も外側のリポジトリ」に対して作る: submodule は
 # 親リポジトリの部品で、distribute 等の親側フローは親 checkout 内の submodule
 # パスを読むため、submodule 単体の worktree を作っても届かない。実害あり
-# （2026-07-26: 調査で cd した packages/extras/_active が session cwd に残り、
-# extras 側の worktree が作られた）。ネストした submodule もループで最外殻まで辿る。
+# （2026-07-26: 調査で cd したプロジェクト固有 overlay の submodule が session cwd に残り、
+# submodule 側の worktree が作られた）。ネストした submodule もループで最外殻まで辿る。
 while SUPERPROJECT="$(git -C "$CWD" rev-parse --show-superproject-working-tree 2>/dev/null)" \
       && [ -n "$SUPERPROJECT" ]; do
   echo "[gwm worktree] cwd は submodule 内のため superproject に寄せます: $CWD -> $SUPERPROJECT" >&2

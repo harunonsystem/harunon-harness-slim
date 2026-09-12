@@ -148,7 +148,7 @@ check_candidate_path() {
   repo_name=$(basename "$git_root")
   _is_harness_checkout "$git_root" && return 0
 
-  # harness の submodule（packages/extras/_active 等）も同じ main 直運用（SSOT-first）
+  # harness のプロジェクト固有 overlay（submodule）も同じ main 直運用（SSOT-first）
   local superproject
   superproject=$(git -C "$git_root" rev-parse --show-superproject-working-tree 2>/dev/null || echo "")
   if [ -n "$superproject" ] && _is_harness_checkout "$superproject"; then

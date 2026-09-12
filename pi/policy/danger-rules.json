@@ -506,9 +506,9 @@
       "action": "block",
       "impl": "table",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "rtk init -g / --global は ~/.claude/RTK.md を rtk 標準テンプレートで上書きします。必要なら実行後に ./scripts/bootstrap.sh で SSOT 版を復元してください",
+      "message": "rtk init -g / --global は ~/.claude/RTK.md を rtk 標準テンプレートで上書きします。harness が配布した RTK.md を使っている場合は、実行後に再配布で復元してください",
       "autoMode": [
-        { "tier": "soft_deny", "prose": "rtk init -g / --global は ~/.claude/RTK.md を上書きするため実行しない。RTK.md は harness の bootstrap が配布する" }
+        { "tier": "soft_deny", "prose": "rtk init -g / --global は ~/.claude/RTK.md を上書きするため実行しない。harness 配布の RTK.md は再配布で復元する" }
       ],
       "match": {
         "ere": "rtk[[:space:]]+init[[:space:]]+[^;&|]*(-g|--global)",
