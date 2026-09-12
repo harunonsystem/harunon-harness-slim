@@ -210,11 +210,28 @@ publish_one() {
   step "publish: $name → $repo ($branch)"
   mkdir -p "$work"
   git -C "$work" init -q -b "$branch"
-  # URL に token が入り得るので remote には登録せず、fetch / push の引数でだけ使う
-  if git -C "$work" fetch -q --depth 1 "$url" "$branch" 2>/dev/null; then
+  # URL に token が入り得るので remote には登録せず、ls-remote / fetch / push の引数でだけ使う。
+  # 「到達できない（認証・URL 誤り）」と「到達できるが branch が無い（空 repo）」は分ける。
+  # 前者を空 repo と誤認すると、認証失敗を「新規ブランチとして push します」で隠したまま
+  # push で落ちる（2026-09-11 に SLIM_DEPLOY_TOKEN 未登録の初回 publish で実測）
+  # stdout（ref 一覧）と stderr（警告・エラー）は分けて受ける。まとめると、到達できて
+  # branch が無い repo でも警告 1 行で「branch あり」と誤判定し、無い branch を fetch して落ちる。
+  # git は必ず -C "$work" で実行する。harness の checkout 直下で実行すると actions/checkout が
+  # ローカル config に仕込む http.https://github.com/.extraheader（GITHUB_TOKEN の Authorization）
+  # が URL 埋め込みの SLIM_DEPLOY_TOKEN より優先され、配布先 repo に権限の無い GITHUB_TOKEN で
+  # 「Repository not found」になる（2026-09-12 に PR #214 の publish で実測。fetch / push は
+  # 最初から -C "$work" だったので通っていた）
+  local remote_heads ls_remote_err="$SCRATCH/ls-remote.$name.err"
+  if ! remote_heads="$(GIT_TERMINAL_PROMPT=0 git -C "$work" ls-remote --heads "$url" "$branch" 2>"$ls_remote_err")"; then
+    printf '  remote に到達できません（認証か URL を確認: %s）\n' "$repo" >&2
+    perl -pe 's{x-access-token:[^@]+@}{x-access-token:***@}g' "$ls_remote_err" >&2
+    return 1
+  fi
+  if [ -n "$remote_heads" ]; then
+    git -C "$work" fetch -q --depth 1 "$url" "$branch"
     git -C "$work" checkout -q -B "$branch" FETCH_HEAD
   else
-    echo "  remote に $branch が無いか空 repo のため、新規ブランチとして push します"
+    echo "  remote に $branch が無い（空 repo）ため、新規ブランチとして push します"
   fi
 
   # -c: 内容で比較する。checkout 直後のファイルと生成物が同サイズ・同秒 mtime だと

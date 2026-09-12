@@ -47,7 +47,7 @@
       "review_head_binding": {
         "verdict": "SUPPORTED",
         "statement": "Static repository wiring only; this does not prove live behavior.",
-        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["evidence[\"subjectSha\"] == head"] }]
+        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["subject == head", "git_is_ancestor(repo, subject, head)"] }]
       },
       "safety_policy": {
         "verdict": "SUPPORTED",
@@ -98,7 +98,7 @@
         "verdict": "SUPPORTED",
         "statement": "Static repository wiring only; this does not prove live behavior.",
         "evidence": [
-          { "path": "packages/core/policy/harnessctl.py", "contains": ["evidence[\"subjectSha\"] == head"] }
+          { "path": "packages/core/policy/harnessctl.py", "contains": ["subject == head", "git_is_ancestor(repo, subject, head)"] }
         ]
       },
       "safety_policy": {
@@ -156,7 +156,7 @@
       "review_head_binding": {
         "verdict": "SUPPORTED",
         "statement": "Static repository wiring only; this does not prove live behavior.",
-        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["evidence[\"subjectSha\"] == head"] }]
+        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["subject == head", "git_is_ancestor(repo, subject, head)"] }]
       },
       "safety_policy": {
         "verdict": "SUPPORTED",
@@ -209,7 +209,7 @@
       "review_head_binding": {
         "verdict": "SUPPORTED",
         "statement": "Static repository wiring only; this does not prove live behavior.",
-        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["evidence[\"subjectSha\"] == head"] }]
+        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["subject == head", "git_is_ancestor(repo, subject, head)"] }]
       },
       "safety_policy": {
         "verdict": "SUPPORTED",
@@ -266,7 +266,7 @@
       "review_head_binding": {
         "verdict": "SUPPORTED",
         "statement": "Static repository wiring only; this does not prove live behavior.",
-        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["evidence[\"subjectSha\"] == head"] }]
+        "evidence": [{ "path": "packages/core/policy/harnessctl.py", "contains": ["subject == head", "git_is_ancestor(repo, subject, head)"] }]
       },
       "safety_policy": {
         "verdict": "SUPPORTED",

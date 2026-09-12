@@ -29,10 +29,12 @@
       "committed": "review"
     },
     "review": {
-      "review_attached": "decide"
+      "review_attached": "decide",
+      "review_skipped": "publish"
     },
     "decide": {
       "accepted": "publish",
+      "findings_fixed": "publish",
       "fix_selected": "implement",
       "findings_deferred": "publish"
     },
@@ -44,7 +46,7 @@
   "actions": {
     "pr.create": {
       "allowedStates": ["publish"],
-      "requires": ["local-review-current-head"]
+      "requires": ["local-review-covers-head"]
     },
     "pr.merge": {
       "allowedStates": ["publish", "complete"],

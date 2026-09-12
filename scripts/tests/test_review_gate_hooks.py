@@ -261,12 +261,47 @@ raise SystemExit(0 if allowed else 2)
         self.assertEqual(result.stdout.strip(), "", msg="allow 時は出力なし")
 
     def test_gh_pr_create_with_stale_head_is_denied(self):
-        """フラグの HEAD が古い（レビュー後に commit）→ deny"""
+        """フラグの HEAD が現在の履歴に無い（ブランチ作り直し等）→ deny"""
         self.gate_flag().write_text("0" * 40 + "\n")
 
         result = _run_hook(PR_GATE_HOOK, _gh_pr_create_input(), cwd=str(self.repo))
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         self.assertIn("deny", result.stdout)
+
+    def test_gh_pr_create_after_remediation_commit_is_allowed(self):
+        """レビューした commit が HEAD の祖先なら、レビュー後の修正 commit を積んでも allow。
+
+        rules/codex-review-policy.md は「指摘は全件修正し、再レビューはしない」を標準経路に
+        しているので、完全一致を要求するとその経路で PR 作成が必ず deny される。
+        """
+        reviewed = _git_out(self.repo, "rev-parse", "HEAD")
+        self.gate_flag().write_text(reviewed + "\n")
+        (self.repo / "fix.txt").write_text("remediation\n")
+        subprocess.run(["git", "-C", str(self.repo), "add", "fix.txt"], check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-C", str(self.repo), "commit", "-q", "-m", "fix findings"],
+            check=True,
+            capture_output=True,
+        )
+        self.assertNotEqual(_git_out(self.repo, "rev-parse", "HEAD"), reviewed)
+
+        result = _run_hook(PR_GATE_HOOK, _gh_pr_create_input(), cwd=str(self.repo))
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertEqual(result.stdout.strip(), "", msg="祖先なら allow（出力なし）")
+
+    def test_gh_pr_create_with_reviewed_commit_outside_history_is_denied(self):
+        """レビューした commit が実在しても現在の履歴の祖先でなければ deny（別履歴）"""
+        reviewed = _git_out(self.repo, "rev-parse", "HEAD")
+        self.gate_flag().write_text(reviewed + "\n")
+        subprocess.run(
+            ["git", "-C", str(self.repo), "commit", "-q", "--amend", "--allow-empty", "-m", "rewritten"],
+            check=True,
+            capture_output=True,
+        )
+
+        result = _run_hook(PR_GATE_HOOK, _gh_pr_create_input(), cwd=str(self.repo))
+        self.assertIn("deny", result.stdout)
+        self.assertIn("履歴", result.stdout)
 
     def test_non_pr_create_command_is_noop(self):
         """gh pr create 以外のコマンドは即 exit 0"""

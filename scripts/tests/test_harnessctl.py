@@ -1111,5 +1111,135 @@ class TestSchemaVersionCompatibility(HarnessctlTestCase):
         self.assertEqual(self.payload(result)["code"], "STATE_SCHEMA_VERSION_UNSUPPORTED")
 
 
+class TestReviewRemediationAndQuotaSkip(HarnessctlTestCase):
+    """rules/codex-review-policy.md の「指摘は全件修正・再レビューなし」「quota 切れは SKIP」を
+    kernel が通せることを検証する。"""
+
+    def attach(self, state: dict) -> dict:
+        result = self.run_cli(
+            "apply",
+            {
+                "type": "review.attach",
+                "expectedRevision": state["revision"],
+                "evidence": {
+                    "kind": "local-review",
+                    "trust": "audit-only",
+                    "provider": "codex",
+                    "subjectSha": self.head(),
+                    "artifact": str(self.artifact),
+                },
+            },
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        return self.payload(result)["state"]
+
+    def skip(self, state: dict, reason: str = "usage limit reached") -> subprocess.CompletedProcess[str]:
+        return self.run_cli(
+            "apply",
+            {
+                "type": "review.skip",
+                "expectedRevision": state["revision"],
+                "evidence": {
+                    "kind": "review-skipped",
+                    "trust": "audit-only",
+                    "provider": "codex",
+                    "skipReason": "quota",
+                    "reason": reason,
+                },
+            },
+        )
+
+    def test_pr_create_is_allowed_after_remediation_commits_without_a_second_review(self) -> None:
+        state = self.to_review()
+        reviewed = self.head()
+        state = self.attach(state)
+        state = self.advance(state, "findings_fixed")
+        self.assertEqual(state["phase"], "publish")
+        self.commit_file("fix.txt", "remediation\n")
+        self.assertNotEqual(self.head(), reviewed)
+
+        decision = self.run_cli("authorize", {"action": "pr.create"})
+
+        self.assertEqual(decision.returncode, 0, msg=decision.stdout + decision.stderr)
+        self.assertEqual(self.payload(decision)["code"], "LOCAL_REVIEW_ANCESTOR")
+        self.assertEqual(self.payload(decision)["trust"], "audit-only")
+
+    def test_pr_create_stays_denied_when_reviewed_commit_is_not_an_ancestor(self) -> None:
+        state = self.to_review()
+        state = self.attach(state)
+        self.advance(state, "accepted")
+        # ブランチを作り直したのと同じ状況: レビューした commit が履歴から消える
+        subprocess.run(
+            ["git", "-C", str(self.repo), "reset", "-q", "--hard", "HEAD~0"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(self.repo), "commit", "-q", "--amend", "--allow-empty", "-m", "rewritten"],
+            check=True,
+        )
+
+        decision = self.run_cli("authorize", {"action": "pr.create"})
+
+        self.assertEqual(decision.returncode, 2)
+        self.assertEqual(self.payload(decision)["code"], "REVIEW_STALE")
+
+    def test_review_skip_records_quota_evidence_and_moves_to_publish(self) -> None:
+        state = self.to_review()
+
+        result = self.skip(state)
+
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        updated = self.payload(result)["state"]
+        self.assertEqual(updated["phase"], "publish")
+        evidence = updated["evidence"][-1]
+        self.assertEqual(evidence["kind"], "review-skipped")
+        self.assertEqual(evidence["skipReason"], "quota")
+        self.assertEqual(evidence["subjectSha"], self.head())
+        self.assertEqual(updated["reviewAttempts"], 0)
+
+        decision = self.run_cli("authorize", {"action": "pr.create"})
+        self.assertEqual(decision.returncode, 0, msg=decision.stdout + decision.stderr)
+        self.assertEqual(self.payload(decision)["code"], "LOCAL_REVIEW_SKIPPED")
+
+    def test_review_skip_outside_review_phase_is_rejected(self) -> None:
+        state = self.to_implement()
+
+        result = self.skip(state)
+
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(self.payload(result)["code"], "INVALID_REVIEW_PHASE")
+
+    def test_review_skip_requires_a_reason_and_quota_skip_reason(self) -> None:
+        state = self.to_review()
+
+        blank = self.skip(state, reason="   ")
+        self.assertEqual(self.payload(blank)["code"], "REVIEW_SKIP_REASON_REQUIRED")
+
+        other = self.run_cli(
+            "apply",
+            {
+                "type": "review.skip",
+                "expectedRevision": state["revision"],
+                "evidence": {
+                    "kind": "review-skipped",
+                    "trust": "audit-only",
+                    "skipReason": "connection",
+                    "reason": "network down",
+                },
+            },
+        )
+        self.assertEqual(self.payload(other)["code"], "INVALID_REVIEW_EVIDENCE")
+
+    def test_review_skipped_transition_cannot_be_advanced_by_hand(self) -> None:
+        state = self.to_review()
+
+        result = self.run_cli(
+            "apply",
+            {"type": "phase.advance", "event": "review_skipped", "expectedRevision": state["revision"]},
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(self.payload(result)["code"], "PROTECTED_TRANSITION")
+
+
 if __name__ == "__main__":
     unittest.main()

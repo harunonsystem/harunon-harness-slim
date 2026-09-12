@@ -44,6 +44,10 @@ def parse_args() -> argparse.Namespace:
     attach.add_argument("--provider", required=True)
     attach.add_argument("--subject-sha", required=True)
     attach.add_argument("--artifact", type=Path, required=True)
+    skip = commands.add_parser("skip-review")
+    skip.add_argument("--revision", type=int, required=True)
+    skip.add_argument("--provider", required=True)
+    skip.add_argument("--reason", required=True)
     authorize = commands.add_parser("authorize")
     authorize.add_argument("action", choices=("pr.create", "pr.merge"))
     assign = commands.add_parser("assign")
@@ -105,6 +109,19 @@ def main() -> int:
                 "provider": args.provider,
                 "subjectSha": args.subject_sha,
                 "artifact": str(artifact),
+            },
+        }
+    elif args.command == "skip-review":
+        # quota / credit 切れで reviewer が返らなかったときだけ。他の失敗は止まって確認する
+        kernel_command, request = "apply", {
+            "type": "review.skip",
+            "expectedRevision": args.revision,
+            "evidence": {
+                "kind": "review-skipped",
+                "trust": "audit-only",
+                "provider": args.provider,
+                "skipReason": "quota",
+                "reason": args.reason,
             },
         }
     elif args.command == "authorize":

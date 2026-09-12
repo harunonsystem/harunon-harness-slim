@@ -73,7 +73,15 @@ python3 <skill-dir>/scripts/harness.py attach-review \
 
 The kernel refuses a missing artifact, a stale HEAD, an invalid phase, or an unapproved second review. Local evidence is explicitly `audit-only`: it prevents accidental PR creation but is not a security boundary.
 
-After reviewing the findings, record `accepted`, `fix_selected`, or `findings_deferred` with `advance`. A fix loop returns to implementation.
+After the findings are presented, fix every P0 / P1 / P2 on the branch and record `findings_fixed` with `advance` (no second review; the PR gate accepts the reviewed commit as an ancestor of HEAD). P3 and out-of-scope findings go to the PR body as 残件. Use `accepted` when there is nothing to fix, `findings_deferred` when the user explicitly defers, and `fix_selected` only when the user asks for a fix loop with a second review.
+
+If the reviewer did not return because of quota / credit exhaustion, record the skip instead of an attach and move on to publish; the PR body must say the review was skipped:
+
+```bash
+python3 <skill-dir>/scripts/harness.py skip-review --revision <revision> --provider codex --reason "<reviewer error summary>"
+```
+
+Any other reviewer failure (connection, auth, crash) is not a skip: stop and ask the user.
 
 A second review is blocked until the user explicitly approves it. Record that approval and its reason before invoking the adapter again:
 

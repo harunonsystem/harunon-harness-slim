@@ -77,6 +77,37 @@ class TestPublishPublicSlim(unittest.TestCase):
             subject = _git("-C", str(self.bare[name]), "log", "-1", "--format=%s", head)
             self.assertTrue(subject.startswith("Regenerate from harunon-harness@"), msg=subject)
 
+    def test_unreachable_remote_fails_instead_of_pushing_a_new_branch(self) -> None:
+        # 認証失敗・URL 誤りを「空 repo」と誤認して新規 push に進まない（2026-09-11 の
+        # 初回 publish は token 未登録の fetch 失敗をそのメッセージで隠していた）
+        name = next(iter(MANIFEST["publish"]))
+        bare = self.bare[name]
+        subprocess.run(["rm", "-rf", str(bare)], check=True)
+        result = self._run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("remote に到達できません", result.stderr)
+        self.assertNotIn("新規ブランチとして push", result.stdout)
+
+    def test_remote_access_ignores_local_git_config_of_the_caller_cwd(self) -> None:
+        # actions/checkout は harness checkout のローカル config に http.extraheader
+        # （GITHUB_TOKEN）を仕込む。remote に触る git を cwd で実行すると URL 埋め込みの
+        # token より優先されて配布先に届かない（2026-09-12 の publish で実測）。ここでは
+        # cwd 側の config に「remote base の URL を壊す insteadOf」を仕込み、remote 操作が
+        # 全部 -C "$work" で実行されている（cwd の config を拾わない）ことを確認する
+        trap = Path(self._tmp.name) / "trap-cwd"
+        trap.mkdir()
+        _git("init", "-q", str(trap))
+        _git("-C", str(trap), "config", f"url.{self._tmp.name}/does-not-exist/.insteadOf", f"{self.remote_base}/")
+        full_env = dict(os.environ)
+        result = subprocess.run(
+            [str(SCRIPT), "publish", "--skip-verify", "--output", str(self.output),
+             "--remote-base", str(self.remote_base)],
+            cwd=trap, capture_output=True, text=True, errors="replace", timeout=120, env=full_env,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        for name in MANIFEST["publish"]:
+            self.assertIsNotNone(self._head(name), msg=name)
+
     def test_rerun_without_changes_pushes_nothing(self) -> None:
         self.assertEqual(self._run().returncode, 0)
         heads = {name: self._head(name) for name in MANIFEST["publish"]}

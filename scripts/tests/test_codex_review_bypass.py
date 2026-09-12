@@ -10,6 +10,7 @@ KEY は git_root + branch のハッシュ（lib/review-gate.sh と同じ算出�
 tearDown で確実に削除する。
 """
 import hashlib
+import json
 import os
 import subprocess
 import tempfile
@@ -112,6 +113,88 @@ class TestCodexReviewBypass(unittest.TestCase):
         self.assertIn("緊急hotfix", content)
         self.assertIn(self.git_root, content)
         self.assertIn("BYPASS", content)
+
+    def test_quota_skip_sets_flag_and_logs_with_prefix(self):
+        result = self._run(
+            ["--quota", "usage limit reached"], cwd=str(self.repo), home=str(self.fake_home)
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertTrue(self._flag.exists())
+        log = (self.fake_home / ".claude" / "codex-review-bypass.log").read_text()
+        self.assertIn("quota-skip: usage limit reached", log)
+        # PR 本文への記載義務を呼び出し元に伝える
+        self.assertIn("SKIP（quota）", result.stdout)
+
+    def _install_fake_kernel(self, phase: str = "review", revision: int = 3) -> Path:
+        """inspect は指定 phase / revision の state を返し、apply は request をログに落とす。"""
+        kernel = self.root / "fake-harnessctl.py"
+        self.kernel_apply_log = self.root / "kernel-apply.json"
+        kernel.write_text(
+            """#!/usr/bin/env python3
+import json, sys
+request = json.load(sys.stdin)
+if sys.argv[1] == "inspect":
+    print(json.dumps({"state": {"phase": %r, "revision": %d}}))
+    raise SystemExit(0)
+assert sys.argv[1] == "apply"
+with open(%r, "w", encoding="utf-8") as f:
+    json.dump(request, f)
+print(json.dumps({"state": {"phase": "publish", "revision": %d}}))
+""" % (phase, revision, str(self.kernel_apply_log), revision + 1),
+            encoding="utf-8",
+        )
+        git_dir = Path(_git_out(self.repo, "rev-parse", "--absolute-git-dir"))
+        (git_dir / "harness").mkdir()
+        (git_dir / "harness" / "state.json").write_text("{}\n", encoding="utf-8")
+        return kernel
+
+    def _run_with_kernel(self, kernel: Path, args):
+        env = dict(os.environ)
+        env["CODEX_REVIEW_FLAG_DIR"] = str(self.flag_dir)
+        env["HOME"] = str(self.fake_home)
+        env["HARNESS_POLICY_KERNEL"] = str(kernel)
+        return subprocess.run(
+            ["bash", str(HOOK), *args], capture_output=True, text=True, timeout=10,
+            cwd=str(self.repo), env=env,
+        )
+
+    def test_quota_skip_records_review_skip_in_active_core_workflow(self):
+        kernel = self._install_fake_kernel(phase="review", revision=3)
+
+        result = self._run_with_kernel(kernel, ["--quota", "usage limit reached"])
+
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        request = json.loads(self.kernel_apply_log.read_text())
+        self.assertEqual(request["type"], "review.skip")
+        self.assertEqual(request["expectedRevision"], 3)
+        self.assertEqual(request["evidence"]["kind"], "review-skipped")
+        self.assertEqual(request["evidence"]["skipReason"], "quota")
+        self.assertIn("usage limit reached", request["evidence"]["reason"])
+        self.assertTrue(self._flag.exists())
+        self.assertIn("review.skip", result.stdout)
+
+    def test_quota_skip_with_inactive_workflow_only_writes_legacy_flag(self):
+        kernel = self._install_fake_kernel(phase="complete", revision=9)
+
+        result = self._run_with_kernel(kernel, ["--quota", "usage limit reached"])
+
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertFalse(self.kernel_apply_log.exists())
+        self.assertTrue(self._flag.exists())
+
+    def test_quota_skip_outside_review_phase_fails_without_writing_flag(self):
+        kernel = self._install_fake_kernel(phase="implement", revision=2)
+
+        result = self._run_with_kernel(kernel, ["--quota", "usage limit reached"])
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("review phase", result.stdout + result.stderr)
+        self.assertFalse(self._flag.exists())
+
+    def test_quota_without_detail_is_rejected(self):
+        result = self._run(["--quota"], cwd=str(self.repo), home=str(self.fake_home))
+        self.assertEqual(result.returncode, 1)
+        self.assertFalse(self._flag.exists())
 
     def test_outside_git_repo_is_rejected(self):
         outside = self.root / "not-a-repo"

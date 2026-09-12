@@ -213,8 +213,12 @@ class TestCapabilityContract(unittest.TestCase):
             findings = capabilities.reconcile(root)["findings"]
             self.assertTrue(any(f.code == "evidence-token" for f in findings))
 
-    def test_review_head_binding_uses_exact_head_tokens(self):
-        marker = 'evidence["subjectSha"] == head'
+    # review_head_binding の証跡: PR gate は「レビューした commit が HEAD と同一」または
+    # 「HEAD の祖先」（レビュー後の修正 commit）で判定する。完全一致だけを証跡にすると、
+    # rules/codex-review-policy.md の標準経路（全件修正・再レビューなし）が deny になる。
+    HEAD_BINDING_MARKERS = ("subject == head", "git_is_ancestor(repo, subject, head)")
+
+    def test_review_head_binding_uses_head_and_ancestor_tokens(self):
         contract = json.loads(
             (REPO_ROOT / "packages/core/capability-contract.json").read_text(
                 encoding="utf-8"
@@ -223,19 +227,21 @@ class TestCapabilityContract(unittest.TestCase):
         for target in ("claude", "codex", "opencode", "pi", "omp"):
             evidence = contract["claims"][target]["review_head_binding"]["evidence"]
             pairs = {(item["path"], token) for item in evidence for token in item["contains"]}
-            self.assertIn(("packages/core/policy/harnessctl.py", marker), pairs, target)
+            for marker in self.HEAD_BINDING_MARKERS:
+                self.assertIn(("packages/core/policy/harnessctl.py", marker), pairs, target)
 
     def test_removed_review_head_binding_token_is_drift(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            contract = _copy_contract_fixture(root, "codex")
-            policy = root / "packages/core/policy/harnessctl.py"
-            policy.write_text(
-                policy.read_text(encoding="utf-8").replace('evidence["subjectSha"] == head', ""),
-                encoding="utf-8",
-            )
-            findings = capabilities.reconcile(root)["findings"]
-            self.assertTrue(any(f.code == "evidence-token" for f in findings))
+        for marker in self.HEAD_BINDING_MARKERS:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                contract = _copy_contract_fixture(root, "codex")
+                policy = root / "packages/core/policy/harnessctl.py"
+                policy.write_text(
+                    policy.read_text(encoding="utf-8").replace(marker, ""),
+                    encoding="utf-8",
+                )
+                findings = capabilities.reconcile(root)["findings"]
+                self.assertTrue(any(f.code == "evidence-token" for f in findings), marker)
 
     def test_schema_rejects_unknown_verdict(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -141,17 +141,21 @@ fi
 REVIEWED_HEAD=$(cat "$FLAG")
 CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 
-if [ "$REVIEWED_HEAD" != "$CURRENT_HEAD" ]; then
+# レビューした commit が現在の HEAD の祖先なら、レビュー後に積んだ修正 commit を含めて
+# 「レビューがカバーしている」とみなす（rules/codex-review-policy.md: 指摘は全件修正し
+# 再レビューはしない、が想定経路）。祖先でない = ブランチ作り直し等で別の履歴になった
+# 場合だけ stale として deny する。block-repeated-codex-review.sh の done flag と同じ判定。
+if ! git merge-base --is-ancestor "$REVIEWED_HEAD" "$CURRENT_HEAD" 2>/dev/null; then
   declare -f record_denial >/dev/null 2>&1 && record_denial "block-pr-without-codex-review" "pr-without-review" "$CMD" || true
   jq -n --arg reviewed "$REVIEWED_HEAD" --arg current "$CURRENT_HEAD" '{
     "hookSpecificOutput": {
       "hookEventName": "PreToolUse",
       "permissionDecision": "deny",
-      "permissionDecisionReason": ("BLOCKED: レビュー後に新しいコミットがあります（reviewed: " + $reviewed[0:7] + " / current: " + $current[0:7] + "）。2 周目のレビューはユーザーの明示指示が要ります（rules/codex-review-policy.md）。まずユーザーに「再レビューするか、このまま PR にして残りをフォローアップに回すか」を聞いてください。独断で `/codex:review` を再実行しないでください。")
+      "permissionDecisionReason": ("BLOCKED: レビュー済みの commit が現在の履歴に含まれていません（reviewed: " + $reviewed[0:7] + " / current: " + $current[0:7] + "）。ブランチを作り直したか別の履歴に移っています。2 周目のレビューはユーザーの明示指示が要ります（rules/codex-review-policy.md）。まずユーザーに「再レビューするか、このまま PR にするか」を聞いてください。独断で `/codex:review` を再実行しないでください。")
     }
   }'
   exit 0
 fi
 
-# Codex review done and HEAD matches — allow
+# Codex review covers HEAD (same commit, or remediation commits on top) — allow
 exit 0

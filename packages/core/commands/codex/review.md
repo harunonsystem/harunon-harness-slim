@@ -6,15 +6,14 @@ allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*)
 
 Run a Codex review through the shared built-in reviewer.
 
-This user-level command overrides the plugin's `/codex:review` to enforce review-only behavior and background-by-default execution. The default review model is `gpt-5.6-sol` with `medium` reasoning, synchronized from `packages/targets/codex/profiles/review.config.toml`; pass `--model` to override it for one review.
+This user-level command overrides the plugin's `/codex:review` to enforce background-by-default execution and to hand the result to the fix flow in `rules/codex-review-policy.md`. The default review model is `gpt-5.6-sol` with `medium` reasoning, synchronized from `packages/targets/codex/profiles/review.config.toml`; pass `--model` to override it for one review.
 
 Raw slash-command arguments:
 `$ARGUMENTS`
 
 Core constraint:
-- This command is review-only.
-- Do not fix issues, apply patches, or suggest that you are about to make changes.
-- Your only job is to run the review and return Codex's output verbatim to the user.
+- The command itself only runs the review and returns Codex's output verbatim. Do not edit files before the output is back, and do not add review instructions of your own.
+- What happens after the output is back is defined by `rules/codex-review-policy.md` (the section at the end of this file restates it). That follow-up is mandatory, not optional.
 
 Execution mode rules:
 - Background is the default. Unless the raw arguments include `--wait`, launch the review as a Claude background task.
@@ -56,4 +55,10 @@ COMPANION=$(ls -t "$HOME"/.claude/plugins/cache/openai-codex/codex/*/scripts/cod
 ```
 - Return the command stdout verbatim, exactly as-is.
 - Do not paraphrase, summarize, or add commentary before or after it.
-- Do not fix any issues mentioned in the review output.
+
+After the review output is available (background completion or foreground return), follow `rules/codex-review-policy.md`:
+- Present the findings verbatim, then fix every P0 / P1 / P2 finding in the working tree on the current branch without waiting for the user to choose. Touch only files inside the reviewed diff; never sweep unrelated uncommitted changes into the fix.
+- If a P0 cannot be fixed on this branch, stop: no push, no PR. Report it to the user.
+- Committing the fixes follows the normal Git rule: confirm with the user unless the current task already delegated commit / PR, and stage the fixed files explicitly (`git add <paths>`). Do not re-run the review afterwards; the PR gate accepts the reviewed commit as an ancestor of HEAD.
+- Do not fix P3 or out-of-scope findings; list them as 残件 in the PR body.
+- If the output shows the review did not run because of quota / credit exhaustion (usage limit, insufficient quota, rate limit, 429, credit), run `~/.claude/hooks/codex-review-bypass.sh --quota "<one-line error summary>"` (it also records `review.skip` in the Core Workflow when one is active) and write "Codex review: SKIP（quota）" in the PR body. Any other failure (connection, auth, companion crash) stops and asks the user.

@@ -167,10 +167,14 @@ Core Workflowを使用中なら、checkpoint後に`committed`へ遷移する。
 #### レビュー
 
 1. 事前に `/pre-review-check`（推奨、1 周で通る率が上がる）
-2. checkpoint commit の HEAD に対して、Core Workflowが選択したreview adapterを **1 回だけ**実行
-3. 結果をユーザーに提示し、対応方針を仰ぐ（独断で再レビュー禁止）
-4. そのまま公開する場合は push / PR 作成へ進む
-5. 指摘を修正する場合は実装・検証・checkpoint commitへ戻る。2回目のreviewはユーザーが明示的に許可した場合だけ実行する
+2. checkpoint commit の HEAD に対して、Core Workflowが選択したreview adapterを **1 回だけ**実行（background 起動が既定）
+3. 結果をユーザーに提示する（指摘は原文のまま。件数や優先度を要約で変えない）
+4. 指摘を修正する。ユーザーの選択は待たない
+   - P0 / P1 / P2: 同じブランチで修正する。P0 が直せない場合は push / PR に進まず止まって報告する
+   - P3 / scope 外: 直さず PR 本文の「残件」に finding 単位で列挙する
+   - 修正はレビュー対象の差分に閉じる（無関係な未 commit 変更を巻き込まない）。commit は通常の Git 規約どおりユーザー確認のうえ、対象ファイルを明示して行う。Core Workflow 使用中は `findings_fixed` で decide → publish に進める（再レビューはしない。PR gate はレビュー済み commit が HEAD の祖先なら通す）
+5. reviewer が quota / credit 切れで返らなかった場合は SKIP: `~/.claude/hooks/codex-review-bypass.sh --quota "<エラー要旨>"`（Core Workflow 使用中は kernel にも `review.skip` が記録される）を実行し、PR 本文に「Codex review: SKIP（quota）」と書く。接続・認証・crash など quota 以外の失敗は止まってユーザーに確認する
+6. 2 回目の review はユーザーが明示的に許可した場合だけ実行する
 
 #### 公開
 

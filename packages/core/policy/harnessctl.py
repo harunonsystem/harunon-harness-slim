@@ -126,6 +126,22 @@ def git_value(repo: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
+def git_is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
+    """ancestor が descendant の履歴に含まれるか（同一 commit も真）。
+
+    レビュー証跡は「レビューした commit R が現在の HEAD の祖先」なら有効とみなす。
+    レビュー後の修正 commit（policy: 指摘は全件修正、再レビューはしない）で HEAD が
+    進むのは想定どおりで、ブランチ作り直しなど R が履歴から消えた場合だけ stale。
+    block-repeated-codex-review.sh の done flag と同じ判定。
+    """
+    result = subprocess.run(
+        ["git", "-C", str(repo), "merge-base", "--is-ancestor", ancestor, descendant],
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
 def resolve_state_file(explicit: Path | None, repo: Path) -> Path:
     if explicit is not None:
         return explicit.expanduser().resolve()
@@ -398,6 +414,43 @@ def _apply_review_report(
         state["assignments"][assignment_index]["status"] = "reported"
 
 
+def _apply_review_skip(
+    state: JsonObject,
+    request: JsonObject,
+    repo: Path,
+    workflow: JsonObject,
+) -> None:
+    """quota 切れで review が返らなかった事実を evidence に記録し、publish へ進める。
+
+    rules/codex-review-policy.md の「quota 切れは SKIP」を Core Workflow 側に写した
+    もの。legacy flag（codex-review-bypass.sh --quota）だけだと active な task では
+    PR gate が kernel に委譲して review phase で止まり続ける。skipReason は quota
+    のみ（接続・認証・companion のクラッシュは止まってユーザーに確認する契約なので
+    kernel に SKIP 経路を持たせない）。
+    """
+    if state["phase"] != "review":
+        raise KernelError("INVALID_REVIEW_PHASE", exit_code=2, phase=state["phase"])
+    evidence = request.get("evidence")
+    if not isinstance(evidence, dict):
+        raise KernelError("INVALID_REVIEW_EVIDENCE")
+    expected = {"kind": "review-skipped", "trust": "audit-only", "skipReason": "quota"}
+    if any(evidence.get(key) != value for key, value in expected.items()):
+        raise KernelError(
+            "INVALID_REVIEW_EVIDENCE",
+            reason="review skip evidence must be kind review-skipped, audit-only, skipReason quota",
+        )
+    reason = evidence.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        raise KernelError("REVIEW_SKIP_REASON_REQUIRED", exit_code=2)
+    provider = evidence.get("provider")
+    if provider is not None and (not isinstance(provider, str) or not provider.strip()):
+        raise KernelError("INVALID_REVIEW_EVIDENCE", reason="provider must be a non-empty string")
+    # subjectSha は呼び出し元の自己申告ではなく kernel が HEAD を記録する
+    evidence["subjectSha"] = git_value(repo, "HEAD")
+    state["evidence"].append(evidence)
+    state["phase"] = workflow["states"]["review"]["review_skipped"]
+
+
 def _apply_implement_report(
     state: JsonObject,
     request: JsonObject,
@@ -497,6 +550,7 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
         "phase.advance",
         "review.attach",
         "review.approve",
+        "review.skip",
         "assignment.create",
         "assignment.dispatched",
         "assignment.report",
@@ -530,7 +584,8 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
                 phase=state["phase"],
                 event=event,
             )
-        if event == "review_attached":
+        if event in ("review_attached", "review_skipped"):
+            # evidence 付きイベント（review.attach / review.skip）だけが通せる遷移
             raise KernelError("PROTECTED_TRANSITION", exit_code=2, event=event)
         if event == "implemented" and assignments and assignments[-1]["role"] == "implement":
             # dispatched のまま先に進む経路だけを塞ぐ。assignment を使わない
@@ -549,6 +604,8 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
         if not isinstance(reason, str) or not reason.strip():
             raise KernelError("REREVIEW_REASON_REQUIRED", exit_code=2)
         state["rereviewApproval"] = {"reason": reason.strip()}
+    elif event_type == "review.skip":
+        _apply_review_skip(state, request, repo, workflow)
     elif event_type == "review.attach":
         # 現在の assignment が review/dispatched なら assignment.report(role=review)
         # の別名として振る舞う。それ以外（assignment 無し、または他 role/status）は
@@ -683,16 +740,27 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
             if reason is not None:
                 raise KernelError("REPO_TARGET_UNRESOLVABLE", exit_code=2, reason=reason)
         head = git_value(repo, "HEAD")
-        current = any(
-            evidence["kind"] == "local-review"
-            and evidence["subjectSha"] == head
-            for evidence in state["evidence"]
-        )
-        if current:
+        # レビュー証跡は「レビューした commit が HEAD の祖先」なら現在の HEAD を
+        # カバーする（レビュー後の修正 commit は policy 上の想定経路）。同一 commit
+        # は LOCAL_REVIEW_CURRENT、修正 commit が積まれた状態は LOCAL_REVIEW_ANCESTOR、
+        # quota SKIP は LOCAL_REVIEW_SKIPPED と code を分けて監査ログで区別できるようにする。
+        code = None
+        for evidence in state["evidence"]:
+            if evidence["kind"] not in ("local-review", "review-skipped"):
+                continue
+            subject = evidence.get("subjectSha")
+            if not isinstance(subject, str):
+                continue
+            if subject == head:
+                code = "LOCAL_REVIEW_SKIPPED" if evidence["kind"] == "review-skipped" else "LOCAL_REVIEW_CURRENT"
+                break
+            if git_is_ancestor(repo, subject, head):
+                code = "LOCAL_REVIEW_SKIPPED" if evidence["kind"] == "review-skipped" else "LOCAL_REVIEW_ANCESTOR"
+        if code is not None:
             return {
                 "action": action,
                 "allowed": True,
-                "code": "LOCAL_REVIEW_CURRENT",
+                "code": code,
                 "trust": "audit-only",
             }
         return {"action": action, "allowed": False, "code": "REVIEW_STALE"}
