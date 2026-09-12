@@ -208,6 +208,17 @@ back_up() {
 
 # --- check ---------------------------------------------------------------------
 
+# 比較は内容（checksum）で行い、mtime は同期も比較もしない。git clone は mtime を復元しないので
+# mtime 比較だと clone 直後は全ファイルが差分になり、内容が同じファイルまで転送・退避される
+rsync_base=(-rlpgoD --checksum --relative)
+
+# 内容・パーミッションの差だけを itemize する。mtime を同期しないため rsync は内容が同じ
+# ファイルにも `.f..T....`（時刻だけ転送時刻になる）を出すので、その行は落とす
+itemized_changes() {
+  (cd "$PAYLOAD" && rsync "${rsync_base[@]}" --dry-run --itemize-changes "${sync_paths[@]}" "$DEST/") \
+    | { grep -v -E '^\.f\.\.T\.{4} ' || true; }
+}
+
 if [ "$CHECK_ONLY" -eq 1 ]; then
   [ -d "$DEST" ] || { echo "destination does not exist: $DEST" >&2; exit 1; }
   drift=0
@@ -215,7 +226,7 @@ if [ "$CHECK_ONLY" -eq 1 ]; then
     [ -n "$line" ] || continue
     echo "$line"
     drift=1
-  done < <(cd "$PAYLOAD" && rsync -aniO --relative "${sync_paths[@]}" "$DEST/")
+  done < <(itemized_changes)
   while IFS= read -r stale; do
     [ -n "$stale" ] || continue
     echo "D $stale (retired from payload)"
@@ -234,16 +245,12 @@ fi
 # --dry-run はファイルシステムに一切書かない（mkdir も ledger も）。rsync の dry-run は
 # 存在しない dest でも動く
 [ "$DRY_RUN" -eq 1 ] || mkdir -p "$DEST"
-# -O: ディレクトリの mtime は同期も比較もしない（prune で dest 側のディレクトリ時刻だけが
-# 変わり、--check が `.d..t.... rules/` を drift として報告してしまう）
-rsync_args=(-aO --relative)
 if [ "$DRY_RUN" -eq 1 ]; then
-  rsync_args+=(--dry-run --itemize-changes)
+  itemized_changes
 else
   # 上書きされる既存ファイルは backup_dir へ（rsync は退避対象があるときだけディレクトリを作る）
-  rsync_args+=(--backup --backup-dir="$backup_dir")
+  (cd "$PAYLOAD" && rsync "${rsync_base[@]}" --backup --backup-dir="$backup_dir" "${sync_paths[@]}" "$DEST/")
 fi
-(cd "$PAYLOAD" && rsync "${rsync_args[@]}" "${sync_paths[@]}" "$DEST/")
 
 while IFS= read -r stale; do
   [ -n "$stale" ] || continue
