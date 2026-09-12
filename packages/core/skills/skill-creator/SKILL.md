@@ -24,6 +24,11 @@ A short self-contained skill needs no extra directories.
 Use relative links from `SKILL.md` and state when each file is needed. Read only relevant references; moving content out and then loading every file does not reduce context use.
 Keep each instruction in one authoritative place. Link to existing policies instead of copying their full checklists.
 
+Treat frontmatter metadata as routing metadata, not as a miniature prompt. The description should identify the task boundary and distinguish neighboring skills; workflow steps and generic operating guidance belong in the body or conditional references.
+Do not require callers to preload architecture docs, examples, schemas or sibling skills unless every invocation needs them. Prefer explicit conditions such as “read X when Y is true”.
+Express completion as observable outcomes and verification rather than prescribing unnecessary intermediate behavior. Runtime/model-specific scaffolding belongs in target-specific policy only after an observed behavioral difference justifies it.
+
+- Trigger boundaries, context loading or metadata routing: read [routing-and-context](references/routing-and-context.md).
 - Multiple modes or complex resource layout: read [resource-patterns](references/resource-patterns.md).
 - Sequential or conditional workflow design: read [workflows](references/workflows.md).
 - Output format or examples: read [output-patterns](references/output-patterns.md).
@@ -78,6 +83,7 @@ python3 scripts/package_skill.py <skill-directory> [output-directory]
 
 The packager validates frontmatter and writes a ZIP-compatible `.skill` file. Inspect the archive before sharing it; packaging does not verify the workflow or grant publication approval.
 
+Done means the skill routes the intended requests without stealing its nearest negative case, only loads resources needed for the active path, exposes a reachable completion boundary, passes available repository validation, and reports any unverified behavior.
 Report the changed behavior, validation and remaining limitations. Retain license and attribution files.
 
 References: [Agent Skills specification](https://agentskills.io/specification), [skill creation best practices](https://agentskills.io/skill-creation/best-practices).
