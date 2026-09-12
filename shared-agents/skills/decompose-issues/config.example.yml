@@ -1,0 +1,30 @@
+# decompose-issues 設定
+# config.yml にコピーして環境に合わせて編集すること。
+# スキル実行時に config.yml がReadされる。
+
+# issue tracker: linear or github
+tracker: linear
+
+# Linear team / project（tracker: linear の場合）
+linear_team: YOUR_TEAM
+linear_project: YOUR_PROJECT
+
+# 全Issueのアサイン先（Linear のユーザー名 or GitHub のハンドル）
+assignee: your-github-username
+
+# Linear の team key/id（tracker: linear 時に必須）
+linear_team: your-team-key
+
+# Linear の project name/id（任意。指定すると作成する Issue が所属する）
+# linear_project: your-project-name
+
+# レイヤー → リポジトリのマッピング
+# 各縦slice Issueで触る可能性があるレイヤーとリポジトリを定義する。
+# schema / BE / FE の水平Sub-issueを機械的に作るための設定ではない。
+layers:
+  schema: owner/api-schema
+  BE: owner/backend
+  FE: owner/frontend
+
+# Issueタイトルの接頭辞（必要な場合）
+sub_issue_title_prefix: "【Project】"

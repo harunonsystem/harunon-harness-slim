@@ -1,0 +1,14 @@
+{
+  "_comment": "build-public-slim.py が packages/targets/opencode-launcher/config.json から生成。install.sh はこれを読んで rsync する管理パスと設定ファイルの同期キーを決める（配列を install.sh に直書きしない）",
+  "target": "opencode-launcher",
+  "displayName": "OpenCode optimized launcher",
+  "configDir": "~/.local/bin",
+  "configDirEnv": null,
+  "managedPaths": [
+    "opencode"
+  ],
+  "settingsFile": null,
+  "settingsFormat": null,
+  "settingsKeys": [],
+  "ledger": ".harunon-slim.installed.json"
+}

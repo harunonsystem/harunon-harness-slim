@@ -1,0 +1,34 @@
+{
+  "_comment": "build-public-slim.py が packages/targets/claude/config.json から生成。install.sh はこれを読んで rsync する管理パスと設定ファイルの同期キーを決める（配列を install.sh に直書きしない）",
+  "target": "claude",
+  "displayName": "Claude Code",
+  "configDir": "~/.claude",
+  "configDirEnv": null,
+  "managedPaths": [
+    "CLAUDE.md",
+    "agents",
+    "commands",
+    "commands.md",
+    "hooks",
+    "policy",
+    "rules",
+    "settings.json",
+    "skills",
+    "workflows"
+  ],
+  "settingsFile": "settings.json",
+  "settingsFormat": "json",
+  "settingsKeys": [
+    "hooks",
+    "sandbox",
+    "permissions.deny",
+    "permissions.ask",
+    "autoMode.hard_deny",
+    "autoMode.soft_deny",
+    "fallbackModel",
+    "switchModelsOnFlag",
+    "env.HARNESS_RUNTIME",
+    "env.NODE_USE_ENV_PROXY"
+  ],
+  "ledger": ".harunon-slim.installed.json"
+}

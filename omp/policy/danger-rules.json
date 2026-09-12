@@ -1,0 +1,729 @@
+{
+  "version": 1,
+  "constants": {
+    "originEre": "(^|\\||&&|;|\\$\\()[[:space:]]*",
+    "chainOnlyOriginEre": "(\\||&&|;|\\$\\()[[:space:]]*",
+    "wordEndEre": "([^A-Za-z0-9_/-]|$)",
+    "originJs": "(^|\\||&&|;|\\$\\()\\s*"
+  },
+  "rules": [
+    {
+      "id": "git-commit-and-push-same-command",
+      "action": "block",
+      "impl": "custom",
+      "targets": ["claude", "omp", "opencode", "pi"],
+      "message": "git commit と git push を1コマンドにまとめないでください。commit → 確認 → push の順で分離してください"
+    },
+    {
+      "id": "git-no-verify",
+      "action": "block",
+      "impl": "custom",
+      "targets": ["claude", "opencode", "pi", "codex", "omp"],
+      "message": "git commit/push で --no-verify（commit は短縮形 -n も含む）を使って hook をスキップしないでください。原因を直してから再実行してください",
+      "autoMode": [
+        { "tier": "hard_deny", "prose": "git commit / git push で --no-verify（短縮形 -n を含む）を使って hook をスキップしてはならない。hook が失敗したら原因を直して再実行する" }
+      ],
+      "match": {
+        "globs": {
+          "omp": [
+            "git *commit*--no-verify*",
+            "rtk git *commit*--no-verify*",
+            "git *push*--no-verify*",
+            "rtk git *push*--no-verify*"
+          ]
+        }
+      },
+      "notes": "omp（bash.patterns glob）は --no-verify 長形式のみ検出する。-n 短縮形・-an のような結合短フラグ・env prefix（FOO=1 git ...）は glob 表現不能で bash.patterns では未カバー。omp では extensions/omp-denial-reason.js が同じ hook を HARNESS_RUNTIME=omp で実行する第二防衛線になり、custom 関数がこれらも検出する（2026-08-30。claude/pi/opencode/codex と同じ判定）。加えて omp はクォート除去後のセグメントも照合するため、コミットメッセージ本文に --no-verify という文字列が現れると誤 deny する",
+      "prose": [
+        { "file": "packages/core/rules/core-standards.md", "token": "--no-verify" }
+      ]
+    },
+    {
+      "id": "git-push",
+      "action": "block",
+      "impl": "custom",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "absent": {
+        "codex": "push 承認は Codex native permissions / guardian_approval が所有する（旧 hook-pipeline absent.codex の決定を rule 単位で継承）"
+      },
+      "message": "git push はユーザーの明示的な許可を得てから実行してください。許可を得たら承認スクリプト `approve-push.sh \"理由\"`（Claude: `~/.claude/hooks/`、pi: `~/.pi/agent/claude-hooks/`、omp: `~/.omp/agent/claude-hooks/`）を実行してから、単独の push コマンドを実行してください",
+      "autoMode": [
+        { "tier": "hard_deny", "prose": "main / master への直接 push、および force push（--force / -f / +ref）は禁止" },
+        { "tier": "soft_deny", "prose": "git push はユーザーが明示的に許可した場合のみ実行する。commit と push を 1 コマンドに連結しない" }
+      ],
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+push",
+        "origin": "default",
+        "wordEnd": false,
+        "globs": {
+          "opencode": ["git push", "git push *"],
+          "omp": ["git push *"]
+        }
+      },
+      "overrides": {
+        "opencode": {
+          "action": "confirm",
+          "reason": "opencode は無人運転前提のため hook の block ではなく ask で人間確認を挟んで実行自体は許可する"
+        },
+        "omp": {
+          "action": "confirm",
+          "reason": "omp も同様に ask で人間確認を挟む運用にしている"
+        }
+      }
+    },
+    {
+      "id": "git-push-protected",
+      "action": "block",
+      "impl": "table",
+      "targets": ["opencode", "omp"],
+      "match": {
+        "globs": {
+          "opencode": [
+            "git push --force*",
+            "git push -f",
+            "git push -f *",
+            "git push -u origin main",
+            "git push -u origin main *",
+            "git push -u origin master",
+            "git push origin +*",
+            "git push origin main",
+            "git push origin main *",
+            "git push origin master",
+            "git push origin master *"
+          ],
+          "omp": [
+            "git push origin main",
+            "git push origin main *",
+            "git push origin master",
+            "git push origin master *",
+            "git push --force",
+            "git push --force *",
+            "git push -f",
+            "git push -f *",
+            "git push origin +*"
+          ]
+        }
+      },
+      "prose": [
+        { "file": "packages/targets/opencode/AGENTS.md", "token": "git push origin main" },
+        { "file": "packages/targets/opencode/AGENTS.md", "token": "git push --force" },
+        { "file": "packages/targets/omp/AGENTS.md", "token": "push origin main" }
+      ]
+    },
+    {
+      "id": "git-commit-chain",
+      "action": "block",
+      "impl": "custom",
+      "targets": ["claude", "omp", "opencode", "pi"],
+      "message": "git commit を他のコマンドとチェインしないでください。単独で実行してください",
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+commit",
+        "origin": "chain-only",
+        "wordEnd": false
+      }
+    },
+    {
+      "id": "git-commit",
+      "action": "confirm",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "git commit（COMMIT前チェック: 意図したブランチか / 同種の問題を grep したか / 動作を実物で確認したか / 独立した変更を分割したか）",
+      "match": {
+        "js": "(?:rtk\\s+)?git\\s+commit\\b",
+        "origin": "default",
+        "globs": {
+          "claude": ["Bash(git commit)"],
+          "opencode": ["git commit *"],
+          "omp": ["git commit *"]
+        }
+      },
+      "overrides": {
+        "claude": {
+          "action": "block",
+          "reason": "claude settings.json は allow/deny のみで ask 層が無く、bare `git commit` の deny は事実上のブロックとして扱う"
+        }
+      }
+    },
+    {
+      "id": "git-checkout-new-branch-in-main-repo",
+      "action": "block",
+      "impl": "custom",
+      "targets": ["claude", "omp", "opencode", "pi"],
+      "message": "メインリポジトリでブランチを作成しないでください。gwm で worktree を作成してから作業してください:",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "メインリポジトリのチェックアウト上で branch を作成しない。gwm で worktree を切ってから作業する" }
+      ],
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+(checkout[[:space:]]+-[bB]|switch[[:space:]]+(-[cC]|--create))",
+        "origin": "default",
+        "wordEnd": false
+      }
+    },
+    {
+      "id": "git-branch-delete-main",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "main/master ブランチの強制削除はユーザーの明示的な許可を得てから実行してください",
+      "autoMode": [
+        { "tier": "hard_deny", "prose": "main / master ブランチの削除は禁止" }
+      ],
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+branch[[:space:]]+-D[[:space:]]+(main|master)",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["git branch -D main*", "git branch -D master*", "git branch -D origin/*"],
+          "omp": ["git branch -D main*", "git branch -D master*"]
+        }
+      },
+      "prose": [
+        { "file": "packages/targets/opencode/AGENTS.md", "token": "git branch -D main" }
+      ]
+    },
+    {
+      "id": "git-update-ref",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "git update-ref はユーザーの明示的な許可を得てから実行してください",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "git update-ref はユーザーの明示的な許可がある場合のみ" }
+      ],
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+update-ref",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["git update-ref *"],
+          "omp": ["git update-ref *"]
+        }
+      }
+    },
+    {
+      "id": "git-clean-force",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "git clean -fd はユーザーの明示的な許可を得てから実行してください",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "git clean -f / -fd はユーザーの明示的な許可がある場合のみ" }
+      ],
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+clean[[:space:]]+-fd",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["git clean -fd*", "git clean -fdx*"],
+          "omp": ["git clean -fd", "git clean -fd *", "git clean -fdx", "git clean -fdx *"]
+        }
+      }
+    },
+    {
+      "id": "gh-pr-merge-close",
+      "action": "block",
+      "impl": "custom",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "PR の merge/close はユーザーの明示的な許可を得てから実行してください。許可を得たら `~/.claude/hooks/approve-pr.sh <PR番号> \"理由\"` を実行してから、番号を明示した単独の gh pr merge / close を実行してください",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "PR の merge / close はユーザーの明示的な許可がある場合のみ" }
+      ],
+      "match": {
+        "ere": "gh[[:space:]]+pr[[:space:]]+(merge|close)",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["gh pr close*", "gh pr merge*"],
+          "omp": ["gh pr merge", "gh pr merge *", "gh pr close", "gh pr close *"]
+        }
+      },
+      "overrides": {
+        "opencode": {
+          "action": "confirm",
+          "reason": "opencode は native permission の ask UI で人間確認できるため git-push と同型で confirm。hook block + native deny の二重だと approve-pr.sh で承認しても native deny が残り、message が指す承認手順が成立しなかった（2026-08-30）"
+        }
+      }
+    },
+    {
+      "id": "gh-repo-delete-edit",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "リポジトリの delete/edit はユーザーの明示的な許可を得てから実行してください",
+      "autoMode": [
+        { "tier": "hard_deny", "prose": "GitHub リポジトリの削除・設定変更（gh repo delete / gh repo edit）は禁止" }
+      ],
+      "match": {
+        "ere": "gh[[:space:]]+repo[[:space:]]+(delete|edit)",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["gh repo delete*", "gh repo edit*"],
+          "omp": ["gh repo delete*", "gh repo edit*"]
+        }
+      }
+    },
+    {
+      "id": "gh-repo-create",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "新規リポジトリの作成はユーザーの明示的な許可を得てから実行してください（先に既存の同種 repo を検索・報告する。既存があるのに新造した失敗事例あり）",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "新規 GitHub リポジトリの作成は、既存の同種 repo を検索して報告し、ユーザーが許可した場合のみ" }
+      ],
+      "match": {
+        "ere": "gh[[:space:]]+repo[[:space:]]+(create|fork)",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["gh repo create*", "gh repo fork*"],
+          "omp": ["gh repo create*", "gh repo fork*"]
+        }
+      }
+    },
+    {
+      "id": "gh-release-delete",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "リリースの削除はユーザーの明示的な許可を得てから実行してください",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "GitHub release の削除はユーザーの明示的な許可がある場合のみ" }
+      ],
+      "match": {
+        "ere": "gh[[:space:]]+release[[:space:]]+delete",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["gh release delete*"],
+          "omp": ["gh release delete*"]
+        }
+      }
+    },
+    {
+      "id": "git-rebase",
+      "action": "warn",
+      "impl": "table",
+      "targets": ["claude", "opencode", "pi"],
+      "message": "git rebase を実行しようとしています。ユーザーの許可を確認してください。",
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+rebase",
+        "origin": "default",
+        "wordEnd": false,
+        "globs": {
+          "opencode": ["git rebase *"]
+        }
+      },
+      "overrides": {
+        "opencode": {
+          "action": "block",
+          "reason": "opencode overlay は git rebase を deny にしており、hook の warn より強い"
+        }
+      }
+    },
+    {
+      "id": "git-pull",
+      "action": "warn",
+      "impl": "table",
+      "targets": ["claude", "opencode", "pi"],
+      "message": "git pull を実行しようとしています。意図しない merge commit が作られる可能性があります。ユーザーの許可を確認してください。",
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+pull",
+        "origin": "default",
+        "wordEnd": false,
+        "globs": {
+          "opencode": ["git pull *"]
+        }
+      },
+      "overrides": {
+        "opencode": {
+          "action": "block",
+          "reason": "opencode overlay は git pull を deny にしており、hook の warn より強い"
+        }
+      }
+    },
+    {
+      "id": "git-merge-main",
+      "action": "warn",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "main/master を merge しようとしています。ユーザーの許可を確認してください。",
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+merge[[:space:]]+(origin/)?(main|master)",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["git merge main", "git merge main *", "git merge master", "git merge master *", "git merge origin/main*", "git merge origin/master*"],
+          "omp": ["git merge main", "git merge main *", "git merge master", "git merge master *", "git merge origin/main*", "git merge origin/master*"]
+        }
+      },
+      "overrides": {
+        "opencode": {
+          "action": "block",
+          "reason": "opencode overlay は git merge main/master を deny にしており、hook の warn より強い"
+        },
+        "omp": {
+          "action": "block",
+          "reason": "omp bash.patterns も git merge main/master を deny にしており、hook の warn より強い"
+        }
+      },
+      "prose": [
+        { "file": "packages/targets/opencode/AGENTS.md", "token": "git merge main" },
+        { "file": "packages/targets/omp/AGENTS.md", "token": "merge main" }
+      ]
+    },
+    {
+      "id": "git-reset-hard",
+      "action": "warn",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "git reset --hard を実行しようとしています。ユーザー指示によるロールバックか確認してください。",
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+reset[[:space:]]+--hard",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["git reset --hard*"],
+          "omp": ["git reset --hard", "git reset --hard *"]
+        }
+      },
+      "overrides": {
+        "opencode": {
+          "action": "block",
+          "reason": "opencode overlay は git reset --hard を deny にしており、hook の warn より強い"
+        },
+        "omp": {
+          "action": "block",
+          "reason": "omp bash.patterns も git reset --hard を deny にしており、hook の warn より強い"
+        }
+      },
+      "prose": [
+        { "file": "packages/targets/opencode/AGENTS.md", "token": "git reset --hard" },
+        { "file": "packages/targets/omp/AGENTS.md", "token": "reset --hard" }
+      ]
+    },
+    {
+      "id": "git-checkout-force",
+      "action": "warn",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "git checkout --force を実行しようとしています。ユーザー指示によるロールバックか確認してください。",
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+checkout[[:space:]]+(-f|--force)",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["git checkout --force*", "git checkout -f *"],
+          "omp": ["git checkout -f *", "git checkout --force*"]
+        }
+      },
+      "overrides": {
+        "opencode": {
+          "action": "block",
+          "reason": "opencode overlay は git checkout -f/--force を deny にしており、hook の warn より強い"
+        },
+        "omp": {
+          "action": "block",
+          "reason": "omp bash.patterns も git checkout -f/--force を deny にしており、hook の warn より強い"
+        }
+      },
+      "prose": [
+        { "file": "packages/targets/opencode/AGENTS.md", "token": "git checkout -f" }
+      ]
+    },
+    {
+      "id": "git-remote",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "omp", "opencode", "pi"],
+      "message": "git remote の変更はユーザーの明示的な許可を得てから実行してください",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "git remote の追加・変更・削除はユーザーの明示的な許可がある場合のみ" }
+      ],
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+remote[[:space:]]+(add|remove|rm|rename|set-url|set-head|set-branches|prune|update)",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["git remote add*", "git remote remove*", "git remote rm*", "git remote rename*", "git remote set-url*", "git remote set-head*", "git remote set-branches*", "git remote prune*", "git remote update*"]
+        }
+      }
+    },
+    {
+      "id": "agent-cli-unpinned-install",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "pi / omp は mise の exact pin で管理しています。`mise run agents:update -- <pi|omp> <version>` で引き上げてください（npm -g / mise use 直叩きは pin と検証を飛ばす）",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "pi / omp を npm や pnpm でグローバル install / update しない。mise の exact pin（mise run agents:update）で更新する" }
+      ],
+      "match": {
+        "ere": "(npm[[:space:]]+(i|install|add)[[:space:]]+(-g|--global)|mise[[:space:]]+(use|install|up|upgrade))[[:space:]]+[^|;&]*(earendil-works|oh-my-pi)/pi-coding-agent",
+        "origin": "default",
+        "wordEnd": false,
+        "globs": {
+          "opencode": ["npm install -g *pi-coding-agent*", "npm i -g *pi-coding-agent*", "npm add -g *pi-coding-agent*", "mise use *pi-coding-agent*", "mise install *pi-coding-agent*", "mise up *pi-coding-agent*", "mise upgrade *pi-coding-agent*"],
+          "omp": ["npm install -g *pi-coding-agent*", "npm i -g *pi-coding-agent*", "npm add -g *pi-coding-agent*", "mise use *pi-coding-agent*", "mise install *pi-coding-agent*", "mise up *pi-coding-agent*", "mise upgrade *pi-coding-agent*"]
+        }
+      }
+    },
+    {
+      "id": "gh-pr-comment",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "omp", "opencode", "pi"],
+      "message": "PR へのコメント投稿はユーザーの明示的な許可を得てから実行してください",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "PR / issue へのコメント投稿（gh pr comment / gh api での comment 書き込み）はユーザーの明示的な許可がある場合のみ" }
+      ],
+      "match": {
+        "ere": "gh[[:space:]]+pr[[:space:]]+comment",
+        "origin": "default",
+        "wordEnd": false,
+        "globs": {
+          "opencode": ["gh pr comment *"]
+        }
+      }
+    },
+    {
+      "id": "gh-api-comment-write",
+      "action": "block",
+      "impl": "custom",
+      "targets": ["claude", "omp", "opencode", "pi"],
+      "message": "PR へのコメント投稿はユーザーの明示的な許可を得てから実行してください"
+    },
+    {
+      "id": "codex-companion-sandbox",
+      "action": "block",
+      "impl": "custom",
+      "targets": ["claude"],
+      "message": "codex-companion.mjs / codex app-server はサンドボックス内では sqlite state runtime の初期化に失敗します。dangerouslyDisableSandbox: true を付けて実行してください"
+    },
+    {
+      "id": "rtk-init-global",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "omp", "opencode", "pi"],
+      "message": "rtk init -g / --global は ~/.claude/RTK.md を rtk 標準テンプレートで上書きします。必要なら実行後に ./scripts/bootstrap.sh で SSOT 版を復元してください",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "rtk init -g / --global は ~/.claude/RTK.md を上書きするため実行しない。RTK.md は harness の bootstrap が配布する" }
+      ],
+      "match": {
+        "ere": "rtk[[:space:]]+init[[:space:]]+[^;&|]*(-g|--global)",
+        "origin": "default",
+        "wordEnd": true
+      }
+    },
+    {
+      "id": "netlify-deploy-trigger",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "omp", "opencode", "pi", "codex"],
+      "message": "netlify の deploy / build / api はユーザーの明示的な許可を得てから実行してください。`netlify api createSiteBuild` は deploy_id を渡しても本番（production context）のビルドを起こします。preview の作り直しは PR の close→reopen か Netlify UI の Retry deploy で行ってください",
+      "autoMode": [
+        { "tier": "hard_deny", "prose": "netlify の deploy / build / api コマンドは、ユーザーが明示的にその実行を指示した場合のみ。preview の再ビルド目的で netlify api を叩かない（本番ビルドが走る）" }
+      ],
+      "match": {
+        "ere": "(npx[[:space:]]+)?(netlify-cli|netlify|ntl)[[:space:]]+(deploy|build|api)",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["netlify deploy*", "netlify build*", "netlify api*", "ntl deploy*", "ntl build*", "ntl api*", "npx netlify-cli*"],
+          "omp": ["netlify deploy", "netlify deploy *", "netlify build", "netlify build *", "netlify api", "netlify api *", "ntl deploy", "ntl deploy *", "ntl build", "ntl build *", "ntl api", "ntl api *", "npx netlify-cli *"]
+        }
+      },
+      "notes": "2026-09-11 に `netlify api createSiteBuild --data '{\"site_id\":..,\"body\":{\"deploy_id\":..}}'` を PR preview の再ビルドのつもりで実行したところ、body の deploy_id が無視され main の production ビルドが起動した（cancelSiteDeploy で停止、published_at は null で未公開）。read 系 API も write 系と区別できないため subcommand 単位でまとめて止める"
+    },
+    {
+      "id": "xargs-dash-a",
+      "action": "warn",
+      "impl": "table",
+      "targets": ["claude", "opencode", "pi"],
+      "message": "macOS の BSD xargs に -a はありません。`< file xargs ...` の形にしてください",
+      "match": {
+        "ere": "xargs([[:space:]]+-[^[:space:]]*)*[[:space:]]+-a",
+        "origin": "default",
+        "wordEnd": true
+      }
+    },
+    {
+      "id": "gh-release-create",
+      "action": "confirm",
+      "impl": "table",
+      "targets": ["opencode"],
+      "match": {
+        "globs": {
+          "opencode": ["gh release create*"]
+        }
+      }
+    },
+    {
+      "id": "gh-workflow-run",
+      "action": "confirm",
+      "impl": "table",
+      "targets": ["opencode"],
+      "match": {
+        "globs": {
+          "opencode": ["gh workflow run*"]
+        }
+      }
+    },
+    {
+      "id": "gh-api",
+      "action": "confirm",
+      "impl": "table",
+      "targets": ["opencode"],
+      "match": {
+        "globs": {
+          "opencode": ["gh api*"]
+        }
+      }
+    },
+    {
+      "id": "rm-recursive-force",
+      "action": "confirm",
+      "impl": "table",
+      "targets": ["pi", "omp"],
+      "message": "再帰強制削除（rm -rf 相当）",
+      "match": {
+        "js": "(sudo\\s+)?rm\\s+(-[a-zA-Z]*[rR][a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*[rR])\\b",
+        "origin": "default",
+        "globs": {
+          "omp": ["rm -*r*f*", "rm -*f*r*", "rm -*R*f*", "rm -*f*R*", "sudo rm -*r*f*", "sudo rm -*f*r*", "sudo rm -*R*f*", "sudo rm -*f*R*"]
+        }
+      }
+    },
+    {
+      "id": "sudo",
+      "action": "confirm",
+      "impl": "table",
+      "targets": ["pi", "omp"],
+      "message": "sudo による特権実行",
+      "match": {
+        "js": "sudo\\s",
+        "origin": "default",
+        "globs": {
+          "omp": ["sudo *"]
+        }
+      }
+    },
+    {
+      "id": "pipe-to-shell",
+      "action": "confirm",
+      "impl": "table",
+      "targets": ["pi", "omp"],
+      "message": "pipe-to-shell（取得内容の直接実行）",
+      "match": {
+        "js": "\\|\\s*(?:ba|z|da)?sh\\b",
+        "origin": "none",
+        "globs": {
+          "omp": ["*| sh*", "*|sh*", "*| bash*", "*|bash*", "*| zsh*", "*|zsh*", "*| dash*", "*|dash*"]
+        }
+      }
+    },
+    {
+      "id": "dd-device-write",
+      "action": "confirm",
+      "impl": "table",
+      "targets": ["pi", "omp"],
+      "message": "dd によるデバイス書き込み",
+      "match": {
+        "js": "dd\\s+[^|;&]*of=/dev/",
+        "origin": "default",
+        "globs": {
+          "omp": ["dd *of=/dev/*"]
+        }
+      }
+    },
+    {
+      "id": "mkfs",
+      "action": "confirm",
+      "impl": "table",
+      "targets": ["pi", "omp"],
+      "message": "ファイルシステム作成",
+      "match": {
+        "js": "mkfs",
+        "origin": "default",
+        "globs": {
+          "omp": ["*mkfs*"]
+        }
+      }
+    },
+    {
+      "id": "git-stash-discard",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "git stash drop / clear は退避した変更を復元不能に消します。ユーザーの明示的な許可を得てから実行してください",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "git stash drop / clear はユーザーの明示的な許可がある場合のみ" }
+      ],
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+stash[[:space:]]+(drop|clear)",
+        "origin": "default",
+        "wordEnd": true,
+        "globs": {
+          "opencode": ["git stash drop*", "git stash clear*"],
+          "omp": ["git stash drop", "git stash drop *", "git stash clear", "git stash clear *"]
+        }
+      }
+    },
+    {
+      "id": "rm-ssot-source",
+      "action": "block",
+      "impl": "table",
+      "targets": ["claude", "opencode", "pi"],
+      "message": "harness の SSOT（packages/core/ / packages/extras/ / skills/ / hooks/ / rules/）配下の rm はユーザーの明示的な許可を得てから実行してください。配布物の退役は targets/*/config.json の obsoleteFiles で宣言します",
+      "autoMode": [
+        {"tier": "soft_deny", "prose": "packages/core/ / packages/extras/ / skills/ / hooks/ / rules/ 配下への rm はユーザーの明示的な許可がある場合のみ"}
+      ],
+      "match": {
+        "ere": "(sudo[[:space:]]+)?([^[:space:]|;&]*/)?rm[[:space:]]+[^|;&]*(packages/(core|extras)|(^|[[:space:]/'\"])(skills|hooks|rules))([^A-Za-z0-9_.-]|$)",
+        "origin": "default",
+        "wordEnd": false
+      }
+    },
+    {
+      "id": "git-stash",
+      "action": "warn",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "git stash は checkout 全体の未 commit 変更（同じ checkout で動く他セッションの分を含む）を退避します。worktree 内で実行しているか、main の共有 checkout なら他セッションが動いていないか確認してください。",
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+stash([[:space:]]*$|[[:space:]]+(push|save|-[A-Za-z-]|--[A-Za-z]))",
+        "origin": "default",
+        "wordEnd": false
+      }
+    },
+    {
+      "id": "git-checkout-discard",
+      "action": "warn",
+      "impl": "table",
+      "targets": ["claude", "opencode", "omp", "pi"],
+      "message": "git checkout -- / git checkout . / git restore は作業ツリーの未 commit 変更を破棄します。ユーザー指示による破棄か、他セッションの変更を巻き込まないか確認してください。",
+      "match": {
+        "ere": "(git|rtk git)[[:space:]]+(checkout[[:space:]]+(([^-[:space:]][^[:space:]]*[[:space:]]+)?--([[:space:]]|$)|\\.([[:space:]]|$))|restore[[:space:]]+([^-[:space:]]|(-W|--worktree|-s|--source)([[:space:]]|=)))",
+        "origin": "default",
+        "wordEnd": false
+      },
+      "notes": "checkout は `-- <path>` / `.` / `<tree-ish> -- <path>` を対象にし、branch 切替（`checkout feature-x` / `-b`）は対象外。restore は非オプション引数始まりと `-W / --worktree / -s / --source` 始まりを対象にし、`--staged` 始まりは対象外（`--staged --worktree` の順で並べた場合は取りこぼす。POSIX ERE に negative lookahead が無いための既知の穴）"
+    },
+    {
+      "id": "sql-drop",
+      "action": "confirm",
+      "impl": "table",
+      "targets": ["pi", "omp"],
+      "message": "SQL DROP",
+      "match": {
+        "js": "\\bDROP\\s+(?:TABLE|DATABASE)\\b",
+        "jsFlags": "i",
+        "origin": "none",
+        "globs": {
+          "omp": ["*DROP TABLE*", "*DROP DATABASE*", "*drop table*", "*drop database*", "*Drop Table*", "*Drop Database*"]
+        }
+      }
+    }
+  ]
+}

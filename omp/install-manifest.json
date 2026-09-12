@@ -1,0 +1,38 @@
+{
+  "_comment": "build-public-slim.py が packages/targets/omp/config.json から生成。install.sh はこれを読んで rsync する管理パスと設定ファイルの同期キーを決める（配列を install.sh に直書きしない）",
+  "target": "omp",
+  "displayName": "oh-my-pi (omp)",
+  "configDir": "~/.omp/agent",
+  "configDirEnv": null,
+  "managedPaths": [
+    "AGENTS.md",
+    "claude-hooks/approve-pr.sh",
+    "claude-hooks/approve-push.sh",
+    "claude-hooks/block-dangerous-in-bash.sh",
+    "claude-hooks/fix_gfm_tables.py",
+    "claude-hooks/lib",
+    "claude-hooks/post-edit-checks.sh",
+    "commands.md",
+    "config.yml",
+    "extensions/harness-policy.js",
+    "extensions/omp-denial-reason.js",
+    "extensions/post-edit-checks.js",
+    "hook-runner",
+    "policy",
+    "rules",
+    "workflows"
+  ],
+  "settingsFile": "config.yml",
+  "settingsFormat": "yaml",
+  "settingsKeys": [
+    "modelRoles",
+    "hideThinkingBlock",
+    "tools.approvalMode",
+    "plan.defaultOnStartup",
+    "display.hideToolActivity",
+    "enabledModels",
+    "bash.patterns",
+    "skills"
+  ],
+  "ledger": ".harunon-slim.installed.json"
+}

@@ -1,0 +1,321 @@
+modelRoles:
+  default: openai-codex/gpt-5.6-luna:max
+  slow: openai-codex/gpt-5.6-luna:max
+  plan: openai-codex/gpt-5.6-luna:max
+  smol: openai-codex/gpt-5.6-luna:max
+  task: openai-codex/gpt-5.6-luna:max
+  commit: openai-codex/gpt-5.6-luna:max
+hideThinkingBlock: true
+tools:
+  approvalMode: yolo
+plan:
+  enabled: true
+  defaultOnStartup: false
+display:
+  hideToolActivity: true
+bash:
+  patterns:
+  - match: git *commit*--no-verify*
+    approval: deny
+  - match: rtk git *commit*--no-verify*
+    approval: deny
+  - match: git *push*--no-verify*
+    approval: deny
+  - match: rtk git *push*--no-verify*
+    approval: deny
+  - match: git push origin main
+    approval: deny
+  - match: rtk git push origin main
+    approval: deny
+  - match: git push origin main *
+    approval: deny
+  - match: rtk git push origin main *
+    approval: deny
+  - match: git push origin master
+    approval: deny
+  - match: rtk git push origin master
+    approval: deny
+  - match: git push origin master *
+    approval: deny
+  - match: rtk git push origin master *
+    approval: deny
+  - match: git push --force
+    approval: deny
+  - match: rtk git push --force
+    approval: deny
+  - match: git push --force *
+    approval: deny
+  - match: rtk git push --force *
+    approval: deny
+  - match: git push -f
+    approval: deny
+  - match: rtk git push -f
+    approval: deny
+  - match: git push -f *
+    approval: deny
+  - match: rtk git push -f *
+    approval: deny
+  - match: git push origin +*
+    approval: deny
+  - match: rtk git push origin +*
+    approval: deny
+  - match: git branch -D main*
+    approval: deny
+  - match: rtk git branch -D main*
+    approval: deny
+  - match: git branch -D master*
+    approval: deny
+  - match: rtk git branch -D master*
+    approval: deny
+  - match: git update-ref *
+    approval: deny
+  - match: rtk git update-ref *
+    approval: deny
+  - match: git update-ref
+    approval: deny
+  - match: rtk git update-ref
+    approval: deny
+  - match: git clean -fd
+    approval: deny
+  - match: rtk git clean -fd
+    approval: deny
+  - match: git clean -fd *
+    approval: deny
+  - match: rtk git clean -fd *
+    approval: deny
+  - match: git clean -fdx
+    approval: deny
+  - match: rtk git clean -fdx
+    approval: deny
+  - match: git clean -fdx *
+    approval: deny
+  - match: rtk git clean -fdx *
+    approval: deny
+  - match: gh pr merge
+    approval: deny
+  - match: gh pr merge *
+    approval: deny
+  - match: gh pr close
+    approval: deny
+  - match: gh pr close *
+    approval: deny
+  - match: gh repo delete*
+    approval: deny
+  - match: gh repo edit*
+    approval: deny
+  - match: gh repo create*
+    approval: deny
+  - match: gh repo fork*
+    approval: deny
+  - match: gh release delete*
+    approval: deny
+  - match: git merge main
+    approval: deny
+  - match: rtk git merge main
+    approval: deny
+  - match: git merge main *
+    approval: deny
+  - match: rtk git merge main *
+    approval: deny
+  - match: git merge master
+    approval: deny
+  - match: rtk git merge master
+    approval: deny
+  - match: git merge master *
+    approval: deny
+  - match: rtk git merge master *
+    approval: deny
+  - match: git merge origin/main*
+    approval: deny
+  - match: rtk git merge origin/main*
+    approval: deny
+  - match: git merge origin/master*
+    approval: deny
+  - match: rtk git merge origin/master*
+    approval: deny
+  - match: git reset --hard
+    approval: deny
+  - match: rtk git reset --hard
+    approval: deny
+  - match: git reset --hard *
+    approval: deny
+  - match: rtk git reset --hard *
+    approval: deny
+  - match: git checkout -f *
+    approval: deny
+  - match: rtk git checkout -f *
+    approval: deny
+  - match: git checkout -f
+    approval: deny
+  - match: rtk git checkout -f
+    approval: deny
+  - match: git checkout --force*
+    approval: deny
+  - match: rtk git checkout --force*
+    approval: deny
+  - match: npm install -g *pi-coding-agent*
+    approval: deny
+  - match: npm install --global *pi-coding-agent*
+    approval: deny
+  - match: npm i -g *pi-coding-agent*
+    approval: deny
+  - match: npm i --global *pi-coding-agent*
+    approval: deny
+  - match: npm add -g *pi-coding-agent*
+    approval: deny
+  - match: npm add --global *pi-coding-agent*
+    approval: deny
+  - match: mise use *pi-coding-agent*
+    approval: deny
+  - match: mise install *pi-coding-agent*
+    approval: deny
+  - match: mise up *pi-coding-agent*
+    approval: deny
+  - match: mise upgrade *pi-coding-agent*
+    approval: deny
+  - match: netlify deploy
+    approval: deny
+  - match: netlify deploy *
+    approval: deny
+  - match: netlify build
+    approval: deny
+  - match: netlify build *
+    approval: deny
+  - match: netlify api
+    approval: deny
+  - match: netlify api *
+    approval: deny
+  - match: ntl deploy
+    approval: deny
+  - match: ntl deploy *
+    approval: deny
+  - match: ntl build
+    approval: deny
+  - match: ntl build *
+    approval: deny
+  - match: ntl api
+    approval: deny
+  - match: ntl api *
+    approval: deny
+  - match: npx netlify-cli *
+    approval: deny
+  - match: git stash drop
+    approval: deny
+  - match: rtk git stash drop
+    approval: deny
+  - match: git stash drop *
+    approval: deny
+  - match: rtk git stash drop *
+    approval: deny
+  - match: git stash clear
+    approval: deny
+  - match: rtk git stash clear
+    approval: deny
+  - match: git stash clear *
+    approval: deny
+  - match: rtk git stash clear *
+    approval: deny
+  - match: git push *
+    approval: prompt
+  - match: rtk git push *
+    approval: prompt
+  - match: git push
+    approval: prompt
+  - match: rtk git push
+    approval: prompt
+  - match: git commit *
+    approval: prompt
+  - match: rtk git commit *
+    approval: prompt
+  - match: git commit
+    approval: prompt
+  - match: rtk git commit
+    approval: prompt
+  - match: rm -*r*f*
+    approval: prompt
+  - match: rm -*f*r*
+    approval: prompt
+  - match: rm -*R*f*
+    approval: prompt
+  - match: rm -*f*R*
+    approval: prompt
+  - match: sudo rm -*r*f*
+    approval: prompt
+  - match: sudo rm -*f*r*
+    approval: prompt
+  - match: sudo rm -*R*f*
+    approval: prompt
+  - match: sudo rm -*f*R*
+    approval: prompt
+  - match: sudo *
+    approval: prompt
+  - match: '*| sh*'
+    approval: prompt
+  - match: '*|sh*'
+    approval: prompt
+  - match: '*| bash*'
+    approval: prompt
+  - match: '*|bash*'
+    approval: prompt
+  - match: '*| zsh*'
+    approval: prompt
+  - match: '*|zsh*'
+    approval: prompt
+  - match: '*| dash*'
+    approval: prompt
+  - match: '*|dash*'
+    approval: prompt
+  - match: dd *of=/dev/*
+    approval: prompt
+  - match: '*mkfs*'
+    approval: prompt
+  - match: '*DROP TABLE*'
+    approval: prompt
+  - match: '*DROP DATABASE*'
+    approval: prompt
+  - match: '*drop table*'
+    approval: prompt
+  - match: '*drop database*'
+    approval: prompt
+  - match: '*Drop Table*'
+    approval: prompt
+  - match: '*Drop Database*'
+    approval: prompt
+skills:
+  ignoredSkills:
+  - codex-pre-review-check
+  - cr
+  - daily-report
+  - efficient-fable
+  - empirical-prompt-tuning
+  - figma-implement
+  - posthog-ops
+  - pre-review-check
+  - prototype
+  - review
+  - sentry-fix
+  - setup-matt-pocock-skills
+  - skill-creator
+enabledModels:
+- cursor/composer-2.5-fast
+- openai-codex/*
+- opencode-zen/big-pickle
+- opencode-zen/hy3-free
+- opencode-zen/hy3-preview-free
+- opencode-zen/laguna-s-2.1-free
+- opencode-zen/ling-2.6-flash-free
+- opencode-zen/mimo-v2-flash-free
+- opencode-zen/mimo-v2-omni-free
+- opencode-zen/mimo-v2-pro-free
+- opencode-zen/mimo-v2.5-free
+- opencode-zen/minimax-m2.5-free
+- opencode-zen/minimax-m3-free
+- opencode-zen/muse-spark-1.2-contributor-free
+- opencode-zen/nemotron-3-super-free
+- opencode-zen/nemotron-3-ultra-free
+- opencode-zen/nemotron-3.5-lightning-free
+- opencode-zen/north-mini-code-free
+- opencode-zen/qwen3.6-plus-free
+- opencode-zen/ring-2.6-1t-free
+- opencode-zen/trinity-large-preview-free
+- opencode-zen/x-preview-f-free

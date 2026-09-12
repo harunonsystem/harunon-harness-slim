@@ -1,0 +1,46 @@
+{
+  "_comment": "SSOT for scripts/validate-harness.py:check_core_workflow_contract. Declares which packages/targets/*/config.json distribute entries are required for the Core Workflow (change.json / harnessctl.py) to function for that target, so the check can iterate data instead of hardcoding target names.",
+  "requiredFiles": [
+    "packages/core/workflows/task-state.schema.json",
+    "packages/core/policy/harnessctl.py"
+  ],
+  "requiredDistribution": {
+    "policy/": "packages/core/policy/",
+    "workflows/": "packages/core/workflows/"
+  },
+  "requiredDistributionExemptTargets": [
+    "shared-agents",
+    "codex"
+  ],
+  "destinationOverrides": {
+    "_comment": "Per-target override of the requiredDistribution destination key (e.g. opencode reads policy/workflows from a runtime/ prefix instead of configDir root).",
+    "opencode": {
+      "policy/": "runtime/policy/",
+      "workflows/": "runtime/workflows/"
+    }
+  },
+  "codexRequiredFiles": [
+    "packages/runtimes/codex/harunon-core/hooks/hooks.json",
+    "packages/runtimes/codex/harunon-core/scripts/codex_hook.py",
+    "scripts/build-codex-plugin.py"
+  ],
+  "gateDistribution": {
+    "_comment": "target -> {destination, source} for the Core Workflow enforcement gate (hooks/plugins/extensions) that must be distributed to that target.",
+    "claude": {
+      "destination": "hooks/",
+      "source": "packages/core/hooks/"
+    },
+    "opencode": {
+      "destination": "plugins/",
+      "source": "packages/runtimes/opencode/"
+    },
+    "pi": {
+      "destination": "extensions/harness-policy.js",
+      "source": "packages/core/pi-extensions/harness-policy.js"
+    },
+    "omp": {
+      "destination": "extensions/harness-policy.js",
+      "source": "packages/core/pi-extensions/harness-policy.js"
+    }
+  }
+}

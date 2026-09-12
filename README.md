@@ -1,67 +1,57 @@
 # harunon-harness-slim
 
-複数の AI コーディングエージェント（Claude Code / Codex / OpenCode / pi / omp）の設定を 1 つの SSOT から宣言的に配布するハーネスの公開版です。
-skills・rules・hooks・agents・slash commands と、それらを各ランタイムの設定ディレクトリへ写す `distribute.py`、危険コマンドを止める安全 hook を含みます。
+複数の AI コーディングエージェントに同じ skills・rules・安全 hook・subagent 定義を配るためのハーネスです。
+各ランタイムの設定ディレクトリへそのまま置ける完成形（payload）を target ごとに収め、`scripts/install.sh` が配布します。
 
-このリポジトリは **生成物** です。SSOT は `harunon-harness`（private）で、`scripts/build-public-slim.py` が
-`packages/public-slim/manifest.json` の allowlist に従って組み立てています。ここで直接編集した内容は次の生成で巻き戻ります。
-更新は SSOT 側の `publish-slim` workflow（`scripts/publish-public-slim.sh`）が行い、この repo の CI と同じ検査を生成物の中で通してから push します。
+## 構成
 
-## 入っているもの
+| ディレクトリ | 配布先 | 内容 |
+| --- | --- | --- |
+| `claude/` | `~/.claude` | Claude Code 用の CLAUDE.md・skills・rules・hooks・agents・commands・settings.json |
+| `codex/` | `~/.codex` | Codex 用の AGENTS.md・rules・Codex 専用 skills・config.toml・review 用 config |
+| `opencode/` | `~/.config/opencode` | OpenCode 用の AGENTS.md・agents・plugins・runtime・opencode.json |
+| `opencode-launcher/` | `~/.local/bin` | OpenCode を安全設定付きで起動する `opencode` ラッパー（PATH で本体より前に置く） |
+| `omp/` | `~/.omp/agent` | oh-my-pi 用の AGENTS.md・extensions・hook-runner・policy・config.yml |
+| `pi/` | `~/.pi/agent` | pi coding agent 用の AGENTS.md・agents・extensions・hook-runner・policy・settings.json |
+| `shared-agents/` | `~/.agents` | Codex / OpenCode / omp / pi が共通に読む skills・policy・workflows |
 
-- `packages/core/` — 汎用ハーネス本体（skills / rules / hooks / agents / commands / policy / workflows / CLAUDE.md / settings.json）
-- `packages/targets/*/config.json` — ランタイム別の配布宣言（何をどこへ、どう変換して置くか）
-- `packages/runtimes/` — ランタイム側 adapter（opencode plugin / codex plugin skeleton など）
-- `scripts/` — 配布（`distribute.py` / `bootstrap.sh`）、メタ整合の検証（`validate-harness.py`）、テスト
-- `schemas/` — target config の JSON Schema
-- `docs/adr/` — 設計判断の記録
-- `.githooks/` — codename リーク防止の pre-commit と検証ゲートの pre-push
+各 target ディレクトリの `install-manifest.json` に、配布先（`configDir`）・管理パス（`managedPaths`）・設定ファイルの同期方法が書いてあります。
+skills は Claude 以外のランタイムには `shared-agents/` から 1 回だけ配り、各ランタイムの configDir には複製しません。
 
-## 入っていないもの
+## インストール
 
-- 会社・プロジェクト固有の skills / rules（private submodule。`packages/targets/*/config.json` の該当 source は生成時に落としています）
-- ライセンス上再配布できない vendored skill（`docs/adr/002-*.md` 参照）
-- 個人の作業記録（`plans/`）と作業履歴（`lessons.json`）
-- 個人好みのツール前提の常駐文書（rtk のチートシート、rtk / gwm 前提の CLAUDE.md 節）
+```bash
+scripts/validate.sh                       # 静的検証（JSON / shell / JS / Python / 資格情報スキャン）
+scripts/install.sh claude --dry-run       # ~/.claude に何が変わるかを表示（書き込みなし）
+scripts/install.sh claude                 # 配布
+scripts/install.sh claude --check         # 配布後のドリフト確認（差分があれば exit 1）
+```
 
-外部 skill（`rulesync.jsonc` / `rulesync.lock` に宣言。tdd / diagnosing-bugs / opencli-* など）は vendored コピーを持たず、`bootstrap.sh` が `rulesync install --frozen` で upstream から取得して配ります。それぞれの upstream のライセンスに従ってください（`docs/adr/011-*.md`）。
+`claude` の部分を `codex` / `opencode` / `opencode-launcher` / `omp` / `pi` / `shared-agents` に替えて、使うランタイムの分だけ実行します。
+配布先は `--dest DIR` で変えられます。
+
+`install.sh` は `managedPaths` だけを rsync し、配布先にある未管理ファイルは触りません。
+配ったファイルは配布先の `.harunon-slim.installed.json` に記録し、次回は「前回配ったが今回の payload に無いファイル」だけを消します。
+上書き・削除される既存ファイルは配布先の `.harunon-slim.backups/<timestamp>/` に退避するので、手で編集していた CLAUDE.md 等はそこから取り戻せます。
+`codex/` は環境変数 `CODEX_HOME` が設定されていればそこへ配ります（`install-manifest.json` の `configDirEnv`）。
+
+## 設定ファイルの扱い
+
+- JSON（`claude/settings.json`・`opencode/opencode.json`・`pi/settings.json`）: 既存ファイルがあれば `install-manifest.json` の `settingsKeys` に挙がったキーだけをマージし、それ以外のローカル値は保持します。無ければファイルごと置きます
+- TOML / YAML（`codex/config.toml`・`omp/config.yml`）: 配布先に無いときだけ置きます。既にある場合は触らず `S config.toml (not merged: toml; ...)` と知らせるので、その target の `install-manifest.json` にある `settingsKeys` のキーを手で取り込んでください
 
 ## 前提ツール
 
-- Python 3.11+（`tomllib` を使います）と `pip install -r requirements.txt`。`mise.toml` に pin があるので mise を使うならそのまま解決できます
-- Node 22+（hook runner と runtime adapter のテスト）
-- `jq`、`shellcheck`
-- `bootstrap.sh` は Python を mise 経由で解決します。mise を使わない場合は Python 3.11+ で `scripts/distribute.py <target> --push` を target ごとに直接実行してください
-- hook のうち 2 つは特定 CLI を前提にします。`rtk-rewrite.sh` は rtk が無ければ何もせず素通りします（任意）。`enforce-gwm-for-worktree.sh` は worktree 作成を gwm 経由に強制するので、使わない場合は rigor profile を `casual` にするか `packages/core/policy/hook-pipeline.json` の配線から外してください
+- `jq` と `rsync`（`install.sh`）。`validate.sh` はさらに `node` と `python3` を使います
+- hook は `node`（hook-runner）と `python3`（policy）で動きます。skill の一部（`skill-creator` の検証スクリプト）は `python3` に PyYAML が入っていることを前提にします
+- `rtk-rewrite.sh` は rtk（コマンド出力を圧縮する CLI）が無ければ何もせず素通りします（任意）
+- `enforce-gwm-for-worktree.sh` は worktree 作成を gwm（worktree 管理 CLI）経由に強制します。gwm を使わない場合は rigor profile を `casual` にするか、`policy/hook-pipeline.json` からこの hook の配線を外してください
 
-## 使い方
+## 境界
 
-```bash
-git config core.hooksPath .githooks       # pre-commit / pre-push を有効化（任意）
-cp .env.example .env                      # BLOCKED_TERMS を自分の禁止語に書き換える（任意）
+認証情報、OAuth token、provider の API key は含めません。モデル定義には credential の参照先だけを書きます。
+`scripts/validate.sh` が credential らしき文字列を検出したら失敗します。
 
-"$(mise which python3)" scripts/distribute.py claude --check   # ~/.claude とのドリフト確認
-"$(mise which python3)" scripts/distribute.py claude --push    # 配布（既存ファイルは backup してから上書き）
-"$(mise which python3)" scripts/distribute.py pi --list        # 配布されるパス一覧
-```
+## このリポジトリについて
 
-target 名は `packages/targets/` のディレクトリ名（`claude` / `codex` / `opencode` / `opencode-launcher` / `pi` / `omp` / `shared-agents`）です。
-pi だけを使う場合は、payload だけを切り出した `harunon-pi-agent-slim` の方が軽く済みます。
-
-## 検証
-
-```bash
-"$(mise which python3)" scripts/run-tests.py                 # Python テスト（クラス単位で並列）
-node --test "scripts/tests/node/*.test.ts"                   # hook runner / bridge のテスト
-"$(mise which python3)" scripts/validate-harness.py          # メタ整合（配布宣言・hook 配線・skill frontmatter など）
-```
-
-## 設計の要点
-
-- 配布は SSOT からライブへの一方向です。ライブ側を直接編集すると次の配布で巻き戻ります（`docs/adr/` と `CONTEXT.md` に背景があります）
-- 危険コマンドの判定は `packages/core/policy/danger-rules.json` が SSOT で、hook はこの表を読みます。runtime ごとにどの hook をどの順で流すかは `policy/hook-pipeline.json` が宣言します
-- 新しい target を足すときは `packages/targets/<name>/config.json` を書くだけで、`distribute.py` と validator が拾います
-
-## License
-
-MIT（`LICENSE`）。vendored skill にはそれぞれの NOTICE が付いています。
+このリポジトリは SSOT から生成された成果物です。ここで直接編集した内容は次の生成で巻き戻るので、変更は SSOT 側に還流してください。

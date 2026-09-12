@@ -1,2 +1,0 @@
-# scripts/ の Python 依存の SSOT。CI と setup-machine.sh の両方がここを参照する。
-pyyaml

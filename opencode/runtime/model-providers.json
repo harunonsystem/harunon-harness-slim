@@ -1,0 +1,33 @@
+{
+	"notes": [
+		"LLM モデルプロバイダ定義の SSOT。OpenCode は plugins/model-providers.js がこのファイル（配布コピー）を読んで各ツールに登録する",
+		"key の値は持たない。keyRef.opencodeAuth = opencode の ~/.local/share/opencode/auth.json のエントリ名（key の実体 SSOT）、keyRef.env = op inject 済みセッションの環境変数名",
+		"opencodeNative: true のプロバイダは OpenCode がネイティブ対応（models.dev + auth.json）のため OpenCode 側では注入しない",
+		"builtinKeyRefs / piApi は pi-extensions/harness-providers.ts が registerProvider 登録時に読む（pi ターゲット向け）。2026-07-11 に pi ターゲットを復元し消費者として復活"
+	],
+	"customProviders": {
+		"opencode-zen": {
+			"displayName": "OpenCode Zen",
+			"baseUrl": "https://opencode.ai/zen/v1",
+			"piApi": "openai-completions",
+			"opencodeNpm": "@ai-sdk/openai-compatible",
+			"opencodeNative": true,
+			"keyRef": { "opencodeAuth": "opencode" },
+			"models": [
+			{ "id": "big-pickle", "name": "Big Pickle (Zen free)", "reasoning": true, "contextWindow": 200000, "maxTokens": 32768 },
+			{ "id": "mimo-v2.5-free", "name": "MiMo v2.5 (Zen free)", "reasoning": true, "contextWindow": 128000, "maxTokens": 16384 },
+			{ "id": "nemotron-3-ultra-free", "name": "Nemotron 3 Ultra (Zen free)", "reasoning": true, "contextWindow": 128000, "maxTokens": 16384 },
+			{ "id": "nemotron-3.5-lightning-free", "name": "Nemotron 3.5 Lightning (Zen free)", "reasoning": true, "contextWindow": 262144, "maxTokens": 262144 },
+			{ "id": "north-mini-code-free", "name": "North Mini Code (Zen free)", "reasoning": false, "contextWindow": 128000, "maxTokens": 16384 },
+			{ "id": "hy3-free", "name": "Hy3 (Zen free)", "reasoning": false, "contextWindow": 128000, "maxTokens": 16384 },
+			{ "id": "x-preview-f-free", "name": "X Preview F (Zen free)", "reasoning": true, "contextWindow": 1000000, "maxTokens": 131072 },
+			{ "id": "muse-spark-1.2-contributor-free", "name": "Muse Spark 1.2 Contributor (Zen free)", "reasoning": true, "contextWindow": 1048576, "maxTokens": 131072 },
+			{ "id": "laguna-s-2.1-free", "name": "Laguna S 2.1 (Zen free)", "reasoning": true, "contextWindow": 256000, "maxTokens": 32000 }
+			]
+		}
+	},
+	"builtinKeyRefs": {
+		"cerebras": { "opencodeAuth": "cerebras" },
+		"mistral": { "opencodeAuth": "mistral" }
+	}
+}

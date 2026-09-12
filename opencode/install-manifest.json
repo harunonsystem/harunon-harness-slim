@@ -1,0 +1,36 @@
+{
+  "_comment": "build-public-slim.py が packages/targets/opencode/config.json から生成。install.sh はこれを読んで rsync する管理パスと設定ファイルの同期キーを決める（配列を install.sh に直書きしない）",
+  "target": "opencode",
+  "displayName": "OpenCode",
+  "configDir": "~/.config/opencode",
+  "configDirEnv": null,
+  "managedPaths": [
+    "AGENTS.md",
+    "agents",
+    "commands.md",
+    "opencode.json",
+    "plugins",
+    "rules",
+    "runtime/claude-hooks/block-dangerous-in-bash.sh",
+    "runtime/claude-hooks/block-grep-in-bash.sh",
+    "runtime/claude-hooks/block-secrets-in-commit.sh",
+    "runtime/claude-hooks/fix_gfm_tables.py",
+    "runtime/claude-hooks/lib",
+    "runtime/claude-hooks/post-edit-checks.sh",
+    "runtime/claude-hooks/rtk-rewrite.sh",
+    "runtime/harunon-opencode",
+    "runtime/hook-runner",
+    "runtime/model-providers.json",
+    "runtime/policy",
+    "runtime/workflows"
+  ],
+  "settingsFile": "opencode.json",
+  "settingsFormat": "json",
+  "settingsKeys": [
+    "permission",
+    "default_agent",
+    "instructions",
+    "skills"
+  ],
+  "ledger": ".harunon-slim.installed.json"
+}
