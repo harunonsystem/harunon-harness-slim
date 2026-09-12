@@ -139,6 +139,46 @@
         }
       }
     },
+    "jakubkrehel/skills": {
+      "requestedRef": "main",
+      "resolvedRef": "267330e1adfc66a718fb65fa6918c1f06d0a689e",
+      "resolvedAt": "2026-09-12T03:04:27.504Z",
+      "skills": {
+        "better-accessibility": {
+          "integrity": "sha256-d951feb2eee2222eb1fd885d04341f9ee4b331ae8102ce80bfcd0eec405f61b5"
+        },
+        "better-colors": {
+          "integrity": "sha256-e5c80868406f7dbd5a93a5122b8b64357b64fc23bea7c53bc093803ddc5d3515"
+        },
+        "better-interface": {
+          "integrity": "sha256-15340ab034066bccfe2fd3a1b3f918e20e6909bba0791f1d2875a2dc47f5f99b"
+        },
+        "better-layout": {
+          "integrity": "sha256-8b08b3b75522f7b781d94c1ec6884731aa430f044619885eb4eee4613e78c0ad"
+        },
+        "better-typography": {
+          "integrity": "sha256-37dcfec6df593dc1d8f87bfd44dac6a34893d324e797e4a2bf874ef03fdfcb80"
+        },
+        "better-ui": {
+          "integrity": "sha256-400fef927262d83f19c5a09e366802b7523ea2232fb18be0d0bf90b63583b907"
+        },
+        "better-writing": {
+          "integrity": "sha256-b749f51d853306b11e10e8fb7b1d6269cb76ba298a5473c95b8329b5d67bc5f6"
+        },
+        "break": {
+          "integrity": "sha256-5eebadb75b86d6d10734381e157a18e47c2190cab758b9e54665fa480e3797b9"
+        },
+        "explain-interface": {
+          "integrity": "sha256-12551eed8651cbafce58492bf25176c4217d6b25cec681065bc30cc9748ba7f6"
+        },
+        "interface-review": {
+          "integrity": "sha256-b7878826055810c3ae85ef1e89ea8eb1f5df7c8e7d19d44492d692b96142d112"
+        },
+        "variant": {
+          "integrity": "sha256-6afbfa7337e63719318d0d610904bac184ea50cdeedbc1e6c08ba6f182c13c0d"
+        }
+      }
+    },
     "dietrichgebert/ponytail": {
       "requestedRef": "main",
       "resolvedRef": "974d940a1c5344210874150b98ff0d2c861fab6a",

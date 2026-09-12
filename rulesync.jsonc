@@ -82,6 +82,23 @@
       ],
       "path": "skills"
     },
+    {
+      "source": "jakubkrehel/skills",
+      "skills": [
+        "better-accessibility",
+        "better-colors",
+        "better-interface",
+        "better-layout",
+        "better-typography",
+        "better-ui",
+        "better-writing",
+        "break",
+        "explain-interface",
+        "interface-review",
+        "variant"
+      ],
+      "path": "skills"
+    },
     // Ponytail本家のskills/を逐語追跡する。runtime固有のextension/pluginは各CLIの公式導入手順で扱う。
     {
       "source": "DietrichGebert/ponytail",

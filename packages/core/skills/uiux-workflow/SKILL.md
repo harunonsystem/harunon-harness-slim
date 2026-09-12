@@ -11,13 +11,13 @@ Coordinate the design and review tools without replacing their specialist work.
 ## Tool roles
 
 - `baoyu-design`: explore directions, create prototypes, import Figma/HTML/GitHub context, and author or preview a design system. This is an optional external skill.
-- `better-interface`: review the implemented interface across UI polish, typography, colour, layout, writing, and accessibility. This is an optional external skill from `jakubkrehel/skills`.
+- `better-interface`: review the implemented interface across UI polish, typography, colour, layout, writing, and accessibility. This is an external skill from `jakubkrehel/skills`, tracked by rulesync and distributed with the harness together with its owning `better-*` skills.
 - `frontend-verify`: inspect the actual browser state and capture screenshots through a headless browser (`agent-browser`).
 - `figma-implement`: use when the request is direct production implementation from Figma rather than exploratory prototyping. This one ships with the harness on Claude Code but is excluded on non-Claude runtimes (it depends on the Figma MCP; see `disabled-skills.json`), so treat it as optional too.
 
-Do not pretend a skill ran. If `baoyu-design`, `better-interface`, or `figma-implement` is not installed, report the missing dependency and the verification limits it implies, then continue on the available path described in Routes. Ask first only when the user named that skill explicitly, or when no available path meets a required part of the request. Treat installing it as a separate request.
+Do not pretend a skill ran. If `baoyu-design` or `figma-implement` is not installed, report the missing dependency and the verification limits it implies, then continue on the available path described in Routes. If `better-interface` or one of its owning `better-*` skills is missing, treat that as an incomplete rulesync/bootstrap state rather than a project-local optional dependency: report the missing skill and continue with the available review path without claiming holistic coverage.
 
-Before installing `baoyu-design` or `better-interface`, read the SKILL.md you are about to install and confirm it is a sane instruction set. Their install commands track the upstream default branch rather than a pinned revision, so this reading is the only point at which a substituted upstream would be caught.
+Before installing `baoyu-design`, read the SKILL.md you are about to install and confirm it is a sane instruction set. Its install command tracks the upstream default branch rather than a pinned revision, so this reading is the point at which a substituted upstream would be caught. `jakubkrehel/skills` is not installed ad hoc here; its source is declared in `rulesync.jsonc` and pinned in `rulesync.lock`.
 
 ## 生成プロトタイプの言語（必須）
 

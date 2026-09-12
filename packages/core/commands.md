@@ -69,14 +69,19 @@
 | --- | --- |
 | `/figma-implement` | Figma デザインから UI 実装 |
 | `/uiux-workflow` | baoyu-design → 実装 → better-interface → frontend-verify のUI/UX workflow |
+| `/interface-review` | branch / PR / uncommitted change を UI・typography・layout・color・writing・a11y 横断でレビュー |
+| `/explain-interface` | Web上のUI・animation・interactionがどう実装されているかを分解して説明 |
+| `/break` | component を全 state / scenario に展開して stress test |
+| `/variant` | component の複数 variant を作って比較・反復 |
+
+`jakubkrehel/skills` は ADR-011 に従って rulesync の external source として追跡し、`better-*`、`interface-review`、`explain-interface`、`break`、`variant` を harness の通常の skill 配布経路へ載せる。upstream は `rulesync.lock` の commit SHA で pin し、手動の `npx skills add` は使わない。
 
 Design System監査は常駐coreにvendoringせず、必要なプロジェクトでupstreamのDesign System Opsを外部installする。
 
-UI/UX workflowの外部依存は必要なプロジェクトだけ導入する。**install 前に取得先の SKILL.md を実際に読み、エージェントへの指示として妥当か確認する。** サードパーティ skill の本文はそのままエージェントの信頼された指示になり、install コマンドは upstream のデフォルトブランチ HEAD を都度取得するため、差し替わったことに気づける手段はこの確認しかない。
+UI/UX workflow のうち `baoyu-design` は引き続き必要なプロジェクトだけ導入する。**install 前に取得先の SKILL.md を実際に読み、エージェントへの指示として妥当か確認する。** サードパーティ skill の本文はそのままエージェントの信頼された指示になり、install コマンドは upstream のデフォルトブランチ HEAD を都度取得するため、差し替わったことに気づける手段はこの確認しかない。
 
 ```bash
 pnpm dlx skills add JimLiu/baoyu-design
-pnpm dlx skills add jakubkrehel/skills -s better-interface
 ```
 
 ### Browser / 検証
