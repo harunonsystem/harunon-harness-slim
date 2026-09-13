@@ -107,6 +107,8 @@ push 承認フラグ（`approve-push.sh`）は承認した HEAD に紐づき、*
 
 commit message は heredoc で渡さず、`git commit -F <file>` か `-m` の複数指定で渡す。guard は quote 内の文字列（`git commit -m "... git push ..."`）を無視する一方、heredoc 本体はコマンドとして照合するため（`bash <<EOF` 経由の実行を通さない意図的な仕様）、本文に `git push` / `--no-verify` を書くと自分の commit が block される。
 
+git add / git commit / git push は 1 コマンドずつ実行し、`git add <path> && git commit` や `git commit && git push` のようにチェインしない。PreToolUse hook は add の実行前に走るため、同じ呼び出しの中で stage すると block-secrets-in-commit の staged 検査が対象を取りこぼして deny される。commit の単独実行は danger-rules の git-commit-chain / git-commit-and-push-same-command も要求する。
+
 ### 共有 checkout と worktree（並行セッションの作業を壊さない）
 
 複数の Claude セッションが同じリポジトリで同時に動いている前提で振る舞う。main の checkout（`gwm` の main_repo）は全セッションが共有する領域なので、そこでは編集も commit もしない。作業は必ず worktree（`EnterWorktree(name: <branch>)`）で行う。
@@ -154,7 +156,7 @@ issue は **Linear**、PR は **GitHub**。`triage` / `to-issues` / `implement-i
 
 ### トークン消費を無駄にしない姿勢
 
-Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode の classifier に拒否される。`git -C` / `pnpm -C` / 絶対パス起動を使い、cwd が要るなら subshell に入れる。hook でブロック）。検索は Grep ツールを使う。Grep ツールが無いコンテキスト（一部 subagent）では ripgrep を使う（Bash の grep/sed/awk は hook でブロック）。出力を削るプロキシを挟んでいる環境では hook が Bash コマンドを自動で書き換えるので、こちらから経由先を指定しない。パスは推測して Read しない（Glob / ls で確認してから）。cloud セッション由来の `/home/user/...` パスをローカルで使い回さない（ローカルは `~` 配下。旧 `~/ghq` は廃止済み）。同じ情報を複数回取得しない。`get_design_context` を大きな親ノードに一発で打たない（`get_metadata` で分割してから）。codex review / pre-review-check は勝手に複数回走らせない。
+Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode の classifier に拒否される。`git -C` / `pnpm -C` / 絶対パス起動を使い、cwd が要るなら subshell に入れる。hook でブロック）。検索は Grep ツールを使う。Grep ツールが無いコンテキスト（一部 subagent）では ripgrep を使う（Bash の grep/sed/awk は hook でブロック）。出力を削るプロキシを挟んでいる環境では hook が Bash コマンドを自動で書き換えるので、こちらから経由先を指定しない。パスは推測して Read しない（Glob / ls で確認してから）。既存ファイルへの Write / Edit は同じセッション内で Read 済みの内容にだけ行い、`File has not been read yet` / `modified since read` の precondition エラーは同じ引数の retry では解消しないので対象範囲を Read し直してから再実行する。cloud セッション由来の `/home/user/...` パスをローカルで使い回さない（ローカルは `~` 配下。旧 `~/ghq` は廃止済み）。同じ情報を複数回取得しない。`get_design_context` を大きな親ノードに一発で打たない（`get_metadata` で分割してから）。codex review / pre-review-check は勝手に複数回走らせない。
 
 ### macOS 環境の罠（実際に再発したもののみ）
 

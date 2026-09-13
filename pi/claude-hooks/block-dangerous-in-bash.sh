@@ -442,8 +442,26 @@ if ($s =~ /\bgh[ \t]+pr[ \t]+(?:merge|close)[ \t]+(?:--?[^ \t]+[ \t]+)*(?:\S*\/p
 
 # rule: git-commit-chain
 custom_git_commit_chain() {
-  # git commit（チェイン/subshell 経由。deny リストはプレフィックスマッチのため && ; $( 経由が漏れる）
-  if ere_matches "$NORMALIZED" "${CHAIN_ONLY_ORIGIN}(git|rtk git)[[:space:]]+commit"; then
+  # git commit は単独の呼び出しでだけ許す。前置チェイン（`git add x && git commit`。
+  # deny リストはプレフィックスマッチのため && ; $( 経由が漏れる）と後置チェイン
+  # （`git commit -m x && echo done`。2026-09-13 に PR review で指摘）の両方を見る。
+  # quote 内は normalize で中和済みなので message 本文の && / ; は誤検知しない。
+  # `2>&1` の & は `&[^&]` で許容し、bare `&`（background）は対象外。
+  local _commit_ere="(git|rtk git)[[:space:]]+commit"
+  local _chained=0
+  if ere_matches "$NORMALIZED" "${CHAIN_ONLY_ORIGIN}${_commit_ere}"; then
+    _chained=1
+  elif ere_matches "$NORMALIZED" "${_commit_ere}([^;|&]|&[^&])*(;|\|\||\||&&)"; then
+    _chained=1
+  elif ere_matches "$NORMALIZED" "$_commit_ere"; then
+    # 改行区切り（normalize は subshell / 置換を行に畳むので、commit 以外の行が残れば複合コマンド）
+    local _line _lines=0
+    while IFS= read -r _line || [ -n "$_line" ]; do
+      [[ "$_line" =~ [^[:space:]] ]] && _lines=$((_lines + 1))
+    done <<< "$NORMALIZED"
+    [ "$_lines" -gt 1 ] && _chained=1
+  fi
+  if [ "$_chained" = 1 ]; then
     echo "git commit を他のコマンドとチェインしないでください。単独で実行してください" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-commit-chain" "${COMMAND:-}" || true
     exit 2

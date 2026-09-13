@@ -23,5 +23,6 @@ OpenCode 固有の hook / custom tool 実装。これらを個別に auto-load �
 - plugin は tool event を action と repo context に変換する adapter に留める。
 - local review evidence は監査情報であり、merge の信頼境界は GitHub required check / branch protection。
 - 読み込み順は umbrella plugin 側で固定し、複数 plugin の暗黙順序に依存しない。
+- Claude の UserPromptSubmit hook（`validate-prompt.sh` のプロンプト送信時点ガード）は OpenCode 側で未対応。plugin contract の `chat.message` hook（新規メッセージ受信時に `output.parts` の user prompt を LLM ループ前に検査できる）が adapter の候補イベント。
 
 公式 plugin contract: <https://opencode.ai/docs/plugins/>

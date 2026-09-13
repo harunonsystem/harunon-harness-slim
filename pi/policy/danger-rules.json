@@ -12,7 +12,10 @@
       "action": "block",
       "impl": "custom",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "git commit と git push を1コマンドにまとめないでください。commit → 確認 → push の順で分離してください"
+      "message": "git commit と git push を1コマンドにまとめないでください。commit → 確認 → push の順で分離してください",
+      "prose": [
+        { "file": "packages/core/rules/core-standards.md", "token": "git commit && git push" }
+      ]
     },
     {
       "id": "git-no-verify",
@@ -116,6 +119,10 @@
       "impl": "custom",
       "targets": ["claude", "omp", "opencode", "pi"],
       "message": "git commit を他のコマンドとチェインしないでください。単独で実行してください",
+      "notes": "cclens 実測（2026-09-13）では harness 系 session の最頻出 hook block がこの rule（43 回、大半は `git add … && git commit -m …` 形）。add と commit の分離は block-secrets-in-commit.sh も要求する（PreToolUse 時点では add が未実行で staged 検査が空振りする）ため rule は維持し、周知は core-standards.md の prose 側で担う。2026-09-13 の PR review で「前置チェインしか見ておらず `git commit -m x && echo done` が素通り」と指摘され、custom 実装を commit の後置チェイン（&& / ; / | / || / 改行）も block する形に広げた（message の『単独で実行』と実装を一致させる）",
+      "prose": [
+        { "file": "packages/core/rules/core-standards.md", "token": "git add <path> && git commit" }
+      ],
       "match": {
         "ere": "(git|rtk git)[[:space:]]+commit",
         "origin": "chain-only",
