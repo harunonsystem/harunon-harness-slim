@@ -11,9 +11,6 @@ source "$HOOK_DIR/lib/review-gate.sh"
 # shellcheck source=lib/rigor-profile.sh
 source "$HOOK_DIR/lib/rigor-profile.sh"
 
-# casual profile ではフラグを立てない（対応する gate 自体を課さないため）。
-[ "$(rigor_profile)" = "casual" ] && exit 0
-
 INPUT=$(cat)
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
@@ -40,6 +37,10 @@ if ! review_gate_resolve_target_repo "$CMD"; then
 fi
 
 git rev-parse --show-toplevel > /dev/null 2>&1 || exit 0
+
+# casual profile ではフラグを立てない（対応する gate 自体を課さないため）。
+# 解決済みの対象 repo で判定する（session cwd 基準だと flag キーの基準 repo とズレる）。
+[ "$(rigor_profile)" = "casual" ] && exit 0
 
 # flag には2行のフィンガープリントを書く（タイムスタンプではなくレビュー対象 diff に紐付ける）。
 # 1行目: staged diff のハッシュ（difit --staged 相当のワークフロー）

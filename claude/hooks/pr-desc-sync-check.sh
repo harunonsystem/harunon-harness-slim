@@ -12,9 +12,6 @@ source "$HOOK_DIR/lib/review-gate.sh"
 # shellcheck source=lib/rigor-profile.sh
 source "$HOOK_DIR/lib/rigor-profile.sh"
 
-# casual profile では PR description 同期チェックの促しをしない（ADR-009）。
-[ "$(rigor_profile)" = "casual" ] && exit 0
-
 INPUT=$(cat)
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
@@ -43,6 +40,10 @@ fi
 review_gate_resolve_target_repo "$CMD" || exit 0
 
 git rev-parse --show-toplevel > /dev/null 2>&1 || exit 0
+
+# casual profile では PR description 同期チェックの促しをしない（ADR-009）。
+# 解決済みの対象 repo で判定する（session cwd 基準だと対象とズレる）。
+[ "$(rigor_profile)" = "casual" ] && exit 0
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 [ -z "$BRANCH" ] && exit 0

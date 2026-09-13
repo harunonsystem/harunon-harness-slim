@@ -15,9 +15,6 @@ source "$HOOK_DIR/lib/rigor-profile.sh"
 # shellcheck source=lib/command-normalize.sh
 source "$HOOK_DIR/lib/command-normalize.sh"
 
-# casual profile では difit ゲートを課さない（ADR-009）。
-[ "$(rigor_profile)" = "casual" ] && exit 0
-
 INPUT=$(cat)
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
@@ -52,6 +49,11 @@ if ! review_gate_resolve_target_repo "$CMD"; then
 fi
 
 git rev-parse --show-toplevel > /dev/null 2>&1 || exit 0
+
+# casual profile では difit ゲートを課さない（ADR-009）。解決済みの対象 repo で
+# 判定する（session cwd 基準だと git -C / --cwd 経由の commit と flag キーの
+# 基準 repo がズレる。判定順は load-bearing）。
+[ "$(rigor_profile)" = "casual" ] && exit 0
 
 DIFF_NAME_STATUS=$(git diff --cached --name-status 2>/dev/null || echo "")
 NUMSTAT_TOTAL=$(git diff --cached --numstat 2>/dev/null | awk '{add+=$1; del+=$2} END {print add+del+0}')

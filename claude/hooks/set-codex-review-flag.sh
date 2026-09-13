@@ -14,9 +14,6 @@ source "$HOOK_DIR/lib/review-gate.sh"
 # shellcheck source=lib/rigor-profile.sh
 source "$HOOK_DIR/lib/rigor-profile.sh"
 
-# casual profile ではフラグを立てない（対応する gate 自体を課さないため）。
-[ "$(rigor_profile)" = "casual" ] && exit 0
-
 INPUT=$(cat)
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
@@ -57,6 +54,10 @@ fi
 if ! review_gate_resolve_target_repo "$CMD"; then
   exit 0
 fi
+
+# casual profile ではフラグを立てない（対応する gate 自体を課さないため）。
+# 解決済みの対象 repo で判定する（session cwd 基準だと flag キーの基準 repo とズレる）。
+[ "$(rigor_profile)" = "casual" ] && exit 0
 
 FLAG=$(codex_review_done_flag)
 

@@ -7,9 +7,6 @@ HOOK_DIR="$(cd -P "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 # shellcheck source=lib/rigor-profile.sh
 source "$HOOK_DIR/lib/rigor-profile.sh"
 
-# casual profile では main ブランチ直編集ガードを課さない（ADR-009）。
-[ "$(rigor_profile)" = "casual" ] && exit 0
-
 # harness の SSOT checkout かどうかを構造で判定する（配布宣言 + distribute 本体）。
 # ディレクトリ名で判定すると clone 先の名前や slim 生成物（harunon-harness-slim）で
 # main 直編集が deny される（2026-09-11 に slim の CI で実測）。
@@ -142,6 +139,11 @@ check_candidate_path() {
   local git_root
   git_root=$(git -C "$search_dir" rev-parse --show-toplevel 2>/dev/null || echo "")
   [ -z "$git_root" ] && return 0
+
+  # casual profile の repo では main 直編集ガードを課さない（ADR-009）。
+  # 編集対象ファイルの属する repo で判定する（session cwd 基準だと別 repo の
+  # ファイル編集とズレる）。
+  [ "$(rigor_profile "$git_root")" = "casual" ] && return 0
 
   # harness リポジトリ自体はスルー（main で作業する運用）
   local repo_name

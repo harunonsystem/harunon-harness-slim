@@ -8,11 +8,10 @@ set -euo pipefail
 HOOK_DIR="$(cd -P "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 # shellcheck source=lib/rigor-profile.sh
 source "$HOOK_DIR/lib/rigor-profile.sh"
+# shellcheck source=lib/review-gate.sh
+source "$HOOK_DIR/lib/review-gate.sh"
 # shellcheck source=lib/command-normalize.sh
 source "$HOOK_DIR/lib/command-normalize.sh"
-
-# casual profile では gwm 強制ゲートを課さない（ADR-009）。
-[ "$(rigor_profile)" = "casual" ] && exit 0
 
 if [ -n "${TOOL_INPUT:-}" ]; then
   INPUT="$TOOL_INPUT"
@@ -29,6 +28,14 @@ case "$TOOL_NAME" in
     # name 形式は Claude の WorktreeCreate hook に作成を委譲する新規作成フロー。
     # 明示 path の既存 worktree だけを下の GWM 配下チェックに通す。
     [ -z "$ENTER_PATH" ] && exit 0
+
+    # casual profile の repo への進入では gwm 強制を課さない（ADR-009）。
+    # session cwd ではなく進入先の属する repo で判定する。repo 外なら
+    # 解決不能として gate 側に倒す。
+    ENTER_ROOT=$(git -C "$ENTER_PATH" rev-parse --show-toplevel 2>/dev/null || echo "")
+    if [ -n "$ENTER_ROOT" ] && [ "$(rigor_profile "$ENTER_ROOT")" = "casual" ]; then
+      exit 0
+    fi
 
     # gwm の worktree_base_path を config から取得
     GWM_BASE=""
@@ -96,6 +103,16 @@ EOF
       echo "[gwm enforcer] worktree 判定の前処理に失敗しました（安全側に倒してブロックします）" >&2
       exit 2
     fi
+
+    # casual profile の対象 repo では gwm 強制を課さない（ADR-009）。
+    # `git -C <casual repo> worktree add` 等があるため session cwd ではなく
+    # 解決済みの対象 repo で判定する。解決不能なら gate 側に倒す。
+    if review_gate_resolve_target_repo "$COMMAND" \
+      && git rev-parse --show-toplevel > /dev/null 2>&1 \
+      && [ "$(rigor_profile)" = "casual" ]; then
+      exit 0
+    fi
+
     if printf '%s\n' "$NORMALIZED" | command python3 -c '
 import shlex
 import sys

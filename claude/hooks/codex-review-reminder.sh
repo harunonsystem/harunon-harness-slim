@@ -10,9 +10,6 @@ source "$HOOK_DIR/lib/review-gate.sh"
 # shellcheck source=lib/rigor-profile.sh
 source "$HOOK_DIR/lib/rigor-profile.sh"
 
-# casual profile では Codex レビューのリマインドをしない（ADR-009）。
-[ "$(rigor_profile)" = "casual" ] && exit 0
-
 INPUT=$(cat)
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
@@ -33,6 +30,11 @@ fi
 # 通してしまわないようにする）。
 # advisory hook: 解決不能なら何もせず exit 0（何かを断定して書き込まない）。
 review_gate_resolve_target_repo "$CMD" || exit 0
+
+# casual profile では Codex レビューのリマインドをしない（ADR-009）。
+# 解決済みの対象 repo で判定する（session cwd 基準だと対象とズレる）。
+[ "$(rigor_profile)" = "casual" ] && exit 0
+
 if git rev-parse --show-toplevel > /dev/null 2>&1; then
   rm -f "$(difit_done_flag)" 2>/dev/null || true
 fi

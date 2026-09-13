@@ -21,9 +21,6 @@ if [ -r "$HOOK_DIR/lib/denial-log.sh" ]; then
   source "$HOOK_DIR/lib/denial-log.sh"
 fi
 
-# casual profile では再レビューゲートを課さない（ADR-009）。
-[ "$(rigor_profile)" = "casual" ] && exit 0
-
 INPUT=$(cat)
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
@@ -44,6 +41,10 @@ if ! review_gate_resolve_target_repo "$CMD"; then
   }'
   exit 0
 fi
+
+# casual profile では再レビューゲートを課さない（ADR-009）。解決済みの対象 repo で
+# 判定する（session cwd 基準だと done flag のキー基準 repo とズレる）。
+[ "$(rigor_profile)" = "casual" ] && exit 0
 
 # レビュー対象が空のまま回すと Codex は何も見ずに返り、done フラグだけが立って
 # 「レビュー済み」で PR gate を通ってしまう。base 取り違えの空 diff をここで止める。
