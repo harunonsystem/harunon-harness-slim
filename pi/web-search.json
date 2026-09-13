@@ -1,5 +1,14 @@
 {
   "webSearch": {
     "enabled": false
+  },
+  "workflow": "none",
+  "commands": {
+    "websearch": {
+      "enabled": false
+    },
+    "curator": {
+      "enabled": false
+    }
   }
 }

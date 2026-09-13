@@ -22,7 +22,7 @@ export function buildProviderEntries(catalog) {
   for (const [name, def] of Object.entries(catalog.customProviders ?? {})) {
     if (def.opencodeNative) continue;
     const models = {};
-    for (const model of def.models) {
+    for (const model of def.models ?? []) {
       models[model.id] = { name: model.name };
     }
     const options = { baseURL: def.baseUrl };

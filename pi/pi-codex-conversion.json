@@ -30,7 +30,7 @@
     "fast": false,
     "verbosity": "low",
     "proxyResponsesLite": false,
-    "forceCachedWebSockets": true,
+    "forceCachedWebSockets": false,
     "webSearchModel": "gpt-5.6-luna"
   }
 }

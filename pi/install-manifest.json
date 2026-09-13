@@ -22,7 +22,6 @@
     "extensions",
     "extensions/harness-fff-mode.js",
     "extensions/harness-policy.js",
-    "extensions/pi-tool-display/config.json",
     "hook-runner",
     "mcp.json",
     "model-providers.json",
