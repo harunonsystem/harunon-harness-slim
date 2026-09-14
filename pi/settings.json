@@ -31,5 +31,18 @@
 		"opencode-zen/*",
 		"openai-codex/*",
 		"devin/*"
-	]
+	],
+	"observational-memory": {
+		"compactAfterTokens": 81000,
+		"compactAfterTokensMode": "ratio",
+		"compactAfterTokensRatio": 0.5,
+		"model": {
+			"provider": "openai-codex",
+			"id": "gpt-5.6-luna",
+			"thinking": "low"
+		}
+	},
+	"powerline": {
+		"welcome": false
+	}
 }

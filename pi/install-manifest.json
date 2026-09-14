@@ -50,7 +50,9 @@
     "enableSkillCommands",
     "packages",
     "enabledModels",
-    "compaction"
+    "compaction",
+    "observational-memory",
+    "powerline"
   ],
   "ledger": ".harunon-slim.installed.json"
 }
