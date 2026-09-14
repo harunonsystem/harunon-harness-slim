@@ -59,7 +59,8 @@ status_line = ["model-with-reasoning", "current-dir", "git-branch", "context-rem
 [notice]
 fast_default_opt_out = true
 
-# Codex Desktop の Pet（floating avatar overlay のキャラクター）を非表示にする hidden 設定。
-# 設定 UI には出ず、Pet を開いたまま終了すると再起動時に復元されるため SSOT で false に固定する。
+# Codex Desktop の Pet（floating avatar overlay のマスコット）を非表示にする hidden 設定。
+# 設定 UI には出ないため SSOT で false に固定する。抑えられるのは overlay 内のマスコットだけで、
+# overlay ウィンドウ自体の開閉は scripts/codex-overlay-guard.py が別途矯正する。
 [desktop]
 avatar-overlay-pet-visible = false
