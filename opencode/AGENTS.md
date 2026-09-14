@@ -64,13 +64,9 @@ harness repo 内なら `packages/core/lessons/lessons.json` に `status:"pending
 
 ## 委譲（サブエージェント）
 
-- 小タスクはメインが直接行い、独立して並列化できる調査・実装・レビューだけを委譲する。結果は要点だけ受け取り、main のコンテキストを太らせない。
-- 広い調査は `@explorer`、並列化できる機械的な実装は `@worker` に呼び出す。
+- 広い調査は `@explorer`、並列化できる機械的な実装は `@worker` に呼び出す。結果は要点だけ受け取る。
 - diff レビューは `@reviewer` に**一度だけ**委譲する。親セッションは自分で差分を再読・再検証せず `@reviewer` の結果だけを返し、実行中に別のレビューを並行起動しない。
 
 ## Plugins（自動適用）
 
-OpenCode は plugin（`~/.config/opencode/plugins/`）で hook 相当を実行する。
-
-- `claude-hooks-bridge`: 自ターゲットの `runtime/claude-hooks/*.sh`（rtk-rewrite・block-grep-in-bash・block-dangerous-in-bash）を Claude PreToolUse protocol で無改修実行。`~/.claude/hooks` に依存せず、未配布時は fail-closed
-- `fix-gfm-tables`: Markdown テーブルを GFM 形式に自動修正
+plugin（`~/.config/opencode/plugins/`）が hook 相当を実行する。`claude-hooks-bridge` が `runtime/claude-hooks/*.sh`（rtk-rewrite・block-grep-in-bash・block-dangerous-in-bash）を実行し、`fix-gfm-tables` が Markdown テーブルを整形する。コマンドが書き換わったり拒否されたらこの 2 つを疑う。

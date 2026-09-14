@@ -71,8 +71,11 @@ harness repo 内なら `packages/core/lessons/lessons.json` に `status:"pending
 
 ## Hooks
 
-- Core Workflow adapter と軽量な補助hookは `harunon-core` Codex pluginが単一dispatcherとして提供する。公開操作（push 等）の承認はCodex native permissionsに委ねる。
-- `rtk-rewrite`: Bash の `updatedInput` を使い、対応する読み取り・検索・git操作をrtkへ自動変換する。
-- block-grep-in-bash: Bash での grep/sed/awk を禁止（rg または perl に誘導）。
-- block-dangerous-in-bash: `policy/danger-rules.json` のうち `targets` に codex を含む rule だけを enforce する（現在は `git-no-verify` = commit/push の `--no-verify` / `-n` の block のみ。push 承認そのものは native permissions の責務のまま）。
-- fix_gfm_tables.py: Markdown テーブルを GFM 形式に自動修正。
+`harunon-core` Codex plugin が単一 dispatcher として提供する。コマンドが書き換わったり拒否されたらこれを疑う。
+
+- `rtk-rewrite`: 読み取り・検索・git 操作を rtk へ自動変換（`updatedInput`）
+- `block-grep-in-bash`: grep/sed/awk を禁止（rg または perl に誘導）
+- `block-dangerous-in-bash`: `policy/danger-rules.json` のうち `targets` に codex を含む rule だけ enforce（現在は `git-no-verify` のみ）
+- `fix_gfm_tables.py`: Markdown テーブルを GFM 形式に自動修正
+
+公開操作（push 等）の承認は Codex native permissions の責務。
