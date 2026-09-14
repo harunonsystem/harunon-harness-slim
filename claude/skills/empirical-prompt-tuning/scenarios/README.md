@@ -2,7 +2,7 @@
 
 保存済みの評価シナリオ集。対象 skill / rule を改訂したら、ここから該当シナリオを subagent に投げて回帰確認する。
 
-対象が private / extras の skill の場合は、core にシナリオを複製しない。対象 skill と同じパッケージの `scenarios/` を `scenarios` 入力として指定し、このファイルの形式・判定規則を適用する。
+対象が公開パッケージ外の skill の場合は、core にシナリオを複製しない。対象 skill と同じパッケージの `scenarios/` を `scenarios` 入力として指定し、このファイルの形式・判定規則を適用する。
 
 ## 構造
 

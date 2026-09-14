@@ -13,7 +13,7 @@ Coordinate the design and review tools without replacing their specialist work.
 - `baoyu-design`: explore directions, create prototypes, import Figma/HTML/GitHub context, and author or preview a design system. This is an optional external skill.
 - `better-interface`: review the implemented interface across UI polish, typography, colour, layout, writing, and accessibility. This is an external skill from `jakubkrehel/skills`, tracked by rulesync and distributed with the harness together with its owning `better-*` skills.
 - `frontend-verify`: inspect the actual browser state and capture screenshots through a headless browser (`agent-browser`).
-- `figma-implement`: use when the request is direct production implementation from Figma rather than exploratory prototyping. This one ships with the harness on Claude Code but is excluded on non-Claude runtimes (it depends on the Figma MCP; see `disabled-skills.json`), so treat it as optional too.
+- `figma-implement`: use when the request is direct production implementation from Figma rather than exploratory prototyping. This one ships with the harness on Claude Code but is excluded on non-Claude runtimes (it depends on the Figma MCP), so treat it as optional too.
 
 Do not pretend a skill ran. If `baoyu-design` or `figma-implement` is not installed, report the missing dependency and the verification limits it implies, then continue on the available path described in Routes. If `better-interface` or one of its owning `better-*` skills is missing, treat that as an incomplete rulesync/bootstrap state rather than a project-local optional dependency: report the missing skill and continue with the available review path without claiming holistic coverage.
 

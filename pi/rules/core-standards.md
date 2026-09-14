@@ -39,9 +39,9 @@ paths:
 ### Model/provider の境界
 
 - **portable 層**: Skills・rules・AGENTS.md は、観測可能な不変条件・境界・停止条件だけを書く。現行の model/provider/version や速度・品質の順位を前提にしない。
-- **調整層**: model/provider/effort/latency の選択は target adapter の socket と `packages/core/model-routing.json` の current policy ledger に閉じ込める。portable 層へ逆流させない。
+- **調整層**: model/provider/effort/latency の選択は target adapter の socket と model-routing の current policy ledger に閉じ込める。portable 層へ逆流させない。
 - **交換契約**: `runtime/role/purpose → alias/effort → projection` を交換可能な境界として扱う。profile が無い・選べない場合は明示的にエラーにし、暗黙の model/provider fallback をしない。
-- **skill 境界**: model-specific skill は `disabled-skills.json` で配布 target を限定する。portable skill に model/provider の現行値を埋め込まない。
+- **skill 境界**: model-specific skill は配布 target を限定する（harness repo では disabled-skills 宣言）。portable skill に model/provider の現行値を埋め込まない。
 - **変更判定**: モデル交換だけなら台帳と投影だけを更新し、共有 Skills・rules・AGENTS.md は変更しない。不変条件・境界が変わるときだけ共有文書を更新する。
 
 ### 禁止事項

@@ -1,6 +1,6 @@
 ## Frequently Used Commands
 
-> **skill は全件配布**（skill pack によるキュレーションは 2026-08-19 に廃止）。これはコマンド総覧です。runtimeごとの利用可否はcoreとextrasの `disabled-skills.json` に従い、実際に利用可能なskillを選んでください。
+> **skill は全件配布**（skill pack によるキュレーションは 2026-08-19 に廃止）。これはコマンド総覧です。runtime ごとに利用可能な skill は異なるため、実際に使える skill を選んでください。
 
 > **upstream 由来 skill の読み替え**: `mattpocock/skills` からrulesyncで取得するskill は本文を逐語で保つため、harness に無い名前を指すことがあります。`to-spec` → `/to-prd`、`to-tickets` → `/to-issues`、upstream の code-review skill → Claude では同名の native skill、他runtimeではその環境で利用可能なレビュー機能を選んでください。`/cr` は非Claude向け配布から除外されています。issue tracker の規約は `rules/core-standards.md`「Issue tracker の規約」節。
 
@@ -74,7 +74,7 @@
 | `/break` | component を全 state / scenario に展開して stress test |
 | `/variant` | component の複数 variant を作って比較・反復 |
 
-`jakubkrehel/skills` は ADR-011 に従って rulesync の external source として追跡し、`better-*`、`interface-review`、`explain-interface`、`break`、`variant` を harness の通常の skill 配布経路へ載せる。upstream は `rulesync.lock` の commit SHA で pin し、手動の `npx skills add` は使わない。
+`jakubkrehel/skills` は rulesync の external source として追跡し、`better-*`、`interface-review`、`explain-interface`、`break`、`variant` を harness の通常の skill 配布経路へ載せる。upstream は `rulesync.lock` の commit SHA で pin し、手動の `npx skills add` は使わない。
 
 Design System監査は常駐coreにvendoringせず、必要なプロジェクトでupstreamのDesign System Opsを外部installする。
 
@@ -116,4 +116,4 @@ pnpm dlx skills add JimLiu/baoyu-design
 | `/empirical-prompt-tuning` | プロンプト/スキルの実証的改善 |
 | `/setup-matt-pocock-skills` | Matt Pocock 系 workflow skills のセットアップ |
 
-> プロジェクト固有のスキル（移行・日報・スキーマ同期等）はプロジェクト固有の extras パッケージ（codename 別）で個別に有効化される。
+> プロジェクト固有のスキルはこの総覧には含まれず、利用環境側で個別に有効化される。

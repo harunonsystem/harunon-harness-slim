@@ -28,7 +28,7 @@ paths:
 | docs / rules / メモリ等の Markdown のみの変更（harness の rules 追記、ADR、README 等） | 免除。そのまま push してよい |
 | 判断に迷う混合変更 | 独断で免除にせず、ユーザーに「review を挟むか」を確認 |
 
-免除は「レビュー不要」であって「検証不要」ではない。harness の場合は validate-harness / unittest を通してから push する。
+免除は「レビュー不要」であって「検証不要」ではない。対象リポジトリの検証コマンドを通してから push する。
 
 ### 機械判定（review-router）
 

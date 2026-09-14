@@ -283,16 +283,11 @@ bash:
     approval: prompt
 skills:
   ignoredSkills:
-  - codex-pre-review-check
   - cr
-  - daily-report
-  - efficient-fable
   - empirical-prompt-tuning
   - figma-implement
-  - posthog-ops
   - pre-review-check
   - prototype
-  - review
   - sentry-fix
   - setup-matt-pocock-skills
   - skill-creator

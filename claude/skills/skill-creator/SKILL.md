@@ -13,7 +13,7 @@ Build a skill around a repeatable task that the agent needs help performing. Kee
 1. Read the closest existing skill, its callers and bundled resources. Reuse or extend it when it already owns the capability.
 2. Define the requests the skill should handle and any likely neighboring task it should leave alone. Ask only for information that cannot be inferred from the request or existing artifacts.
 3. Before editing, fix a representative task, an edge case and an unused hold-out. Include at least one critical correctness requirement. For trigger changes, include a positive and a negative prompt.
-4. Check ownership. In Harness, edit core or extras SSOT. Rulesync-managed upstream skills remain unchanged; their updates come from rulesync.
+4. Check ownership. In Harness, edit the harness SSOT side. Rulesync-managed upstream skills remain unchanged; their updates come from rulesync.
 
 ## Structure the skill
 
@@ -45,7 +45,7 @@ Preserve supported metadata and existing invocation policy when updating a skill
 
 Frontmatter needs a nonempty `name` and `description`. Standard optional fields include `license`, `compatibility`, `metadata` and experimental `allowed-tools`.
 Claude also supports fields such as `disable-model-invocation`, `user-invocable`, `argument-hint`, `context`, `agent`, `model` and `hooks`.
-Runtime-specific fields do not imply the same behavior on other hosts. In Harness, inspect the target's frontmatter transform and disabled-skills declarations before claiming cross-runtime support.
+Runtime-specific fields do not imply the same behavior on other hosts. In Harness, inspect the target's frontmatter transform and per-target distribution declarations before claiming cross-runtime support.
 Keep tool-specific requirements in compatible targets or express the necessary outcome in portable prose.
 
 For a new standalone skill, use the bundled initializer when appropriate:

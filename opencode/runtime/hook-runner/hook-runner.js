@@ -151,7 +151,7 @@ export function createHookRunner({
       if (missing.length > 0) {
         return deny(
           `required security hook missing: ${missing.map((h) => h.file).join(", ")} (${hooksDir}) — ` +
-            `harunon-harness で ./scripts/bootstrap.sh --targets ${runtime} を実行してください`,
+            `scripts/install.sh ${runtime}（slim）または配布元 repo で scripts/bootstrap.sh --targets ${runtime} を実行して hooks を再配布してください`,
           input,
           warnings,
         );

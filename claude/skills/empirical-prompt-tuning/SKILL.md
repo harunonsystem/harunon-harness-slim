@@ -12,7 +12,7 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 この skill は「codemod を使う skill」ではなく、**対象 skill を改善するための実行ループ**である。呼び出し時は次を最初に確定する。
 
 - `target`: 改訂対象の `SKILL.md` または指示ファイル。対象の目的・利用者・変更可能な bundled resources を読む
-- `scenarios`: 対象に同梱された `scenarios/`、または呼び出し側が指定した保存済みシナリオ。private / extras の対象は target と同じパッケージに置く
+- `scenarios`: 対象に同梱された `scenarios/`、または呼び出し側が指定した保存済みシナリオ。公開パッケージに置けない対象は target と同じパッケージに置く
 - `scope`: trigger / workflow / reference routing / output contract / wording のどこを改善するか。対象 skill の目的やドメインを勝手に拡張しない
 - `gate`: 固定チェックリストの `[critical]` 全達成、質的な不明瞭点、hold-out の過適合。時間や tool 数だけで合格にしない
 

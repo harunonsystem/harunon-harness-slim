@@ -324,9 +324,9 @@
             "git remote の追加・変更・削除はユーザーの明示的な許可がある場合のみ",
             "pi / omp を npm や pnpm でグローバル install / update しない。mise の exact pin（mise run agents:update）で更新する",
             "PR / issue へのコメント投稿（gh pr comment / gh api での comment 書き込み）はユーザーの明示的な許可がある場合のみ",
-            "rtk init -g / --global は ~/.claude/RTK.md を上書きするため実行しない。harness 配布の RTK.md は再配布で復元する",
+            "rtk init -g / --global は rtk のグローバル設定ファイルを上書きするため実行しない。harness 配布版は再配布で復元する",
             "git stash drop / clear はユーザーの明示的な許可がある場合のみ",
-            "packages/core/ / packages/extras/ / skills/ / hooks/ / rules/ 配下への rm はユーザーの明示的な許可がある場合のみ"
+            "harness の SSOT 配下への rm はユーザーの明示的な許可がある場合のみ"
         ]
     },
     "model": "claude-fable-5[1m]",

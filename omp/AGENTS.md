@@ -13,17 +13,8 @@
 - 応答は結論ファースト。空疎な定型（「重要なのは〜」「掘り下げる」等）を避ける。
 - 独立して並列化でき、結果を短く統合できる調査・実装・レビューだけを委譲する。小タスクや強く依存する逐次作業はメインが直接行い、委譲往復のトークンを増やさない。
 - 探索・修正が空振りしたら、同じ手を繰り返さず意味のある代替を 1〜2 回だけ試して打ち切る。それでも満たせなければ「見つからない / できない」と断定せず、試した内容と未達の理由を報告する。止めるのはその作業だけ。
-- `oracle` skill（ChatGPT Web の browser 自動操作）はユーザーが明示的に指示した時だけ使う。自律判断で起動しない（アカウント BAN リスクをどこで取るかは毎回人間が判断する）。
 
-## 検証ループ（harunon-harness）
 
-編集後は `"$(mise which python3)" scripts/run-tests.py -k <module>` → `scripts/run-tests.py` → `scripts/validate-harness.py` → `scripts/distribute.py <target> --check`。.sh を触ったら `shellcheck -S warning`。
-
-## CI が赤いとき
-
-`gh run view <run-id> --log` で失敗 step を見て、検証ループで再現・修正し、承認を得て push。赤のまま merge しない（merge はユーザー確認待ち）。
-
-Core Workflow の現在地は `python3 <skill-dir>/scripts/harness.py status`（run-change skill）。遷移が決まらない時だけ推測せず聞く（止めるのはその遷移だけ）。
 
 ## Routing（必要時にだけ読む）
 
@@ -42,9 +33,6 @@ Core Workflow の現在地は `python3 <skill-dir>/scripts/harness.py status`（
 
 ブラウザ操作のデフォルトは `agent-browser`（headless。ユーザーの画面にウィンドウを出さない）。ユーザーのログイン済みタブが必要な時だけ OpenCLI を bind-first で使い、明示依頼なしに `open`・新規タブ・`INTERCEPT` を実行せず、bind できるタブがなければ中止して確認する。
 
-## Lesson
-
-harness repo 内なら `packages/core/lessons/lessons.json` に `status:"pending"` で追記。他 repo はユーザーに報告し harness へ記録依頼（配布先 ~/.agents/lessons は read-only）。
 
 ## Language
 
@@ -53,7 +41,7 @@ harness repo 内なら `packages/core/lessons/lessons.json` に `status:"pending
 
 ## ロール活用（モデルルーティング）
 
-omp の model role は `packages/core/model-routing.json` と `config.yml` の projection を参照する。ここでは role の責務と fallback 境界だけを定め、具体的な model/provider は台帳・投影に置く。OpenAI Codex OAuth が使えない場合も、暗黙に別 provider へ切り替えず、認証状態を確認して明示的に報告する。
+omp の model role は `config.yml` の projection（配布元の model-routing.json 台帳から生成）を参照する。ここでは role の責務と fallback 境界だけを定め、具体的な model/provider は台帳・投影に置く。OpenAI Codex OAuth が使えない場合も、暗黙に別 provider へ切り替えず、認証状態を確認して明示的に報告する。
 
 親タスク（`default` / `slow` / `plan`）が走る間は、メインは計画・分解・統合・検収に専念し、実装とスクリプトは `smol` / `task` / `commit` に回す。親で直接実装するのは、委譲の往復コストが実装コストを上回る軽微な変更（1〜3 行程度）に限る。ユーザーやセッション側が委譲を制限している場合はそちらが優先する。
 

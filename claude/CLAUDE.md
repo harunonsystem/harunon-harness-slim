@@ -27,7 +27,7 @@ model ID に `fable` / `opus` を含むセッションでは、メインセッ�
 
 High-stakes な判断（アーキテクチャ選定・後戻りコストの大きい設計）は `deep-reasoner` と `codex:codex-rescue` に**同じ問題を 1 メッセージ内で並列に**投げ、互いの回答を見せないまま結論だけ受け取って統合する（生ログは取り込まない）。
 
-委譲の規律（packet 書式・executor ladder・vetting・Fable 固有の制約は `efficient-fable` スキルが SSOT）:
+委譲の規律（packet 書式・executor ladder・vetting・Fable 固有の制約は専任の委譲スキルが SSOT）:
 - **非同期で委譲する**: 結果を待ってブロックせず独立した別作業を進める。脱線や前提不足に気づいたら介入する
 - 軽微な 1〜3 行修正は委譲コストが上回るので直接実装する。機械的な fan-out は `effort: "low"`
 - handoff packet に `git commit` / `git push` / `gh pr create` を含めない（deny rule で落ちる。git 操作はユーザー確認後にメインセッションが行う）
@@ -87,7 +87,7 @@ High-stakes な判断（アーキテクチャ選定・後戻りコストの大�
 ## Tools & Environment
 
 ### Lesson Memory
-セッションを跨ぐ学びは `~/.claude/memory/<topic>.md` に 1 ファイル 1 lesson で書く（先頭に 1 行サマリ。ディレクトリが無ければ作る）。ユーザーの修正指示と確定した方針を「なぜ効いたか」付きで残し、repo / 会話履歴 / rules が既に持つ情報は書かない。同トピックのノートがあれば追記して重複を作らず、誤りと分かったノートは消す。長い作業や再発した問題に入る前に該当トピックを読む。クロスランタイムの SSOT は `packages/core/lessons/lessons.json` とし、`~/.claude/memory` は Claude の作業メモとして残す。
+セッションを跨ぐ学びは `~/.claude/memory/<topic>.md` に 1 ファイル 1 lesson で書く（先頭に 1 行サマリ。ディレクトリが無ければ作る）。ユーザーの修正指示と確定した方針を「なぜ効いたか」付きで残し、repo / 会話履歴 / rules が既に持つ情報は書かない。同トピックのノートがあれば追記して重複を作らず、誤りと分かったノートは消す。長い作業や再発した問題に入る前に該当トピックを読む。クロスランタイムで共有する lessons は配布元の ledger 側で管理し、`~/.claude/memory` は Claude の作業メモとして残す。
 
 ### Runtime 中立表現の解決
 - skill 本文の「利用中のエージェントのユーザー確認機能」は **AskUserQuestion** を指す。構造化ツールを使い、プロースの質問で代替しない（skill は複数 runtime に配布されるため、本文に Claude ツール名を書かない契約。distribute の契約テストが強制）
@@ -107,7 +107,6 @@ sandbox の read deny / write allowlist に当たる操作は、retry で 1 つ�
 
 - `git push` / `pull` / `fetch` と `gh` コマンド全般（credential helper が `~/.config/gh` を、SSH remote が `~/.ssh` を読む。どちらも read deny）
 - `codex-companion.mjs` / `codex app-server`（sqlite state init が syscall 制限で失敗。`rules/codex-review-policy.md`）
-- `./scripts/bootstrap.sh`（配布前の rulesync install --frozen が `api.github.com` へ出るため sandbox 内では fail-closed で配布全体が止まる。1 ターゲットの設定キーだけなら `distribute.py <target> --push` が sandbox 内で通る）
 
 一時ファイルは `/tmp/` 直下ではなく `$TMPDIR` に書く。`~/.claude/settings.json`・`skills/`・`hooks/` への write deny は SSOT-first の意図どおりなので、外さずこのリポジトリ側を直す。
 

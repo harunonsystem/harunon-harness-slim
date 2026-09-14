@@ -20,6 +20,6 @@ paths:
 - 「シンプルに」と言われても機能的に必要なもの（propsスプレッド等）は消さない
 - 極端から極端に振れない
 
-### このリポジトリ（harunon-harness）を OSS 化・公開する場合の除外規約
+### vendored スキルの再配布禁止
 
-`packages/core/skills/*/NOTICE.txt` に "do not redistribute" 等の再配布禁止が明記された vendored スキルは、公開前に必ず除外する（現時点: `efficient-fable`）。判定は `scripts/validate-harness.py` の `check_vendored_notices` が warning として一覧化する。README.md の「core は OSS 化しても問題ない構成」の文言もこの除外を前提にしている。
+vendored スキルの `NOTICE.txt` に "do not redistribute" 等の再配布禁止が明記されている場合、外部公開・再配布の前に必ず除外する。harness では validator が対象を warning として一覧化する。

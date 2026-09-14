@@ -1,5 +1,5 @@
 #!/bin/bash
-# PostToolUse:Write|Edit — settings.json / CLAUDE.md / RTK.md / rules/*.md を編集したら
+# PostToolUse:Write|Edit — settings.json / CLAUDE.md / rules/*.md を編集したら
 # 「セッションを切り直す」reminder を出す（キャッシュ破棄を1回に集約するため）。
 # 1 セッションにつき 1 回だけ出す（stdin の session_id をキーにした flag file で抑制。
 # TMPDIR はセッションを跨いで永続するため、固定名だと「マシンで 1 回」になってしまう）。
@@ -35,7 +35,7 @@ mkdir -p "$(dirname "$FLAG")" 2>/dev/null || true
 jq -n '{
   "hookSpecificOutput": {
     "hookEventName": "PostToolUse",
-    "additionalContext": "settings.json / CLAUDE.md / RTK.md / rules を変更したらセッションを切り直す（キャッシュ破棄を1回に集約する）"
+    "additionalContext": "settings.json / CLAUDE.md / rules を変更したらセッションを切り直す（キャッシュ破棄を1回に集約する）"
   }
 }'
 exit 0

@@ -513,9 +513,9 @@
       "action": "block",
       "impl": "table",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "rtk init -g / --global は ~/.claude/RTK.md を rtk 標準テンプレートで上書きします。harness が配布した RTK.md を使っている場合は、実行後に再配布で復元してください",
+      "message": "rtk init -g / --global は ~/.claude/ 配下の rtk グローバル設定ファイルを rtk 標準テンプレートで上書きします。harness が配布したものを使っている場合は、実行後に再配布で復元してください",
       "autoMode": [
-        { "tier": "soft_deny", "prose": "rtk init -g / --global は ~/.claude/RTK.md を上書きするため実行しない。harness 配布の RTK.md は再配布で復元する" }
+        { "tier": "soft_deny", "prose": "rtk init -g / --global は rtk のグローバル設定ファイルを上書きするため実行しない。harness 配布版は再配布で復元する" }
       ],
       "match": {
         "ere": "rtk[[:space:]]+init[[:space:]]+[^;&|]*(-g|--global)",
@@ -682,9 +682,9 @@
       "action": "block",
       "impl": "table",
       "targets": ["claude", "opencode", "pi"],
-      "message": "harness の SSOT（packages/core/ / packages/extras/ / skills/ / hooks/ / rules/）配下の rm はユーザーの明示的な許可を得てから実行してください。配布物の退役は targets/*/config.json の obsoleteFiles で宣言します",
+      "message": "harness の SSOT 配下の rm はユーザーの明示的な許可を得てから実行してください。配布物の退役は targets/*/config.json の obsoleteFiles で宣言します",
       "autoMode": [
-        {"tier": "soft_deny", "prose": "packages/core/ / packages/extras/ / skills/ / hooks/ / rules/ 配下への rm はユーザーの明示的な許可がある場合のみ"}
+        {"tier": "soft_deny", "prose": "harness の SSOT 配下への rm はユーザーの明示的な許可がある場合のみ"}
       ],
       "match": {
         "ere": "(sudo[[:space:]]+)?([^[:space:]|;&]*/)?rm[[:space:]]+[^|;&]*(packages/(core|extras)|(^|[[:space:]/'\"])(skills|hooks|rules))([^A-Za-z0-9_.-]|$)",
