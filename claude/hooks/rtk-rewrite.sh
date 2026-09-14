@@ -1,7 +1,14 @@
 #!/bin/bash
-# RTK auto-rewrite hook for PreToolUse:Bash (Claude Code / Codex)
-# Transparently rewrites raw commands to their rtk equivalents.
-# Outputs JSON with updatedInput to modify the command before execution.
+# RTK auto-rewrite hook for PreToolUse:Bash (Claude Code / Codex / pi / omp / opencode)
+#
+# 書き換え判定そのものは rtk 0.48+ の `rtk hook claude` に委譲する（upstream が
+# 単一の SSOT として持つエンジン。`rtk rewrite <cmd>` で同じ判定を単体確認できる）。
+# 2026-09-14 まではこの hook が独自の正規表現ラダーで判定していたが、upstream が
+# `rg` を `rtk rg`（rg セマンティクス維持）に振るようになった一方、こちらは
+# `rtk grep`（system grep へフォールバックし再帰も rg 独自フラグも失う）に振り続け、
+# ディレクトリ検索が無言で 0 件になる事故が起きた。判定を二重管理しない。
+#
+# ここに残すのは upstream が面倒を見ない、この環境固有のガードだけ。
 
 # Guards: skip silently if dependencies missing
 if ! command -v rtk &>/dev/null || ! command -v jq &>/dev/null; then
@@ -17,52 +24,50 @@ if [ -z "$CMD" ]; then
   exit 0
 fi
 
-# 全文の先頭がそのまま既知ツールで始まる場合のみ書き換える（保守的設計）。
-# `cd x && git status` のような連結・パイプの途中は対象外。
-# なお grep は block-grep-in-bash.sh が先に deny するため、(rg|grep) 分岐に
-# 実際に到達するのは rg のみ（hook の順序変更に備えて grep も残している）。
-FIRST_CMD="$CMD"
-
-# Skip if already using rtk
-case "$FIRST_CMD" in
-  rtk\ *|*/rtk\ *) exit 0 ;;
-esac
-
-# Skip commands with heredocs, variable assignments as the whole command, etc.
-case "$FIRST_CMD" in
+# heredoc: `rtk hook claude` は制御文字を含む JSON のパースに失敗してエラーを
+# stdout に出す。書き換える価値も無いので手前で降りる。
+case "$CMD" in
   *'<<'*) exit 0 ;;
 esac
 
-# Skip multiline commands entirely: the per-line regex matching below would
-# otherwise rewrite tool invocations in the middle of a script, violating the
-# first-command-only contract above.
-case "$FIRST_CMD" in
+# 複数行コマンド: upstream は 1 行目だけを書き換えてスクリプトの途中に rtk を
+# 混ぜ込む。スクリプト全体の意味を読まずに触らない方針なので降りる。
+case "$CMD" in
   *$'\n'*) exit 0 ;;
 esac
 
-# Handle "cd <dir> && <command>" pattern: strip the cd prefix for matching,
-# preserve it in the rewritten output. This covers the most common chain
-# pattern (~2000+ missed commands/month) without general chain rewriting.
-CD_PREFIX=""
-if echo "$FIRST_CMD" | command grep -qE '^cd[[:space:]]+[^;&|]+[[:space:]]+(&&|\|\|)[[:space:]]+'; then
-  CD_PREFIX=$(echo "$FIRST_CMD" | command sed -E 's/^(cd[[:space:]]+[^;&|]+[[:space:]]+(&&|\|\|)[[:space:]]+).*/\1/')
-  FIRST_CMD="${FIRST_CMD:${#CD_PREFIX}}"
-  CMD="${CMD:${#CD_PREFIX}}"
+# package.json の script 経由の実行: upstream は script 名だけを見て既知ツールに
+# 振る（0.48.0 実測: `pnpm run lint` も省略形の `pnpm lint` も `rtk lint`、
+# `npm run vitest` → `rtk vitest`、`pnpm tsc` → `rtk tsc`）。script の中身が
+# `nx run-many -t lint` や `tsc --noEmit` だと、検証したいものと別のツールが走って
+# 「通った」ことになる。何が動くかは package.json 次第で hook からは読めない。
+# そこでパッケージマネージャ自身の subcommand だけ委譲し、それ以外（script の
+# 可能性がある形）には触らない。未知の subcommand は script 側に倒す（fail-safe）。
+case "$CMD" in
+  npm\ *|pnpm\ *|yarn\ *|bun\ *)
+    PM_SUBCMD="${CMD#* }"
+    PM_SUBCMD="${PM_SUBCMD%% *}"
+    case "$PM_SUBCMD" in
+      install|i|add|remove|rm|uninstall|update|up|list|ls|outdated|why|exec|dlx|link|unlink|audit|pack|publish) ;;
+      *) exit 0 ;;
+    esac
+    ;;
+esac
+
+REWRITTEN_JSON=$(printf '%s' "$INPUT" | rtk hook claude 2>/dev/null) || exit 0
+
+# 書き換え不要（upstream は無出力で exit 0）
+if [ -z "$REWRITTEN_JSON" ]; then
+  exit 0
 fi
 
-# Strip leading env var assignments for pattern matching
-# e.g., "TEST_SESSION_ID=2 npx playwright test" → match against "npx playwright test"
-# but preserve them in the rewritten command for execution.
-ENV_PREFIX=$(echo "$FIRST_CMD" | grep -oE '^([A-Za-z_][A-Za-z0-9_]*=[^ ]* +)+' || echo "")
-if [ -n "$ENV_PREFIX" ]; then
-  MATCH_CMD="${FIRST_CMD:${#ENV_PREFIX}}"
-  CMD_BODY="${CMD:${#ENV_PREFIX}}"
-else
-  MATCH_CMD="$FIRST_CMD"
-  CMD_BODY="$CMD"
-fi
+REWRITTEN_CMD=$(
+  echo "$REWRITTEN_JSON" | jq -r '.hookSpecificOutput.updatedInput.command // empty' 2>/dev/null
+) || exit 0
 
-REWRITTEN=""
+if [ -z "$REWRITTEN_CMD" ]; then
+  exit 0
+fi
 
 # Claude Code の worktree 隔離ガードは `rtk git ...` を「git を operand に持つ未知の
 # launcher」と見て、どのディレクトリで動くか読めないという理由で拒否する（2026-09-10 実測。
@@ -75,182 +80,12 @@ in_git_worktree() {
   esac
 }
 
-# --- Git commands ---
-if echo "$MATCH_CMD" | grep -qE '^git[[:space:]]'; then
-  if in_git_worktree; then
-    exit 0
-  fi
-  GIT_SUBCMD=$(echo "$MATCH_CMD" | sed -E \
-    -e 's/^git[[:space:]]+//' \
-    -e 's/(-C|-c)[[:space:]]+[^[:space:]]+[[:space:]]*//g' \
-    -e 's/--[a-z-]+=[^[:space:]]+[[:space:]]*//g' \
-    -e 's/--(no-pager|no-optional-locks|bare|literal-pathspecs)[[:space:]]*//g' \
-    -e 's/^[[:space:]]+//')
-  case "$GIT_SUBCMD" in
-    status|status\ *|diff|diff\ *|log|log\ *|add|add\ *|commit|commit\ *|push|push\ *|pull|pull\ *|branch|branch\ *|fetch|fetch\ *|stash|stash\ *|show|show\ *)
-      REWRITTEN="${ENV_PREFIX}rtk $CMD_BODY"
-      ;;
-  esac
+case "$REWRITTEN_CMD" in
+  *'rtk git '*)
+    if in_git_worktree; then
+      exit 0
+    fi
+    ;;
+esac
 
-# --- GitHub CLI (added: api, release) ---
-elif echo "$MATCH_CMD" | grep -qE '^gh[[:space:]]+(pr|issue|run|api|release)([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^gh /rtk gh /')"
-
-# --- Cargo ---
-elif echo "$MATCH_CMD" | grep -qE '^cargo[[:space:]]'; then
-  CARGO_SUBCMD=$(echo "$MATCH_CMD" | sed -E 's/^cargo[[:space:]]+(\+[^[:space:]]+[[:space:]]+)?//')
-  case "$CARGO_SUBCMD" in
-    test|test\ *|build|build\ *|clippy|clippy\ *|check|check\ *|install|install\ *|fmt|fmt\ *)
-      REWRITTEN="${ENV_PREFIX}rtk $CMD_BODY"
-      ;;
-  esac
-
-# --- File operations ---
-elif echo "$MATCH_CMD" | grep -qE '^cat[[:space:]]+'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^cat /rtk read /')"
-elif echo "$MATCH_CMD" | grep -qE '^(rg|grep)[[:space:]]+'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed -E 's/^(rg|grep) /rtk grep /')"
-elif echo "$MATCH_CMD" | grep -qE '^ls([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^ls/rtk ls/')"
-elif echo "$MATCH_CMD" | grep -qE '^tree([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^tree/rtk tree/')"
-elif echo "$MATCH_CMD" | grep -qE '^find[[:space:]]+'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^find /rtk find /')"
-elif echo "$MATCH_CMD" | grep -qE '^diff[[:space:]]+'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^diff /rtk diff /')"
-elif echo "$MATCH_CMD" | grep -qE '^head[[:space:]]+'; then
-  # Transform: head -N file → rtk read file --max-lines N
-  # Also handle: head --lines=N file
-  # 末尾に --max-lines を付与する変換のため、パイプ・複合コマンドでは
-  # フラグが後続コマンドに付いて壊れる。シェルメタ文字を含む場合は書き換えない。
-  case "$MATCH_CMD" in
-    *'|'* | *';'* | *'&'* | *'<'* | *'>'*) : ;;
-    *)
-      if echo "$MATCH_CMD" | grep -qE '^head[[:space:]]+-[0-9]+[[:space:]]+'; then
-        LINES=$(echo "$MATCH_CMD" | sed -E 's/^head +-([0-9]+) +.+$/\1/')
-        FILE=$(echo "$MATCH_CMD" | sed -E 's/^head +-[0-9]+ +(.+)$/\1/')
-        REWRITTEN="${ENV_PREFIX}rtk read $FILE --max-lines $LINES"
-      elif echo "$MATCH_CMD" | grep -qE '^head[[:space:]]+--lines=[0-9]+[[:space:]]+'; then
-        LINES=$(echo "$MATCH_CMD" | sed -E 's/^head +--lines=([0-9]+) +.+$/\1/')
-        FILE=$(echo "$MATCH_CMD" | sed -E 's/^head +--lines=[0-9]+ +(.+)$/\1/')
-        REWRITTEN="${ENV_PREFIX}rtk read $FILE --max-lines $LINES"
-      fi
-      ;;
-  esac
-
-# --- JS/TS tooling (added: npm run, npm test, vue-tsc) ---
-elif echo "$MATCH_CMD" | grep -qE '^(pnpm[[:space:]]+)?(npx[[:space:]]+)?vitest([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed -E 's/^(pnpm )?(npx )?vitest( run)?/rtk vitest run/')"
-elif echo "$MATCH_CMD" | grep -qE '^pnpm[[:space:]]+test([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^pnpm test/rtk vitest run/')"
-elif echo "$MATCH_CMD" | grep -qE '^npm[[:space:]]+test([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^npm test/rtk npm test/')"
-elif echo "$MATCH_CMD" | grep -qE '^pnpm[[:space:]]+run[[:space:]]+'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^pnpm run /rtk pnpm /')"
-elif echo "$MATCH_CMD" | grep -qE '^npm[[:space:]]+run[[:space:]]+'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^npm run /rtk npm /')"
-elif echo "$MATCH_CMD" | grep -qE '^(npx[[:space:]]+)?vue-tsc([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed -E 's/^(npx )?vue-tsc/rtk tsc/')"
-elif echo "$MATCH_CMD" | grep -qE '^pnpm[[:space:]]+(tsc|type-check|check)([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed -E 's/^pnpm (tsc|type-check|check)/rtk tsc/')"
-elif echo "$MATCH_CMD" | grep -qE '^(npx[[:space:]]+)?tsc([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed -E 's/^(npx )?tsc/rtk tsc/')"
-elif echo "$MATCH_CMD" | grep -qE '^pnpm[[:space:]]+lint([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^pnpm lint/rtk lint/')"
-elif echo "$MATCH_CMD" | grep -qE '^(npx[[:space:]]+)?eslint([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed -E 's/^(npx )?eslint/rtk lint/')"
-elif echo "$MATCH_CMD" | grep -qE '^(npx[[:space:]]+)?prettier([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed -E 's/^(npx )?prettier/rtk prettier/')"
-elif echo "$MATCH_CMD" | grep -qE '^(npx[[:space:]]+)?playwright([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed -E 's/^(npx )?playwright/rtk playwright/')"
-elif echo "$MATCH_CMD" | grep -qE '^pnpm[[:space:]]+playwright([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^pnpm playwright/rtk playwright/')"
-elif echo "$MATCH_CMD" | grep -qE '^(npx[[:space:]]+)?prisma([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed -E 's/^(npx )?prisma/rtk prisma/')"
-
-# --- Containers (added: docker compose, docker run/build/exec, kubectl describe/apply) ---
-elif echo "$MATCH_CMD" | grep -qE '^docker[[:space:]]'; then
-  if echo "$MATCH_CMD" | grep -qE '^docker[[:space:]]+compose([[:space:]]|$)'; then
-    REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^docker /rtk docker /')"
-  else
-    DOCKER_SUBCMD=$(echo "$MATCH_CMD" | sed -E \
-      -e 's/^docker[[:space:]]+//' \
-      -e 's/(-H|--context|--config)[[:space:]]+[^[:space:]]+[[:space:]]*//g' \
-      -e 's/--[a-z-]+=[^[:space:]]+[[:space:]]*//g' \
-      -e 's/^[[:space:]]+//')
-    case "$DOCKER_SUBCMD" in
-      ps|ps\ *|images|images\ *|logs|logs\ *|run|run\ *|build|build\ *|exec|exec\ *)
-        REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^docker /rtk docker /')"
-        ;;
-    esac
-  fi
-elif echo "$MATCH_CMD" | grep -qE '^kubectl[[:space:]]'; then
-  KUBE_SUBCMD=$(echo "$MATCH_CMD" | sed -E \
-    -e 's/^kubectl[[:space:]]+//' \
-    -e 's/(--context|--kubeconfig|--namespace|-n)[[:space:]]+[^[:space:]]+[[:space:]]*//g' \
-    -e 's/--[a-z-]+=[^[:space:]]+[[:space:]]*//g' \
-    -e 's/^[[:space:]]+//')
-  case "$KUBE_SUBCMD" in
-    get|get\ *|logs|logs\ *|describe|describe\ *|apply|apply\ *)
-      REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^kubectl /rtk kubectl /')"
-      ;;
-  esac
-
-# --- Network ---
-elif echo "$MATCH_CMD" | grep -qE '^curl[[:space:]]+'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^curl /rtk curl /')"
-elif echo "$MATCH_CMD" | grep -qE '^wget[[:space:]]+'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^wget /rtk wget /')"
-
-# --- pnpm package management ---
-elif echo "$MATCH_CMD" | grep -qE '^pnpm[[:space:]]+(list|ls|outdated)([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^pnpm /rtk pnpm /')"
-
-# --- Python tooling ---
-elif echo "$MATCH_CMD" | grep -qE '^pytest([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^pytest/rtk pytest/')"
-elif echo "$MATCH_CMD" | grep -qE '^python[[:space:]]+-m[[:space:]]+pytest([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^python -m pytest/rtk pytest/')"
-elif echo "$MATCH_CMD" | grep -qE '^ruff[[:space:]]+(check|format)([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^ruff /rtk ruff /')"
-elif echo "$MATCH_CMD" | grep -qE '^pip[[:space:]]+(list|outdated|install|show)([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^pip /rtk pip /')"
-elif echo "$MATCH_CMD" | grep -qE '^uv[[:space:]]+pip[[:space:]]+(list|outdated|install|show)([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^uv pip /rtk pip /')"
-
-# --- Go tooling ---
-elif echo "$MATCH_CMD" | grep -qE '^go[[:space:]]+test([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^go test/rtk go test/')"
-elif echo "$MATCH_CMD" | grep -qE '^go[[:space:]]+build([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^go build/rtk go build/')"
-elif echo "$MATCH_CMD" | grep -qE '^go[[:space:]]+vet([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^go vet/rtk go vet/')"
-elif echo "$MATCH_CMD" | grep -qE '^golangci-lint([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^golangci-lint/rtk golangci-lint/')"
-fi
-
-# If no rewrite needed, approve as-is
-if [ -z "$REWRITTEN" ]; then
-  exit 0
-fi
-
-# Re-attach the cd prefix if we stripped it
-if [ -n "$CD_PREFIX" ]; then
-  REWRITTEN="${CD_PREFIX}${REWRITTEN}"
-fi
-
-# Build the updated tool_input with all original fields preserved, only command changed
-ORIGINAL_INPUT=$(echo "$INPUT" | jq -c '.tool_input')
-UPDATED_INPUT=$(echo "$ORIGINAL_INPUT" | jq --arg cmd "$REWRITTEN" '.command = $cmd')
-
-# Output the rewrite instruction
-jq -n \
-  --argjson updated "$UPDATED_INPUT" \
-  '{
-    "hookSpecificOutput": {
-      "hookEventName": "PreToolUse",
-      "permissionDecision": "allow",
-      "permissionDecisionReason": "RTK auto-rewrite",
-      "updatedInput": $updated
-    }
-  }'
+printf '%s\n' "$REWRITTEN_JSON"

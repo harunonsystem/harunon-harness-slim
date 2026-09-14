@@ -34,7 +34,7 @@ Core Workflow の現在地は `python3 <skill-dir>/scripts/harness.py status`（
 | コード実装・レビューの品質基準（コーディング基準・AI 生成コード検証・過去の失敗事例） | `rules/core-standards.md` |
 | コードレビューを実施 | `rules/review-policy.md` |
 | Codex レビュー（`/codex:review`）の運用ルール | `rules/codex-review-policy.md` |
-| Figma からの実装（Claude のみ。他 runtime には `disabled-skills.json` の common で配布されない） | `figma-implement` skill |
+| Figma からの実装（Claude のみ） | `figma-implement` skill |
 | ブラウザ操作・Web 調査・フロント UI 検証 | `opencli-usage` / `opencli-browser` / `opencli-adapter-author` / `frontend-verify` skill |
 | skill / references / scenarios を変更した | `/skill-improvement`（通常の commit / PR は評価後） |
 | PR を作成 | `.github/PULL_REQUEST_TEMPLATE.md`（無ければ Summary / Changes / Test plan） |
