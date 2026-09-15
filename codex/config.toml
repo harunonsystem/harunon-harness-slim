@@ -60,7 +60,7 @@ status_line = ["model-with-reasoning", "current-dir", "git-branch", "context-rem
 fast_default_opt_out = true
 
 # overlay 内のマスコット表示だけを制御する（ウィンドウの開閉は制御しない）。
-# 開閉は .codex-global-state.json の electron-avatar-overlay-open が持つが、そこを
-# false に矯正しても起動後に true へ戻るため効果がない（試行済み・revert 済み）。
+# 開閉は .codex-global-state.json の electron-avatar-overlay-open が持つ。Pet を消すには
+# アプリを完全終了したうえで両方を false にする（片方だけ、または起動中の変更は上書きされる）。
 [desktop]
 avatar-overlay-pet-visible = false
