@@ -5,6 +5,7 @@
       "~/.agents/skills"
     ]
   },
+  "plugin": [],
   "permission": {
     "bash": {
       "*": "ask",

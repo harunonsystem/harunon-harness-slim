@@ -30,7 +30,8 @@
     "permission",
     "default_agent",
     "instructions",
-    "skills"
+    "skills",
+    "plugin"
   ],
   "ledger": ".harunon-slim.installed.json"
 }

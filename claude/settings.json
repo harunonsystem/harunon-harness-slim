@@ -1,599 +1,636 @@
 {
-    "$schema": "https://json.schemastore.org/claude-code-settings.json",
-    "cleanupPeriodDays": 3650,
-    "fallbackModel": [],
-    "switchModelsOnFlag": false,
-    "env": {
-        "HARNESS_RUNTIME": "claude",
-        "NODE_USE_ENV_PROXY": "1",
-        "ENABLE_TOOL_SEARCH": "auto",
-        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-        "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
-        "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
-        "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
-        "CLAUDE_CODE_THRIFTY_SONIC": "0",
-        "ENABLE_STOP_REVIEW": "0",
-        "HARNESS_EXPECTED_PLAN": "",
-        "HARNESS_EXPECTED_ORG": ""
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "cleanupPeriodDays": 3650,
+  "fallbackModel": [],
+  "switchModelsOnFlag": false,
+  "env": {
+    "HARNESS_RUNTIME": "claude",
+    "NODE_USE_ENV_PROXY": "1",
+    "ENABLE_TOOL_SEARCH": "auto",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+    "CLAUDE_CODE_THRIFTY_SONIC": "0",
+    "ENABLE_STOP_REVIEW": "0",
+    "HARNESS_EXPECTED_PLAN": "",
+    "HARNESS_EXPECTED_ORG": ""
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "excludedCommands": [
+      "docker *",
+      "gh *",
+      "gcloud *",
+      "terraform *",
+      "git push *",
+      "git fetch *",
+      "git pull *"
+    ],
+    "network": {
+      "allowedDomains": [
+        "registry.npmjs.org",
+        "registry.yarnpkg.com",
+        "github.com",
+        "api.github.com",
+        "codeload.github.com",
+        "objects.githubusercontent.com",
+        "raw.githubusercontent.com",
+        "nodejs.org",
+        "docs.anthropic.com",
+        "json.schemastore.org"
+      ],
+      "allowLocalBinding": true
     },
-    "attribution": {
-        "commit": "",
-        "pr": ""
+    "filesystem": {
+      "allowWrite": [
+        "~/.claude",
+        "~/.codex",
+        "~/.config/opencode",
+        "~/.agents",
+        "~/.omp/agent",
+        "~/.pi/agent",
+        "~/.local/bin",
+        "~/..claude.harness-distribution.lock",
+        "~/..codex.harness-distribution.lock",
+        "~/..agents.harness-distribution.lock",
+        "~/.config/.opencode.harness-distribution.lock",
+        "~/.local/.bin.harness-distribution.lock",
+        "~/.pi/.agent.harness-distribution.lock",
+        "~/.omp/.agent.harness-distribution.lock"
+      ],
+      "denyWrite": [
+        "~/.claude/policy",
+        "~/.claude/rigor-patterns.json",
+        "~/.claude/rigor.local.json"
+      ]
     },
-    "sandbox": {
-        "enabled": true,
-        "autoAllowBashIfSandboxed": true,
-        "excludedCommands": [
-            "docker *",
-            "gh *",
-            "gcloud *",
-            "terraform *",
-            "git push *",
-            "git fetch *",
-            "git pull *"
-        ],
-        "network": {
-            "allowedDomains": [
-                "registry.npmjs.org",
-                "registry.yarnpkg.com",
-                "github.com",
-                "api.github.com",
-                "codeload.github.com",
-                "objects.githubusercontent.com",
-                "raw.githubusercontent.com",
-                "nodejs.org",
-                "docs.anthropic.com",
-                "json.schemastore.org"
-            ],
-            "allowLocalBinding": true
+    "credentials": {
+      "files": [
+        {
+          "path": "~/.aws/credentials",
+          "mode": "deny"
         },
-        "filesystem": {
-            "allowWrite": [
-                "~/.claude",
-                "~/.codex",
-                "~/.config/opencode",
-                "~/.agents",
-                "~/.omp/agent",
-                "~/.pi/agent",
-                "~/.local/bin",
-                "~/..claude.harness-distribution.lock",
-                "~/..codex.harness-distribution.lock",
-                "~/..agents.harness-distribution.lock",
-                "~/.config/.opencode.harness-distribution.lock",
-                "~/.local/.bin.harness-distribution.lock",
-                "~/.pi/.agent.harness-distribution.lock",
-                "~/.omp/.agent.harness-distribution.lock"
-            ],
-            "denyWrite": ["~/.claude/policy", "~/.claude/rigor-patterns.json", "~/.claude/rigor.local.json"]
+        {
+          "path": "~/.ssh",
+          "mode": "deny"
         },
-        "credentials": {
-            "files": [
-                { "path": "~/.aws/credentials", "mode": "deny" },
-                { "path": "~/.ssh", "mode": "deny" },
-                { "path": "~/.config/gh", "mode": "deny" },
-                { "path": "~/.netrc", "mode": "deny" },
-                { "path": "~/.docker/config.json", "mode": "deny" },
-                { "path": "~/.config/gcloud", "mode": "deny" },
-                { "path": "~/.kube", "mode": "deny" }
-            ],
-            "envVars": [
-                { "name": "GITHUB_TOKEN", "mode": "deny" },
-                { "name": "ANTHROPIC_API_KEY", "mode": "deny" },
-                { "name": "AWS_SECRET_ACCESS_KEY", "mode": "deny" },
-                { "name": "AWS_SESSION_TOKEN", "mode": "deny" }
-            ]
+        {
+          "path": "~/.config/gh",
+          "mode": "deny"
+        },
+        {
+          "path": "~/.netrc",
+          "mode": "deny"
+        },
+        {
+          "path": "~/.docker/config.json",
+          "mode": "deny"
+        },
+        {
+          "path": "~/.config/gcloud",
+          "mode": "deny"
+        },
+        {
+          "path": "~/.kube",
+          "mode": "deny"
         }
-    },
-    "permissions": {
-        "allow": [
-            "Bash(alias:*)",
-            "Bash(bash:*)",
-            "Bash(cat:*)",
-            "Bash(cd:*)",
-            "Bash(chmod:*)",
-            "Bash(comm:*)",
-            "Bash(command:*)",
-            "Bash(curl:*)",
-            "Bash(defaults read:*)",
-            "Bash(du:*)",
-            "Bash(echo:*)",
-            "Bash(env:*)",
-            "Bash(exec zsh)",
-            "Bash(fc-list:*)",
-            "Bash(fc-match:*)",
-            "Bash(find:*)",
-            "Bash(grep:*)",
-            "Bash(jq:*)",
-            "Bash(ls:*)",
-            "Bash(lsof:*)",
-            "Bash(mdfind:*)",
-            "Bash(mkdir:*)",
-            "Bash(mv:*)",
-            "Bash(open:*)",
-            "Bash(osascript:*)",
-            "Bash(pbcopy)",
-            "Bash(pbpaste)",
-            "Bash(pgrep:*)",
-            "Bash(printf:*)",
-            "Bash(ps:*)",
-            "Bash(python3:*)",
-            "Bash(sh:*)",
-            "Bash(source:*)",
-            "Bash(tail:*)",
-            "Bash(test:*)",
-            "Bash(tree:*)",
-            "Bash(wc:*)",
-            "Bash(which docker:*)",
-            "Bash(xargs:*)",
-            "Bash(perl:*)",
-            "Bash(brew:*)",
-            "Bash(bun --version:*)",
-            "Bash(cargo:*)",
-            "Bash(node --version:*)",
-            "Bash(npm:*)",
-            "Bash(npx:*)",
-            "Bash(pnpm:*)",
-            "Bash(git -C:*)",
-            "Bash(git add:*)",
-            "Bash(git branch:*)",
-            "Bash(git commit:*)",
-            "Bash(git diff:*)",
-            "Bash(git fetch:*)",
-            "Bash(git log:*)",
-            "Bash(git ls-tree:*)",
-            "Bash(git show:*)",
-            "Bash(git stash:*)",
-            "Bash(git status:*)",
-            "Bash(git tag:*)",
-            "Bash(git rev-parse:*)",
-            "Bash(git worktree list:*)",
-            "Bash(gh:*)",
-            "Bash(agent-browser:*)",
-            "Bash(bunx difit:*)",
-            "Bash(chezmoi:*)",
-            "Bash(claude config:*)",
-            "Bash(claude mcp:*)",
-            "Bash(code:*)",
-            "Bash(codex-review-bypass:*)",
-            "Bash(codex-review-reset:*)",
-            "Bash(difit-skip:*)",
-            "Bash(colima:*)",
-            "Bash(devpod:*)",
-            "Bash(docker:*)",
-            "Bash(ghostty:*)",
-            "Bash(gwm:*)",
-            "Bash(mdschema help:*)",
-            "Bash(mise:*)",
-            "Bash(podman:*)",
-            "Bash(portless:*)",
-            "Bash(opencode:*)",
-            "Bash(~/.opencode/bin/opencode:*)",
-            "Bash(rtk:*)",
-            "WebFetch(domain:agent-browser.dev)",
-            "WebFetch(domain:api.github.com)",
-            "WebFetch(domain:bundlephobia.com)",
-            "WebFetch(domain:cmux.dev)",
-            "WebFetch(domain:developers.figma.com)",
-            "WebFetch(domain:developers.raycast.com)",
-            "WebFetch(domain:docs.anthropic.com)",
-            "WebFetch(domain:ghostty.org)",
-            "WebFetch(domain:gist.github.com)",
-            "WebFetch(domain:github.com)",
-            "WebFetch(domain:github.github.com)",
-            "WebFetch(domain:json.schemastore.org)",
-            "WebFetch(domain:linear.app)",
-            "WebFetch(domain:mise.jdx.dev)",
-            "WebFetch(domain:openspec.dev)",
-            "WebFetch(domain:qiita.com)",
-            "WebFetch(domain:raw.githubusercontent.com)",
-            "WebFetch(domain:react-chartjs-2.js.org)",
-            "WebFetch(domain:recharts.github.io)",
-            "WebFetch(domain:recharts.org)",
-            "WebFetch(domain:storybook.js.org)",
-            "WebFetch(domain:vitest.dev)",
-            "WebFetch(domain:www.chartjs.org)",
-            "WebFetch(domain:www.figma.com)",
-            "WebFetch(domain:www.npmjs.com)",
-            "WebFetch(domain:www.raycast.com)",
-            "WebFetch(domain:www.rtk-ai.app)",
-            "WebFetch(domain:x.com)",
-            "WebFetch(domain:zed.dev)",
-            "WebFetch(domain:registry.terraform.io)",
-            "WebFetch(domain:zenn.dev)",
-            "WebSearch",
-            "mcp__figma__add_code_connect_map",
-            "mcp__figma__create_new_file",
-            "mcp__figma__generate_diagram",
-            "mcp__figma__generate_figma_design",
-            "mcp__figma__get_code_connect_map",
-            "mcp__figma__get_code_connect_suggestions",
-            "mcp__figma__get_context_for_code_connect",
-            "mcp__figma__get_design_context",
-            "mcp__figma__get_figjam",
-            "mcp__figma__get_metadata",
-            "mcp__figma__get_screenshot",
-            "mcp__figma__get_variable_defs",
-            "mcp__figma__search_design_system",
-            "mcp__figma__send_code_connect_mappings",
-            "mcp__figma__use_figma",
-            "mcp__figma__whoami",
-            "mcp__linear-server__get_issue",
-            "mcp__linear-server__get_document",
-            "mcp__linear-server__get_project",
-            "mcp__linear-server__get_team",
-            "mcp__linear-server__get_user",
-            "mcp__linear-server__list_comments",
-            "mcp__linear-server__list_documents",
-            "mcp__linear-server__list_issues",
-            "mcp__linear-server__list_projects",
-            "mcp__linear-server__list_teams",
-            "mcp__linear-server__list_users",
-            "mcp__linear-server__search_documentation",
-            "mcp__plugin_sentry-mcp_sentry__find_organizations",
-            "mcp__plugin_sentry-mcp_sentry__find_projects",
-            "mcp__plugin_sentry-mcp_sentry__get_sentry_resource",
-            "mcp__plugin_sentry-mcp_sentry__search_events",
-            "mcp__plugin_sentry-mcp_sentry__search_issues",
-            "mcp__plugin_sentry-mcp_sentry__search_sentry_tools",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__click",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__close_page",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__drag",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__emulate",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__evaluate_script",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__fill",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__fill_form",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__get_console_message",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__get_network_request",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__handle_dialog",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__hover",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__lighthouse_audit",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_console_messages",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_network_requests",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_pages",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__navigate_page",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__new_page",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_analyze_insight",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_start_trace",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_stop_trace",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__press_key",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__resize_page",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__select_page",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_heapsnapshot",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_screenshot",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_snapshot",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__type_text",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__upload_file",
-            "mcp__plugin_chrome-devtools-mcp_chrome-devtools__wait_for",
-            "Skill(ds-migrate)",
-            "Skill(ds-migrate-detect)",
-            "Skill(ds-migrate-execute)",
-            "Skill(ds-migrate-verify)",
-            "Skill(feature-migrate)",
-            "Skill(feature-migrate-detect)",
-            "Skill(feature-migrate-execute)",
-            "Skill(feature-migrate-verify)",
-            "Skill(implement-issue)",
-            "Skill(migrate-dashboard)",
-            "mcp__pencil"
-        ],
-        "ask": [
-            "Bash(git push:*)",
-            "Bash(gh pr create:*)",
-            "Bash(rtk git push:*)",
-            "Bash(rtk gh pr create:*)"
-        ],
-        "deny": [
-            "Bash(git commit)",
-            "Bash(git worktree add)",
-            "Bash(git worktree add:*)",
-            "Bash(claude worktree:*)",
-            "Edit(~/.claude/hooks/**)",
-            "Edit(~/.claude/policy/**)",
-            "Edit(~/.claude/agents/**)",
-            "Edit(~/.claude/rigor-patterns.json)",
-            "Edit(~/.claude/rigor.local.json)",
-            "Edit(~/.claude/CLAUDE.md)",
-            "Edit(~/.claude/RTK.md)",
-            "Edit(~/.claude/rules/**)",
-            "Edit(~/.claude/skills/**)",
-            "Edit(~/.claude/commands/**)",
-            "Edit(~/.claude/commands.md)",
-            "Edit(~/.claude/workflows/**)",
-            "Edit(~/.claude/settings.json)"
-        ],
-        "defaultMode": "auto"
-    },
-    "autoMode": {
-        "hard_deny": [
-            "$defaults",
-            "git commit / git push で --no-verify（短縮形 -n を含む）を使って hook をスキップしてはならない。hook が失敗したら原因を直して再実行する",
-            "main / master への直接 push、および force push（--force / -f / +ref）は禁止",
-            "main / master ブランチの削除は禁止",
-            "GitHub リポジトリの削除・設定変更（gh repo delete / gh repo edit）は禁止",
-            "netlify の deploy / build / api コマンドは、ユーザーが明示的にその実行を指示した場合のみ。preview の再ビルド目的で netlify api を叩かない（本番ビルドが走る）"
-        ],
-        "soft_deny": [
-            "$defaults",
-            "git push はユーザーが明示的に許可した場合のみ実行する。commit と push を 1 コマンドに連結しない",
-            "メインリポジトリのチェックアウト上で branch を作成しない。gwm で worktree を切ってから作業する",
-            "git update-ref はユーザーの明示的な許可がある場合のみ",
-            "git clean -f / -fd はユーザーの明示的な許可がある場合のみ",
-            "PR の merge / close はユーザーの明示的な許可がある場合のみ",
-            "新規 GitHub リポジトリの作成は、既存の同種 repo を検索して報告し、ユーザーが許可した場合のみ",
-            "GitHub release の削除はユーザーの明示的な許可がある場合のみ",
-            "git remote の追加・変更・削除はユーザーの明示的な許可がある場合のみ",
-            "pi / omp を npm や pnpm でグローバル install / update しない。mise の exact pin（mise run agents:update）で更新する",
-            "PR / issue へのコメント投稿（gh pr comment / gh api での comment 書き込み）はユーザーの明示的な許可がある場合のみ",
-            "rtk init -g / --global は rtk のグローバル設定ファイルを上書きするため実行しない。harness 配布版は再配布で復元する",
-            "git stash drop / clear はユーザーの明示的な許可がある場合のみ",
-            "harness の SSOT 配下への rm はユーザーの明示的な許可がある場合のみ"
-        ]
-    },
-    "model": "claude-fable-5[1m]",
-    "hooks": {
-        "SessionStart": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/check-plan-model.sh"
-                    }
-                ]
-            }
-        ],
-        "UserPromptSubmit": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/run-bang-command.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/validate-prompt.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/answer-first-reminder.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/prompt-pattern-reminders.sh"
-                    }
-                ]
-            }
-        ],
-        "WorktreeCreate": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/claude-worktree-create.sh"
-                    }
-                ]
-            }
-        ],
-        "PreToolUse": [
-            {
-                "matcher": "Bash",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/block-pr-without-codex-review.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/block-repeated-codex-review.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/block-commit-without-difit.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/block-grep-in-bash.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/block-cd-prefix-in-bash.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/block-dangerous-in-bash.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/rtk-rewrite.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/block-secrets-in-commit.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/verify-before-commit.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/verify-before-push.sh"
-                    }
-                ]
-            },
-            {
-                "matcher": "Bash|EnterWorktree",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/enforce-gwm-for-worktree.sh"
-                    }
-                ]
-            },
-            {
-                "matcher": "Edit|Write",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/block-edit-on-main.sh"
-                    }
-                ]
-            },
-            {
-                "matcher": "WebFetch",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/block-webfetch-github.sh"
-                    }
-                ]
-            },
-            {
-                "matcher": "Bash|Read|Task|Agent",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/lesson-warnings.sh"
-                    }
-                ]
-            }
-        ],
-        "PreCompact": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/log-compaction.sh"
-                    }
-                ]
-            }
-        ],
-        "PermissionDenied": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/log-permission-denied.sh"
-                    }
-                ]
-            }
-        ],
-        "PostToolUse": [
-            {
-                "matcher": "Write|Edit",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "[[ \"$FILE_PATH\" =~ \\.(json|jsonc)$ ]] && tmp=$(mktemp) && jq --tab '.' \"$FILE_PATH\" > \"$tmp\" && mv \"$tmp\" \"$FILE_PATH\" || true"
-                    },
-                    {
-                        "type": "command",
-                        "command": "[[ \"$FILE_PATH\" =~ \\.md$ ]] && python3 ~/.claude/hooks/fix_gfm_tables.py \"$FILE_PATH\" || true"
-                    },
-                    {
-                        "type": "command",
-                        "command": "[[ \"$FILE_PATH\" =~ \\.sh$ ]] && command -v shellcheck >/dev/null && shellcheck -S warning \"$FILE_PATH\" || true"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/session-restart-reminder.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/skill-improvement-reminder.sh"
-                    }
-                ]
-            },
-            {
-                "matcher": "Bash",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/codex-review-reminder.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/set-codex-review-flag.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/set-difit-flag.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/pr-desc-sync-check.sh"
-                    },
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/scan-new-skills.sh"
-                    }
-                ]
-            }
-        ]
-    },
-    "statusLine": {
-        "type": "command",
-        "command": "bunx -y @owloops/claude-powerline@latest --style=powerline --theme=tokyonight"
-    },
-    "enabledPlugins": {
-        "plugin-dev@claude-code-plugins": true,
-        "plugin-dev@claude-plugins-official": false,
-        "mcp-server-dev@claude-plugins-official": false,
-        "math-olympiad@claude-plugins-official": false,
-        "typescript-lsp@claude-plugins-official": true,
-        "chrome-devtools-mcp@chrome-devtools-plugins": true,
-        "frontend-design@claude-plugins-official": true,
-        "codex@openai-codex": true,
-        "figma@claude-plugins-official": true,
-        "sentry-mcp@sentry-mcp": true,
-        "security-guidance@claude-plugins-official": true,
-        "claude-code-setup@claude-plugins-official": true,
-        "reviewable-html-workbench@reviewable-html-workbench-local": true,
-        "cloudflare@cloudflare": true,
-        "code-review@claude-plugins-official": true,
-        "dx@ykdojo": true,
-        "paper-desktop@paper": true
-    },
-    "extraKnownMarketplaces": {
-        "openai-codex": {
-            "source": {
-                "source": "github",
-                "repo": "openai/codex-plugin-cc"
-            },
-            "autoUpdate": true
+      ],
+      "envVars": [
+        {
+          "name": "GITHUB_TOKEN",
+          "mode": "deny"
         },
-        "sentry-mcp": {
-            "source": {
-                "source": "github",
-                "repo": "getsentry/sentry-mcp"
-            }
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "mode": "deny"
         },
-        "reviewable-html-workbench-local": {
-            "source": {
-                "source": "github",
-                "repo": "u-ichi/reviewable-html-workbench"
-            }
+        {
+          "name": "AWS_SECRET_ACCESS_KEY",
+          "mode": "deny"
         },
-        "cloudflare": {
-            "source": {
-                "source": "github",
-                "repo": "cloudflare/skills"
-            }
-        },
-        "paper": {
-            "source": {
-                "source": "github",
-                "repo": "paper-design/agent-plugins"
-            }
+        {
+          "name": "AWS_SESSION_TOKEN",
+          "mode": "deny"
         }
-    },
-    "language": "Japanese",
-    "effortLevel": "high",
-    "plansDirectory": "~/.claude/plans",
-    "preferredNotifChannel": "ghostty",
-    "skipAutoPermissionPrompt": true,
-    "mcpServers": {
-        "storybook": {
-            "type": "http",
-            "url": "http://localhost:6006/mcp"
-        }
+      ]
     }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(alias:*)",
+      "Bash(bash:*)",
+      "Bash(cat:*)",
+      "Bash(cd:*)",
+      "Bash(chmod:*)",
+      "Bash(comm:*)",
+      "Bash(command:*)",
+      "Bash(curl:*)",
+      "Bash(defaults read:*)",
+      "Bash(du:*)",
+      "Bash(echo:*)",
+      "Bash(env:*)",
+      "Bash(exec zsh)",
+      "Bash(fc-list:*)",
+      "Bash(fc-match:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(jq:*)",
+      "Bash(ls:*)",
+      "Bash(lsof:*)",
+      "Bash(mdfind:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(open:*)",
+      "Bash(osascript:*)",
+      "Bash(pbcopy)",
+      "Bash(pbpaste)",
+      "Bash(pgrep:*)",
+      "Bash(printf:*)",
+      "Bash(ps:*)",
+      "Bash(python3:*)",
+      "Bash(sh:*)",
+      "Bash(source:*)",
+      "Bash(tail:*)",
+      "Bash(test:*)",
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(which docker:*)",
+      "Bash(xargs:*)",
+      "Bash(perl:*)",
+      "Bash(brew:*)",
+      "Bash(bun --version:*)",
+      "Bash(cargo:*)",
+      "Bash(node --version:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(pnpm:*)",
+      "Bash(git -C:*)",
+      "Bash(git add:*)",
+      "Bash(git branch:*)",
+      "Bash(git commit:*)",
+      "Bash(git diff:*)",
+      "Bash(git fetch:*)",
+      "Bash(git log:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git show:*)",
+      "Bash(git stash:*)",
+      "Bash(git status:*)",
+      "Bash(git tag:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git worktree list:*)",
+      "Bash(gh:*)",
+      "Bash(agent-browser:*)",
+      "Bash(bunx difit:*)",
+      "Bash(chezmoi:*)",
+      "Bash(claude config:*)",
+      "Bash(claude mcp:*)",
+      "Bash(code:*)",
+      "Bash(codex-review-bypass:*)",
+      "Bash(codex-review-reset:*)",
+      "Bash(difit-skip:*)",
+      "Bash(colima:*)",
+      "Bash(devpod:*)",
+      "Bash(docker:*)",
+      "Bash(ghostty:*)",
+      "Bash(gwm:*)",
+      "Bash(mdschema help:*)",
+      "Bash(mise:*)",
+      "Bash(podman:*)",
+      "Bash(portless:*)",
+      "Bash(opencode:*)",
+      "Bash(~/.opencode/bin/opencode:*)",
+      "Bash(rtk:*)",
+      "WebFetch(domain:agent-browser.dev)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:bundlephobia.com)",
+      "WebFetch(domain:cmux.dev)",
+      "WebFetch(domain:developers.figma.com)",
+      "WebFetch(domain:developers.raycast.com)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:ghostty.org)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:github.github.com)",
+      "WebFetch(domain:json.schemastore.org)",
+      "WebFetch(domain:linear.app)",
+      "WebFetch(domain:mise.jdx.dev)",
+      "WebFetch(domain:openspec.dev)",
+      "WebFetch(domain:qiita.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:react-chartjs-2.js.org)",
+      "WebFetch(domain:recharts.github.io)",
+      "WebFetch(domain:recharts.org)",
+      "WebFetch(domain:storybook.js.org)",
+      "WebFetch(domain:vitest.dev)",
+      "WebFetch(domain:www.chartjs.org)",
+      "WebFetch(domain:www.figma.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:www.raycast.com)",
+      "WebFetch(domain:www.rtk-ai.app)",
+      "WebFetch(domain:x.com)",
+      "WebFetch(domain:zed.dev)",
+      "WebFetch(domain:registry.terraform.io)",
+      "WebFetch(domain:zenn.dev)",
+      "WebSearch",
+      "mcp__figma__add_code_connect_map",
+      "mcp__figma__create_new_file",
+      "mcp__figma__generate_diagram",
+      "mcp__figma__generate_figma_design",
+      "mcp__figma__get_code_connect_map",
+      "mcp__figma__get_code_connect_suggestions",
+      "mcp__figma__get_context_for_code_connect",
+      "mcp__figma__get_design_context",
+      "mcp__figma__get_figjam",
+      "mcp__figma__get_metadata",
+      "mcp__figma__get_screenshot",
+      "mcp__figma__get_variable_defs",
+      "mcp__figma__search_design_system",
+      "mcp__figma__send_code_connect_mappings",
+      "mcp__figma__use_figma",
+      "mcp__figma__whoami",
+      "mcp__linear-server__get_issue",
+      "mcp__linear-server__get_document",
+      "mcp__linear-server__get_project",
+      "mcp__linear-server__get_team",
+      "mcp__linear-server__get_user",
+      "mcp__linear-server__list_comments",
+      "mcp__linear-server__list_documents",
+      "mcp__linear-server__list_issues",
+      "mcp__linear-server__list_projects",
+      "mcp__linear-server__list_teams",
+      "mcp__linear-server__list_users",
+      "mcp__linear-server__search_documentation",
+      "mcp__plugin_sentry-mcp_sentry__find_organizations",
+      "mcp__plugin_sentry-mcp_sentry__find_projects",
+      "mcp__plugin_sentry-mcp_sentry__get_sentry_resource",
+      "mcp__plugin_sentry-mcp_sentry__search_events",
+      "mcp__plugin_sentry-mcp_sentry__search_issues",
+      "mcp__plugin_sentry-mcp_sentry__search_sentry_tools",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__click",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__close_page",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__drag",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__emulate",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__evaluate_script",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__fill",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__fill_form",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__get_console_message",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__get_network_request",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__handle_dialog",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__hover",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__lighthouse_audit",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_console_messages",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_network_requests",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_pages",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__navigate_page",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__new_page",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_analyze_insight",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_start_trace",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_stop_trace",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__press_key",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__resize_page",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__select_page",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_heapsnapshot",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_screenshot",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_snapshot",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__type_text",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__upload_file",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__wait_for",
+      "Skill(ds-migrate)",
+      "Skill(ds-migrate-detect)",
+      "Skill(ds-migrate-execute)",
+      "Skill(ds-migrate-verify)",
+      "Skill(feature-migrate)",
+      "Skill(feature-migrate-detect)",
+      "Skill(feature-migrate-execute)",
+      "Skill(feature-migrate-verify)",
+      "Skill(implement-issue)",
+      "Skill(migrate-dashboard)",
+      "mcp__pencil"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)",
+      "Bash(rtk git push:*)",
+      "Bash(rtk gh pr create:*)"
+    ],
+    "deny": [
+      "Bash(git commit)",
+      "Bash(git worktree add)",
+      "Bash(git worktree add:*)",
+      "Bash(claude worktree:*)",
+      "Edit(~/.claude/hooks/**)",
+      "Edit(~/.claude/policy/**)",
+      "Edit(~/.claude/agents/**)",
+      "Edit(~/.claude/rigor-patterns.json)",
+      "Edit(~/.claude/rigor.local.json)",
+      "Edit(~/.claude/CLAUDE.md)",
+      "Edit(~/.claude/RTK.md)",
+      "Edit(~/.claude/rules/**)",
+      "Edit(~/.claude/skills/**)",
+      "Edit(~/.claude/commands/**)",
+      "Edit(~/.claude/commands.md)",
+      "Edit(~/.claude/workflows/**)",
+      "Edit(~/.claude/settings.json)"
+    ],
+    "defaultMode": "auto"
+  },
+  "autoMode": {
+    "hard_deny": [
+      "$defaults",
+      "git commit / git push で --no-verify（短縮形 -n を含む）を使って hook をスキップしてはならない。hook が失敗したら原因を直して再実行する",
+      "main / master への直接 push、および force push（--force / -f / +ref）は禁止",
+      "main / master ブランチの削除は禁止",
+      "GitHub リポジトリの削除・設定変更（gh repo delete / gh repo edit）は禁止",
+      "netlify の deploy / build / api コマンドは、ユーザーが明示的にその実行を指示した場合のみ。preview の再ビルド目的で netlify api を叩かない（本番ビルドが走る）"
+    ],
+    "soft_deny": [
+      "$defaults",
+      "git push はユーザーが明示的に許可した場合のみ実行する。commit と push を 1 コマンドに連結しない",
+      "メインリポジトリのチェックアウト上で branch を作成しない。gwm で worktree を切ってから作業する",
+      "git update-ref はユーザーの明示的な許可がある場合のみ",
+      "git clean -f / -fd はユーザーの明示的な許可がある場合のみ",
+      "PR の merge / close はユーザーの明示的な許可がある場合のみ",
+      "新規 GitHub リポジトリの作成は、既存の同種 repo を検索して報告し、ユーザーが許可した場合のみ",
+      "GitHub release の削除はユーザーの明示的な許可がある場合のみ",
+      "git remote の追加・変更・削除はユーザーの明示的な許可がある場合のみ",
+      "pi / omp を npm や pnpm でグローバル install / update しない。mise の exact pin（mise run agents:update）で更新する",
+      "PR / issue へのコメント投稿（gh pr comment / gh api での comment 書き込み）はユーザーの明示的な許可がある場合のみ",
+      "rtk init -g / --global は rtk のグローバル設定ファイルを上書きするため実行しない。harness 配布版は再配布で復元する",
+      "git stash drop / clear はユーザーの明示的な許可がある場合のみ",
+      "harness の SSOT 配下への rm はユーザーの明示的な許可がある場合のみ"
+    ]
+  },
+  "model": "claude-fable-5[1m]",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/check-plan-model.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/run-bang-command.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/validate-prompt.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/answer-first-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/prompt-pattern-reminders.sh"
+          }
+        ]
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/claude-worktree-create.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/block-pr-without-codex-review.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/block-repeated-codex-review.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/block-commit-without-difit.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/block-grep-in-bash.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/block-cd-prefix-in-bash.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/block-dangerous-in-bash.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/rtk-rewrite.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/block-secrets-in-commit.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/verify-before-commit.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/verify-before-push.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|EnterWorktree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/enforce-gwm-for-worktree.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/block-edit-on-main.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/block-webfetch-github.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Read|Task|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/lesson-warnings.sh"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/log-compaction.sh"
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/log-permission-denied.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[[ \"$FILE_PATH\" =~ \\.(json|jsonc)$ ]] && tmp=$(mktemp) && jq --tab '.' \"$FILE_PATH\" > \"$tmp\" && mv \"$tmp\" \"$FILE_PATH\" || true"
+          },
+          {
+            "type": "command",
+            "command": "[[ \"$FILE_PATH\" =~ \\.md$ ]] && python3 ~/.claude/hooks/fix_gfm_tables.py \"$FILE_PATH\" || true"
+          },
+          {
+            "type": "command",
+            "command": "[[ \"$FILE_PATH\" =~ \\.sh$ ]] && command -v shellcheck >/dev/null && shellcheck -S warning \"$FILE_PATH\" || true"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/session-restart-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/skill-improvement-reminder.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/codex-review-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/set-codex-review-flag.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/set-difit-flag.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/pr-desc-sync-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/scan-new-skills.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bunx -y @owloops/claude-powerline@latest --style=powerline --theme=tokyonight"
+  },
+  "enabledPlugins": {
+    "plugin-dev@claude-code-plugins": true,
+    "plugin-dev@claude-plugins-official": false,
+    "mcp-server-dev@claude-plugins-official": false,
+    "math-olympiad@claude-plugins-official": false,
+    "typescript-lsp@claude-plugins-official": true,
+    "chrome-devtools-mcp@chrome-devtools-plugins": true,
+    "frontend-design@claude-plugins-official": true,
+    "codex@openai-codex": true,
+    "figma@claude-plugins-official": true,
+    "sentry-mcp@sentry-mcp": true,
+    "security-guidance@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "reviewable-html-workbench@reviewable-html-workbench-local": true,
+    "cloudflare@cloudflare": true,
+    "code-review@claude-plugins-official": true,
+    "dx@ykdojo": true,
+    "paper-desktop@paper": true
+  },
+  "extraKnownMarketplaces": {
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      },
+      "autoUpdate": true
+    },
+    "sentry-mcp": {
+      "source": {
+        "source": "github",
+        "repo": "getsentry/sentry-mcp"
+      }
+    },
+    "reviewable-html-workbench-local": {
+      "source": {
+        "source": "github",
+        "repo": "u-ichi/reviewable-html-workbench"
+      }
+    },
+    "cloudflare": {
+      "source": {
+        "source": "github",
+        "repo": "cloudflare/skills"
+      }
+    },
+    "paper": {
+      "source": {
+        "source": "github",
+        "repo": "paper-design/agent-plugins"
+      }
+    }
+  },
+  "language": "Japanese",
+  "effortLevel": "high",
+  "plansDirectory": "~/.claude/plans",
+  "preferredNotifChannel": "ghostty",
+  "skipAutoPermissionPrompt": true,
+  "mcpServers": {
+    "storybook": {
+      "type": "http",
+      "url": "http://localhost:6006/mcp"
+    }
+  }
 }

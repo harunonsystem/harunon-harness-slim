@@ -16,8 +16,6 @@
 | `/difit` | difit で差分レビュー依頼 / findings コメント付き差分表示 |
 | `/ocr-review` | OpenCodeReview CLI を canonical な diff レビュー engine として実行（pi / omp 用） |
 | `/similarity-check` | AST ベースの重複コード検出（similarity-ts/py） |
-| `/ponytail` | 本家 Ponytail の常時適用モード（lite / full / ultra） |
-| `/ponytail-review` | 本家 Ponytail の過剰設計レビュー |
 
 ### Plan / Design
 
