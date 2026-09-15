@@ -103,6 +103,7 @@ pnpm dlx skills add JimLiu/baoyu-design
 
 | Command | Purpose |
 | --- | --- |
+| `/config-tune` | cclens + Claude ネイティブ insights の実測で設定を定期改善（harness SSOT or ~/.claude へ routing） |
 | `/upgrade` | 開発ツール一括アップグレード（mise / OpenCode / Homebrew） |
 
 ### Meta（skill / プロンプト改善）

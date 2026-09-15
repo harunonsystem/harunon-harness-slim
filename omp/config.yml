@@ -283,6 +283,7 @@ bash:
     approval: prompt
 skills:
   ignoredSkills:
+  - config-tune
   - cr
   - empirical-prompt-tuning
   - figma-implement
