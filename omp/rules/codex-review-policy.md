@@ -45,7 +45,7 @@ paths:
 
 ### 標準フロー
 
-1. push 前に `/pre-review-check`（推奨。差分に適用する観点を選び、必要な場合だけ重複・簡素化の補助チェックを使う）
+1. push 前に `/pre-review-check`（コード変更を含むなら必須。Codex に回す前に Claude 側で潰せるものを潰す）
 2. `/codex:review` を **1 回**だけ実行（background 起動。完了通知が来るまで独立した作業を進める）
 3. レビュー結果をユーザーに提示する（指摘は原文のまま並べる。要約で件数や優先度を変えない）
 4. 指摘を全件修正する。ユーザーの選択を待たない
@@ -83,5 +83,5 @@ PR Gate も同じ祖先判定を使う。gate flag / Core Workflow の review ev
 
 ### 関連ファイル
 
-- `skills/pre-review-check/SKILL.md`: レビュー前の自己チェックと、必要時の補助チェック
+- `skills/pre-review-check/SKILL.md`: レビュー前の自己チェックと補助チェック
 - `hooks/*`: Codex レビューの 2 回目以降を機械的にブロックする PreToolUse hook

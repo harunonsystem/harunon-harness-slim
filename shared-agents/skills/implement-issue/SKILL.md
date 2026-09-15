@@ -164,7 +164,7 @@ Core Workflowを使用中なら、checkpoint後に`committed`へ遷移する。
 
 #### レビュー
 
-1. 事前に `/pre-review-check`（推奨、1 周で通る率が上がる）
+1. 事前に `/pre-review-check`（コード変更を含むなら必須。Codex に回す前に Claude 側で潰せるものを潰す）
 2. checkpoint commit の HEAD に対して、Core Workflowが選択したreview adapterを **1 回だけ**実行（background 起動が既定）
 3. 結果をユーザーに提示する（指摘は原文のまま。件数や優先度を要約で変えない）
 4. 指摘を修正する。ユーザーの選択は待たない

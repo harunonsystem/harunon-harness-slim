@@ -9,7 +9,7 @@
 | Command | Purpose |
 | --- | --- |
 | `/cr` | コードレビュー（reviewer エージェント）。組み込みの `/review` とは別物 |
-| `/pre-review-check` | /codex:review 前の統合自己チェック（11 カテゴリ検証 → similarity-check / simplify で機械クリーンアップ） |
+| `/pre-review-check` | /codex:review 前の統合自己チェック（11 カテゴリ検証 → ponytail-review / similarity-check で機械クリーンアップ） |
 | `/unslop` | AIらしい定型表現・冗長な構文を削り、意味とトーンを保って自然な文章に整える |
 | `/codex:review` | Codex コードレビュー（push 前1回のみ） |
 | `/codex:rescue` | Codex に実装・調査を委譲 |
