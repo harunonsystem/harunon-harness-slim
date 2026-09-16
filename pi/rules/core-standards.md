@@ -101,6 +101,7 @@ Codex レビューの扱いは `rules/codex-review-policy.md` SSOT（1回だけ�
 block された場合の責務:
 
 - 原因を直す。hook を skip する形の回避を試みない
+- **同じ deny が 2 回出た時点で試行を止め、deny を出した hook スクリプト（`claude-hooks/*.sh`）の該当 rule を読んでから次の手を打つ。** deny メッセージの字面だけを変えた再試行（`&&`→`;`、引数の並べ替え等）は原因を解消しないままトークンを燃やすだけ（git-commit-chain で30回超の空転を起こした実例あり）
 - シークレット検出が誤検知に見えても、独断で「誤検知だから無視」と判断しない。検出箇所（ファイル・行・値）を提示してユーザーの判断を仰ぐ
 
 push 承認フラグ（`approve-push.sh`）は承認した HEAD に紐づき、**HEAD が remote に到達した時点か 30 分（`PUSH_APPROVAL_TTL_SECONDS`）で失効**する。guard 通過時には消費しないので、後続の pre-push hook（unittest / validator / mise の python 依存）が落ちても同じ承認で再 push できる。フラグは `~/.claude/review-gate/` に書くため sandbox 解除は不要。承認は cwd の repo + branch 単位なので、worktree で push するなら worktree 内（`git -C <worktree>` の対象）で承認する。`gh pr merge` / `close` も同型で、`approve-pr.sh <PR番号> "理由"` の承認（番号紐づき・TTL 30 分）と一致する番号を明示した単独コマンドだけが通る（番号省略形は deny）。長い自律ランは最後の push で止まりやすいため、着手前に `harness-doctor.sh`（前提ツール・未管理スキル・ドリフト）を通してから始める。

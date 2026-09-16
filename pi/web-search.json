@@ -1,13 +1,20 @@
 {
   "webSearch": {
-    "enabled": false
+    "enabled": true
   },
+  "autoOpenBrowser": false,
   "workflow": "none",
   "commands": {
     "websearch": {
       "enabled": false
     },
     "curator": {
+      "enabled": false
+    },
+    "search": {
+      "enabled": false
+    },
+    "google-account": {
       "enabled": false
     }
   }
