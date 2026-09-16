@@ -1,7 +1,7 @@
 /**
  * pi / omp 向け: write / edit 後のファイル品質ゲート（Claude Code の PostToolUse 相当）の adapter。
  * 両 runtime の tool_result イベントは同名・同形（toolName "write"/"edit"、input.path、content、
- * isError、返り値 { content }。omp 18.0.8 の src/extensibility/hooks/types.ts で確認済み）なので
+ * isError、返り値 { content }。omp 18.2.0 の shared-events.ts / hooks/types.ts で互換を再確認済み）なので
  * 1 file で両方に配る。判定本体は ../hook-runner/post-edit.js → claude-hooks/post-edit-checks.sh。
  * ここが持つのは「編集 path の取り出し方（input.path）」と「content 末尾への追記」だけ。
  * SSOT: harunon-harness packages/core/pi-extensions/
