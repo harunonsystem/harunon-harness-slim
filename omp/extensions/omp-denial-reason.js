@@ -19,11 +19,9 @@ import { resolve as resolvePath } from "node:path";
 import { createHookRunner } from "../hook-runner/hook-runner.js";
 
 /**
- * omp のツール名 → Claude Code のツール名。pi fork なので pi の PI_TO_CLAUDE_TOOL
- * （pi-extensions/claude-hooks-bridge.ts）と同じ対応を取る。マップ漏れはガードの
- * すり抜けに直結する（2026-08-14: pi で apply_patch が block-edit-on-main を
- * 素通りしたインシデント。2026-09-15: omp で main checkout への Edit/Write が
- * 未配線のまま素通りした）。
+ * omp のツール名 → Claude Code のツール名。
+ * bash だけでなく edit / write / read / apply_patch / exec_command も
+ * 各 Claude ツール名へ写し、Write ガードや Bash ガードを適用する。
  */
 const OMP_TO_CLAUDE_TOOL = {
 	bash: "Bash",
@@ -69,7 +67,7 @@ export function createDenialReasonHandler(runner) {
 		const input = event.input ?? {};
 		// exec_command 系では input.workdir が実際の実行 cwd になることがある。workdir を
 		// 無視すると別 repo を指定したコマンドがセッション側 repo の guard を潜り抜けるので、
-		// pi 側 claude-hooks-bridge.ts resolveBaseCwd と同じ workdir > input.cwd > ctx.cwd で解決する。
+		// workdir > input.cwd > ctx.cwd で解決する。
 		const workdir = typeof input.workdir === "string" ? input.workdir : undefined;
 		const inputCwd = typeof input.cwd === "string" ? input.cwd : undefined;
 		// ctx.cwd が無い呼び出しでも throw で handler を reject させない（reject 時の扱いは omp 側に委ねない）
@@ -84,6 +82,7 @@ export function createDenialReasonHandler(runner) {
 		if (result.decision !== "allow") {
 			return { block: true, reason: result.reason || "harness guard hook が理由なしで deny しました" };
 		}
+
 		// rewrite 系 hook（rtk-rewrite）が updatedInput を返したときだけ実行入力を
 		// 書き戻す。runner は入力を必ずコピーするので参照ではなく内容で比較する
 		// （updatedInput が新しいキーを足せば stringify でも差が出る）。書き戻すのは

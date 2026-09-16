@@ -6,7 +6,6 @@
   "configDirEnv": null,
   "managedPaths": [
     "AGENTS.md",
-    "agents",
     "claude-hooks/approve-pr.sh",
     "claude-hooks/approve-push.sh",
     "claude-hooks/block-dangerous-in-bash.sh",
