@@ -353,6 +353,7 @@
       "$defaults",
       "git push はユーザーが明示的に許可した場合のみ実行する。commit と push を 1 コマンドに連結しない",
       "メインリポジトリのチェックアウト上で branch を作成しない。gwm で worktree を切ってから作業する",
+      "main / master のメイン checkout（worktree ではない方）で git commit しない。gwm で worktree を切ってから作業する",
       "git update-ref はユーザーの明示的な許可がある場合のみ",
       "git clean -f / -fd はユーザーの明示的な許可がある場合のみ",
       "PR の merge / close はユーザーの明示的な許可がある場合のみ",

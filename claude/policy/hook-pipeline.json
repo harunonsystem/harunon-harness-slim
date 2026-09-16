@@ -52,11 +52,9 @@
 				"claude",
 				"pi",
 				"opencode",
-				"codex"
-			],
-			"absent": {
-				"omp": "omp の guard は config.yml の bash.patterns が主体で、extension（omp-denial-reason.js）は危険コマンド deny の理由説明に限定する（決定 2026-08-30）。grep 禁止は omp に持ち込まない"
-			}
+				"codex",
+				"omp"
+			]
 		},
 		{
 			"id": "block-dangerous-in-bash",
@@ -94,10 +92,10 @@
 			"runtimes": [
 				"claude",
 				"codex",
-				"pi"
+				"pi",
+				"omp"
 			],
 			"absent": {
-				"omp": "worktree 作成は Claude 側の運用に閉じているため未配線",
 				"opencode": "worktree 作成は Claude 側の運用に閉じているため未配線"
 			}
 		},
@@ -118,12 +116,10 @@
 				"claude",
 				"pi",
 				"opencode",
-				"codex"
+				"codex",
+				"omp"
 			],
-			"notes": "verify-before-commit から分離した deny 側。staged 差分に AWS key / 秘密鍵 / GitHub PAT / Anthropic key らしき文字列があれば commit を止める。runtime 非依存なので移植ポリシー (a)",
-			"absent": {
-				"omp": "omp の guard は config.yml の bash.patterns が主体で、extension（omp-denial-reason.js）は危険コマンド deny の理由説明に限定する（決定 2026-08-30）。staged 差分の検査は glob で表現できず hook でしか実現できないため、この決定を広げるかどうかは別途判断する"
-			}
+			"notes": "verify-before-commit から分離した deny 側。staged 差分に AWS key / 秘密鍵 / GitHub PAT / Anthropic key らしき文字列があれば commit を止める。runtime 非依存なので移植ポリシー (a)。omp は 2026-09-15 に配線（adapter が bash の tool_call を既に hookRunner に渡しており、Bash hook は追加配線なしで効く）"
 		},
 		{
 			"id": "verify-before-commit",
@@ -164,10 +160,10 @@
 			"runtimes": [
 				"claude",
 				"pi",
-				"codex"
+				"codex",
+				"omp"
 			],
 			"absent": {
-				"omp": "omp の adapter（omp-denial-reason.js）は bash の tool_call だけを hookRunner に渡す（edit/write は写していない）",
 				"opencode": "編集系 hook は未配線（plan mode が主用途で編集しない）"
 			}
 		},
@@ -186,11 +182,9 @@
 				"claude",
 				"pi",
 				"opencode",
-				"codex"
-			],
-			"absent": {
-				"omp": "omp の adapter（omp-denial-reason.js）は block 判定専用で updatedInput を書き戻さない（rtk は omp に未導入）"
-			}
+				"codex",
+				"omp"
+			]
 		}
 	]
 }

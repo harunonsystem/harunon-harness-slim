@@ -486,6 +486,50 @@ EOF
   fi
 }
 
+# rule: git-commit-on-main
+custom_git_commit_on_main() {
+  # main / master ブランチのメイン checkout（linked worktree ではない方）での
+  # git commit をブロック。core-standards の「main の checkout は全セッションの
+  # 共有領域。編集も commit もしない」に対応する deny で、Edit/Write 側の
+  # block-edit-on-main と対になる Bash 側の穴埋め（2026-09-15 に omp で
+  # main checkout へ直接 commit/push した実例。block-edit-on-main は omp では
+  # absent のため Edit/Write 経路でも素通りだった）。
+  ere_matches "$NORMALIZED" "${ORIGIN}${ere}${WORD_END}" || return 0
+
+  # git -C <dir> commit は対象 repo が cwd と異なる。push 承認と同じ
+  # quote-aware resolver で対象を確定し、解決不能（複数 -C・--git-dir・
+  # 存在しないパス等）は推測せず deny する。
+  if ! review_gate_resolve_target_repo "$COMMAND"; then
+    echo "commit 対象の repo を確定できません（${REVIEW_GATE_UNRESOLVABLE_REASON}）。main / master への直接 commit を防ぐためブロックします" >&2
+    declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-commit-on-main" "${COMMAND:-}" || true
+    exit 2
+  fi
+
+  branch=$(git symbolic-ref --short -q HEAD 2>/dev/null || echo "")
+  case "$branch" in
+    main|master) ;;
+    *) return 0 ;;
+  esac
+
+  # linked worktree（git worktree add / gwm add 由来）は git-dir ≠ git-common-dir。
+  # メイン checkout と submodule は両者が一致する。worktree 内の main ブランチは
+  # 共有 checkout を汚さないので許可する。
+  git_dir=$(git rev-parse --git-dir 2>/dev/null || echo "")
+  common_dir=$(git rev-parse --git-common-dir 2>/dev/null || echo "")
+  if [ -n "$git_dir" ] && [ -n "$common_dir" ] && [ "$git_dir" != "$common_dir" ]; then
+    return 0
+  fi
+
+  cat >&2 <<'EOF'
+main / master ブランチのメイン checkout で直接 commit しないでください。gwm で worktree を作成してから作業してください:
+
+  gwm add <branch-name>            # 新規 worktree（main から）
+  gwm add --from <base> <branch>   # base ref 指定
+EOF
+  declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-commit-on-main" "${COMMAND:-}" || true
+  exit 2
+}
+
 # rule: gh-api-comment-write
 custom_gh_api_comment_write() {
   # gh api ... comment（書き込み系のみブロック。GET は許可）
