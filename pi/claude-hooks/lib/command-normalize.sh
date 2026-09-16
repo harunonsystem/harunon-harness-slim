@@ -224,7 +224,7 @@ sub render_code {
 # 一致させること。判定ロジックが perl / python の 2 箇所に分かれるので、
 # どちらかを変えたらもう片方も見直す。
 my %GIT_VALUE_OPTS = map { $_ => 1 } (
-    '-C', '-c', '--exec-path', '--git-dir', '--namespace',
+    '-C', '-c', '--config-env', '--exec-path', '--git-dir', '--namespace',
     '--super-prefix', '--work-tree',
 );
 

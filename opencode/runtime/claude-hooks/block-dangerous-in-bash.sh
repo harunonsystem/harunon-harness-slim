@@ -514,9 +514,15 @@ custom_git_commit_on_main() {
   # linked worktree（git worktree add / gwm add 由来）は git-dir ≠ git-common-dir。
   # メイン checkout と submodule は両者が一致する。worktree 内の main ブランチは
   # 共有 checkout を汚さないので許可する。
+  # --git-dir / --git-common-dir は相対表現になり得る（main checkout の
+  # サブディレクトリでは `.git` vs `../../.git` のように同じ dir の別表記）。
+  # 文字列比較だと誤って linked worktree と判定して allow してしまうため、
+  # cd -P で物理絶対パスに正規化してから比較する。
   git_dir=$(git rev-parse --git-dir 2>/dev/null || echo "")
   common_dir=$(git rev-parse --git-common-dir 2>/dev/null || echo "")
-  if [ -n "$git_dir" ] && [ -n "$common_dir" ] && [ "$git_dir" != "$common_dir" ]; then
+  git_dir_abs=$(cd -P -- "$git_dir" 2>/dev/null && pwd -P || echo "")
+  common_dir_abs=$(cd -P -- "$common_dir" 2>/dev/null && pwd -P || echo "")
+  if [ -n "$git_dir_abs" ] && [ -n "$common_dir_abs" ] && [ "$git_dir_abs" != "$common_dir_abs" ]; then
     return 0
   fi
 

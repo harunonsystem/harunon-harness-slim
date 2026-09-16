@@ -153,6 +153,18 @@ def unresolvable_reason(command: str) -> str | None:
 
 # シェルの制御演算子。トークン化後にコマンドの区切りとして扱う。
 _SEPARATORS = {";", "&&", "||", "|", "&"}
+
+# 値を取る git グローバルオプション（subcommand 開始検出のために値を読み飛ばす）。
+# -C 自体は候補として収集するのでここには含めない。--git-dir=path / -c k=v の
+# `=` 形式は 1 トークンなので値スキップ不要（non-option でもない）。
+_GIT_GLOBAL_VALUE_OPTIONS = {
+    "-c",
+    "--git-dir",
+    "--work-tree",
+    "--namespace",
+    "--exec-path",
+    "--config-env",
+}
 # 抽出値にこれらが残っている場合は展開結果を推測できないため unresolvable にする。
 _SHELL_EXPANSION_CHARS = ("$", "`")
 
@@ -227,12 +239,23 @@ def _extract_candidates(command: str) -> tuple[list[str], list[str], list[str]]:
             index += 2
             continue
         if token == "git" and _is_git_start(tokens, index):
-            # この git 呼び出し内（次の区切りまで）だけを -C 探索の対象にする。
+            # -C はグローバルオプション領域（git [options] <subcommand> の options
+            # 部分）にあるときだけ repo 指定になる。subcommand 以降の `-C`
+            # （例: `git commit -C HEAD` = --reuse-message）は対象 repo 指定では
+            # ないため、最初の non-option トークン（= subcommand）で探索を打ち切る。
+            # 値を取るグローバルオプション（-C/-c/--git-dir 等）は値を読み飛ばす。
             cursor = index + 1
             while cursor < count and tokens[cursor] not in _SEPARATORS:
-                if tokens[cursor] == "-C" and cursor + 1 < count:
+                current = tokens[cursor]
+                if not current.startswith("-"):
+                    break
+                if current == "-C" and cursor + 1 < count:
                     git_c_values.append(tokens[cursor + 1])
-                    cursor += 1
+                    cursor += 2
+                    continue
+                if current in _GIT_GLOBAL_VALUE_OPTIONS and cursor + 1 < count:
+                    cursor += 2
+                    continue
                 cursor += 1
             index = cursor
             continue
