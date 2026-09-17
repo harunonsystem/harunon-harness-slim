@@ -45,6 +45,26 @@
 			]
 		},
 		{
+			"id": "block-japanese-tech-writing",
+			"file": "block-japanese-tech-writing.sh",
+			"event": "PreToolUse",
+			"stage": "guard",
+			"order": 25,
+			"required": true,
+			"when": {
+				"tools": [
+					"Bash"
+				]
+			},
+			"runtimes": [
+				"claude",
+				"pi",
+				"opencode",
+				"codex",
+				"omp"
+			]
+		},
+		{
 			"id": "block-dangerous-in-bash",
 			"file": "block-dangerous-in-bash.sh",
 			"event": "PreToolUse",

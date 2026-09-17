@@ -11,6 +11,7 @@
     "claude-hooks/block-dangerous-in-bash.sh",
     "claude-hooks/block-edit-on-main.sh",
     "claude-hooks/block-grep-in-bash.sh",
+    "claude-hooks/block-japanese-tech-writing.sh",
     "claude-hooks/block-secrets-in-commit.sh",
     "claude-hooks/enforce-gwm-for-worktree.sh",
     "claude-hooks/fix_gfm_tables.py",

@@ -417,6 +417,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "~/.claude/hooks/block-japanese-tech-writing.sh"
+          },
+          {
+            "type": "command",
             "command": "~/.claude/hooks/block-pr-without-codex-review.sh"
           },
           {

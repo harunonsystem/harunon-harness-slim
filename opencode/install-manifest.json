@@ -13,6 +13,7 @@
     "rules",
     "runtime/claude-hooks/block-dangerous-in-bash.sh",
     "runtime/claude-hooks/block-grep-in-bash.sh",
+    "runtime/claude-hooks/block-japanese-tech-writing.sh",
     "runtime/claude-hooks/block-secrets-in-commit.sh",
     "runtime/claude-hooks/fix_gfm_tables.py",
     "runtime/claude-hooks/lib",
