@@ -1,18 +1,6 @@
 {
 	"version": 1,
-	"notes": [
-		"runtime を跨いで共有される hook の実行対象・順序・適用範囲を宣言する SSOT。pi / omp / opencode は packages/core/hook-runner/hook-runner.js（hookRunner）が、codex は codex_hook.py が、この表を実行時に読んで hook を選ぶ。これら runtime に hook 一覧の実体は無く、scripts/harness_lib/hook_pipeline.py は (a) 配線した hook 実体が各 target の distribute 宣言で届くこと (b) hook 一覧がコードに再ハードコードされていないこと、を検証する。claude だけは settings.json が独自に並べるため membership を照合する。",
-		"スコープは 2 つ以上の runtime が共有する hook のみ。claude 専用の hook（codex-review gate / difit gate / verify-before-push / PostToolUse 系）は settings.json だけが持ち、この表の対象外。",
-		"以前は 3 runtime が別々に順序を手書きし、契約はコード内のコメントだけで担保されていた（opencode 側は「pi の hooks.json と順序を合わせろ」、pi 側は「ガードを rtk-rewrite より先に置け」）。さらに codex は tuple への positional index で hook を選択していたため、並べ替えると各条件が別の hook を選ぶのに validator は集合一致しか見ていなかった。",
-		"stage は逐次実行 runtime にだけ効く不変条件。guard（deny する）は rewrite（コマンドを書き換える）より前でなければならない。逆にすると書き換え後のコマンドしか guard に見えず deny が発火しない。claude は PreToolUse を並列実行して deny 優先なので配列順は load-bearing でなく、membership だけを検証する。",
-		"required: true は deny 能力を持つ security-critical hook を宣言する（省略時は false = advisory）。hookRunner は required hook についてのみ「ファイル欠落 / exit code が 0・2 以外 / stdout が非空なのに JSON として壊れている」を fail-open の warning ではなく deny に倒す（欠落はコマンド内容に関係なく deny し、配布漏れを顕在化させる）。advisory hook（required 省略、例: verify-before-commit の additionalContext 注入や rtk-rewrite の書き換え）は従来通り warn + 継続。判定基準は「対応する hooks/*.sh が exit 2 を返す経路を持つか」（セキュリティレビュー M-004 対応）。",
-		"when.tools は Claude ツール名。hookRunner の adapter が runtime のツール名を Claude 名に写してから渡す: pi は PI_TO_CLAUDE_TOOL（pi-codex-conversion 導入下の exec_command→Bash・apply_patch→Write を含む。2026-08-14: マップ漏れで apply_patch が block-edit-on-main をすり抜けたインシデントの対応）、omp / opencode は bash→Bash のみ、codex は codex_hook.py の CODEX_TO_CLAUDE_TOOL。when.commandEre は hookRunner / codex_hook.py が spawn 前の事前フィルタとして使う（hook 自身も同じ判定を持つので、フィルタは spawn を省くための最適化）。",
-		"verify-before-commit は staged 差分のシークレット検出で exit 2 する経路を持つため required: true（M-004 の判定基準どおり）。pi/opencode への配布（absent 解除）は本 table の runtimes 適用範囲の変更を伴うため別 issue（cross-runtime 展開）で扱う。",
-		"block-dangerous-in-bash は 2026-08 に codex へも配線した（旧 absent.codex は「Codex ネイティブの permission が push 承認を所有する」という理由だったが、この決定は rule 単位に引き下げた）。push 承認の native 所有は danger-rules.json の git-push rule の absent.codex 宣言に移した。codex で実効するのは targets に codex を含む rule のみで、hook 自体は HARNESS_RUNTIME=codex を読んで danger-rules.json の targets / overrides で rule ごとに選別する（scripts/harness_lib/danger_rules.py・packages/core/hooks/block-dangerous-in-bash.sh 参照）。",
-		"block-edit-on-main は 2026-08-31 に codex へも配線した（旧 absent.codex は理由の無い『未配線』で、Codex app が gwm を経ずに main を直接編集できる穴になっていた）。codex の編集ツール名（apply_patch / write_file / edit_file）は本 table の when.tools が使う Claude 名と一致しないため、codex_hook.py の CODEX_TO_CLAUDE_TOOL が apply_patch→Write・edit_file→Edit のようにマップしてから matcher に通し、hook へ渡すイベントの tool_name も正規化する（pi の claude-hooks-bridge における PI_TO_CLAUDE_TOOL と同じ役割）。apply_patch は file_path を持たないため Write に寄せ、block-edit-on-main.sh 側が .tool_input.input の patch envelope からパスを抽出する。",
-		"omp は 2026-08-30 に block-dangerous-in-bash だけを配線した。deny の主体は config.yml の bash.patterns（glob）のままだが、glob deny はメッセージを運べないため、extensions/omp-denial-reason.js（adapter）が bash の tool_call ごとに hookRunner を HARNESS_RUNTIME=omp で走らせ、deny の理由（rule の message = 次の行動）を block reason として返す。omp の adapter は block 判定専用で確認 UI と updatedInput の書き戻しを持たないため、rewrite / ask 系の hook は omp に配線しない（absent の理由）。",
-		"2026-09-03: pi / omp / opencode の 3 bridge が別々に持っていた wire protocol 実装（spawn・stdin JSON・exit 2・EPIPE 無視・timeout・required fail-closed・updatedInput 連鎖）を packages/core/hook-runner/hook-runner.js に 1 本化し、hook 一覧（opencode の HOOKS 配列 / pi の hooks.json / omp の単一パス）を廃してこの table を実行時に読む形にした。validator の JS 逆パースはこれに伴い削除。"
-	],
+	
 	"stages": [
 		"guard",
 		"rewrite"

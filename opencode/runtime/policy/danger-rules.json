@@ -36,7 +36,6 @@
           ]
         }
       },
-      "notes": "omp（bash.patterns glob）は --no-verify 長形式のみ検出する。-n 短縮形・-an のような結合短フラグ・env prefix（FOO=1 git ...）は glob 表現不能で bash.patterns では未カバー。omp では extensions/omp-denial-reason.js が同じ hook を HARNESS_RUNTIME=omp で実行する第二防衛線になり、custom 関数がこれらも検出する（2026-08-30。claude/pi/opencode/codex と同じ判定）。加えて omp はクォート除去後のセグメントも照合するため、コミットメッセージ本文に --no-verify という文字列が現れると誤 deny する",
       "prose": [
         { "file": "packages/core/rules/core-standards.md", "token": "--no-verify" }
       ]
@@ -119,7 +118,6 @@
       "impl": "custom",
       "targets": ["claude", "omp", "opencode", "pi"],
       "message": "git commit を他のコマンドとチェインしないでください。単独で実行してください",
-      "notes": "cclens 実測（2026-09-13）では harness 系 session の最頻出 hook block がこの rule（43 回、大半は `git add … && git commit -m …` 形）。add と commit の分離は block-secrets-in-commit.sh も要求する（PreToolUse 時点では add が未実行で staged 検査が空振りする）ため rule は維持し、周知は core-standards.md の prose 側で担う。2026-09-13 の PR review で「前置チェインしか見ておらず `git commit -m x && echo done` が素通り」と指摘され、custom 実装を commit の後置チェイン（&& / ; / | / || / 改行）も block する形に広げた（message の『単独で実行』と実装を一致させる）",
       "prose": [
         { "file": "packages/core/rules/core-standards.md", "token": "git add <path> && git commit" }
       ],
@@ -555,9 +553,8 @@
           "opencode": ["netlify deploy*", "netlify build*", "netlify api*", "ntl deploy*", "ntl build*", "ntl api*", "npx netlify-cli*"],
           "omp": ["netlify deploy", "netlify deploy *", "netlify build", "netlify build *", "netlify api", "netlify api *", "ntl deploy", "ntl deploy *", "ntl build", "ntl build *", "ntl api", "ntl api *", "npx netlify-cli *"]
         }
+      }
       },
-      "notes": "2026-09-11 に `netlify api createSiteBuild --data '{\"site_id\":..,\"body\":{\"deploy_id\":..}}'` を PR preview の再ビルドのつもりで実行したところ、body の deploy_id が無視され main の production ビルドが起動した（cancelSiteDeploy で停止、published_at は null で未公開）。read 系 API も write 系と区別できないため subcommand 単位でまとめて止める"
-    },
     {
       "id": "xargs-dash-a",
       "action": "warn",
@@ -729,9 +726,8 @@
         "ere": "(git|rtk git)[[:space:]]+(checkout[[:space:]]+(([^-[:space:]][^[:space:]]*[[:space:]]+)?--([[:space:]]|$)|\\.([[:space:]]|$))|restore[[:space:]]+([^-[:space:]]|(-W|--worktree|-s|--source)([[:space:]]|=)))",
         "origin": "default",
         "wordEnd": false
+      }
       },
-      "notes": "checkout は `-- <path>` / `.` / `<tree-ish> -- <path>` を対象にし、branch 切替（`checkout feature-x` / `-b`）は対象外。restore は非オプション引数始まりと `-W / --worktree / -s / --source` 始まりを対象にし、`--staged` 始まりは対象外（`--staged --worktree` の順で並べた場合は取りこぼす。POSIX ERE に negative lookahead が無いための既知の穴）"
-    },
     {
       "id": "sql-drop",
       "action": "confirm",

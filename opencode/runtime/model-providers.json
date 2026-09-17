@@ -1,11 +1,5 @@
 {
-	"notes": [
-		"LLM モデルプロバイダ定義の SSOT。OpenCode は plugins/model-providers.js がこのファイル（配布コピー）を読んで各ツールに登録する",
-		"key の値は持たない。keyRef.opencodeAuth = opencode の ~/.local/share/opencode/auth.json のエントリ名（key の実体 SSOT）、keyRef.env = op inject 済みセッションの環境変数名",
-		"opencodeNative: true のプロバイダは OpenCode がネイティブ対応（models.dev + auth.json）のため OpenCode 側では注入しない",
-		"builtinKeyRefs / piApi は pi-extensions/harness-providers.ts が registerProvider 登録時に読む（pi ターゲット向け）。2026-07-11 に pi ターゲットを復元し消費者として復活",
-		"モデル一覧は手で書き写さない。modelsFrom.opencodeCache を持つプロバイダは、pi 起動時に harness-providers.ts が opencode のローカルキャッシュ ~/.cache/opencode/models.json（opencode が models.dev から取得・更新する）の該当 provider を読み、status が deprecated でないモデル（freeOnly なら cost.input / cost.output が共に 0 のもの）を登録する。`opencode models` が表示する一覧と同じ判定なので opencode 側の追加・退役に自動で追従し、ネットワークも使わない。静的 models は modelsFrom が解決できない（cache 未生成）時の fallback 専用で、opencode-zen には持たせない（2026-09-13。書き写し運用で 4 件の stale と 3 件の欠落が起きていたため）"
-	],
+	
 	"customProviders": {
 		"opencode-zen": {
 			"displayName": "OpenCode Zen",
