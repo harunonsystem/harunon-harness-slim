@@ -59,7 +59,9 @@ status_line = ["model-with-reasoning", "current-dir", "git-branch", "context-rem
 [notice]
 fast_default_opt_out = true
 
-# Pet（avatar overlay）を出さないために 3 つが要る。1 つでも欠けると再発する。
+# Pet（avatar overlay）を出さないために 4 つが要る。1 つでも欠けると再発する。
+# アプリの設定では overlay パネル全体が "Mini"、その中のマスコットが "My pets"。
+# pet-visible だけ false にするとマスコットが消えて Mini バーだけが残る。
 #
 # 1. avatar-overlay-pet-visible: overlay 内のマスコット表示だけを制御する。ウィンドウの
 #    開閉は制御しない（app.asar: "Whether the floating Codex pet is visible above its controls"）
@@ -72,6 +74,11 @@ fast_default_opt_out = true
 #    JSON かつアプリ管理状態なので配布できない。scripts/codex-pet-off.py が bootstrap の
 #    たびに false へ戻し、harness-doctor.sh の Step 0.8 が残存を検知する。アプリ稼働中は
 #    終了時に上書きされるので、スクリプトは稼働中を検出してスキップする
+# 4. keybindings.json の openAvatarOverlay（メニュー名 "Show pet"、macOS 既定 Alt+Space）:
+#    押すと open() が走って true が残る。key: null で潰す。ただし配布でファイルを書いても
+#    実行中の globalShortcut 登録は解除されない（解除は設定 UI 経由の
+#    set-codex-command-keybinding → syncAvatarOverlayHotkey でしか走らない）。既存マシンでは
+#    設定 → Keyboard shortcuts の "Show pet" に一度キーを割り当ててからクリアする
 [desktop]
 avatar-overlay-pet-visible = false
 computerUseAlwaysHidePictureInPicture = true
