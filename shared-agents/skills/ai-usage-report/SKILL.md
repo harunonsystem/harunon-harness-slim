@@ -13,7 +13,7 @@ description: "AI の利用実態をログから棚卸しして、社内申請・
 
 - Claude Code: `cclens`（`brew install lambdalisue/cclens/cclens`）と `~/.claude/projects/*/*.jsonl`
 - Codex: `~/.codex/{sessions,archived_sessions}/**/rollout-*.jsonl`
-- pi: `~/.pi/agent/sessions/<encoded-cwd>/<ISO>_<uuid>.jsonl`
+- pi / omp: `~/.pi/agent/sessions/`, `~/.omp/agent/sessions/` の `<encoded-cwd>/<ISO>_<uuid>.jsonl`
 - issue tracker: Linear MCP 等
 
 無いランタイムは飛ばす。全部揃わなくても部分集計で報告は書ける。
@@ -60,21 +60,31 @@ python3 <harness-repo>/scripts/codex-usage.py --since <YYYY-MM-DD>
 
 出力の `thread_source 別` と `model × effort 別` が報告に使う部分。月次の推移が要るなら `--since` を変えて月ごとに実行して並べる。
 
-## Phase 3: pi の実測
+## Phase 3: pi / omp の実測
 
-pi は Codex と保存形式が違う。ファイル名の先頭が ISO 日付、モデルは `model_change` イベントの `modelId`。
+pi と omp は Codex と保存形式が違う。どちらも `sessions/<encoded-cwd>/<ISO>_<uuid>.jsonl` で、ファイル名の先頭が ISO 日付。モデルは `model_change` イベントに入るが**キー名が違う**（pi は `modelId`、omp は `model` で provider 接頭辞つき）ので、両方拾う正規表現を使う。
 
 ```bash
-# 月別セッション数
-find ~/.pi/agent/sessions -name '*.jsonl' | perl -ne 'print "$1\n" if m{/(\d{4}-\d{2})}' | sort | uniq -c
+# 月別セッション数（ランタイムごとに実行）
+for d in ~/.pi/agent/sessions ~/.omp/agent/sessions; do
+  echo "## $d"
+  find "$d" -name '*.jsonl' | perl -ne 'print "$1\n" if m{/(\d{4}-\d{2})}' | sort | uniq -c
+done
 
 # モデル構成（1セッション内で複数回切り替わるので、セッション数ではなく切替回数）
-find ~/.pi/agent/sessions -name '*.jsonl' \
-  | xargs perl -ne 'print "$1\n" if /"type":"model_change".*"modelId":"([^"]+)"/' \
-  | sort | uniq -c | sort -rn
+for d in ~/.pi/agent/sessions ~/.omp/agent/sessions; do
+  echo "## $d"
+  find "$d" -name '*.jsonl' \
+    | xargs perl -ne 'print "$1\n" if /"type":"model_change".*?"model(?:Id)?":"([^"]+)"/' \
+    | sort | uniq -c | sort -rn
+done
 ```
 
 `~/.pi/agent` 直下には `observability/history.jsonl` などセッションでない JSONL があるので、`sessions/` 配下に限定する。
+
+omp はモデル名に `<provider>/<model>` の形で provider が付くので、pi の裸のモデル名と合算するときは provider を落としてから揃える。枠制約の話をするときは落とさない方がよい（どの provider が使えなくなったかが要点になる）。
+
+OpenCode は `~/.local/share/opencode/storage/session/` に別形式で持つが、実測でセッション数が一桁なら報告では「使っていない」と書いて集計しない。
 
 ## Phase 4: 成果側（issue tracker）
 
