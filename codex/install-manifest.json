@@ -43,7 +43,8 @@
     "memories.use_memories",
     "tui.status_line",
     "notice.fast_default_opt_out",
-    "desktop.avatar-overlay-pet-visible"
+    "desktop.avatar-overlay-pet-visible",
+    "desktop.computerUseAlwaysHidePictureInPicture"
   ],
   "ledger": ".harunon-slim.installed.json"
 }

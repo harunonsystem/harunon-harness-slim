@@ -59,8 +59,19 @@ status_line = ["model-with-reasoning", "current-dir", "git-branch", "context-rem
 [notice]
 fast_default_opt_out = true
 
-# overlay 内のマスコット表示だけを制御する（ウィンドウの開閉は制御しない）。
-# 開閉は .codex-global-state.json の electron-avatar-overlay-open が持つ。Pet を消すには
-# アプリを完全終了したうえで両方を false にする（片方だけ、または起動中の変更は上書きされる）。
+# Pet（avatar overlay）を出さないために 3 つが要る。1 つでも欠けると再発する。
+#
+# 1. avatar-overlay-pet-visible: overlay 内のマスコット表示だけを制御する。ウィンドウの
+#    開閉は制御しない（app.asar: "Whether the floating Codex pet is visible above its controls"）
+# 2. computerUseAlwaysHidePictureInPicture: overlay を開く経路そのものを止める。
+#    Computer Use の PiP は配置先として pet を要求し（"wake pet for PiP placement request"）、
+#    avatarOverlayManager.wake() → open(forcePetView) が persistPetIntent 既定 true のまま
+#    electron-avatar-overlay-open に true を書く。#233 の guard が効かなかったのはこの経路を
+#    塞がず state だけ矯正していたため（#235 で revert 済み）
+# 3. .codex-global-state.json の electron-avatar-overlay-open: 既に開いた状態の後始末。
+#    JSON かつアプリ管理状態なので配布できない。scripts/codex-pet-off.py が bootstrap の
+#    たびに false へ戻し、harness-doctor.sh の Step 0.8 が残存を検知する。アプリ稼働中は
+#    終了時に上書きされるので、スクリプトは稼働中を検出してスキップする
 [desktop]
 avatar-overlay-pet-visible = false
+computerUseAlwaysHidePictureInPicture = true
