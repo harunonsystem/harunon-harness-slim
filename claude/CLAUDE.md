@@ -7,31 +7,26 @@
 - 警告例: `⚠️ 現在のモデルは {model_id} です。Opus / Fable が期待値です。/config でモデルを変更してください`
 - org/plan の検知は SessionStart hook (`check-plan-model.sh`) が担当
 
-## Model Tiering（高コストモデル時のオーケストレーション）
+## Model Tiering（直接実行優先）
 
-model ID に `fable` / `opus` を含むセッションでは、メインセッションは **orchestrator（計画・分解・統合・検収）に専念**し、推論も実装もサブエージェントに委譲してトークンを節約する。これはデフォルトであって上位規範ではない。session の system prompt やユーザーが subagent / workflow を制限しているならそちらが優先し、メインセッションで直接実装する。
+モデル選択は速度を最優先にする。メインセッションがそのまま実装・検証まで行うのが既定で、subagent は明示的に有利な場合だけ使う。
 
-| 作業 | 実行者 |
+| 条件 | 実行者 |
 | --- | --- |
-| 計画・分解・統合・grill-implementation・監査・コードレビュー・diff 検収 | メインセッション（orchestrator） |
-| 推論重心: アーキテクチャ設計・複雑なバグの根本原因分析・アルゴリズム設計 | `deep-reasoner`（Opus 固定） |
-| 機械的作業: 通常の実装・テスト作成・boilerplate・整形・横展開 | `fast-worker`（Sonnet 5 固定） |
-| 別視点が欲しい問題・Claude 側レート制限の温存 | `/codex:rescue`（deep-reasoner と同格の peer。レビュアーではなく同僚） |
-| plan・設計ドキュメントのレビュー | `codex:rescue` に非同期で投げ指摘を検収に統合（インタビュー・最終判断は移譲しない） |
-| 仕様が会話に埋まっていて packet が高くつく実装 / Sonnet が 2 回失敗した実装 | `subagent_type: "fork"`（Fable、コンテキスト引き継ぎ） |
-| fork でも失敗した / 切り出せない対話的判断を含む実装 | メインセッションで直接実装 |
+| 1 ファイルの変更、数回のツール呼び出し、対話的な判断、成果物の検証 | メインセッション |
+| 独立した調査が 2 件以上あり、結果を短く統合できる | `Explore` を最大 2 件 |
+| 長時間の機械的実装で、メインをブロックする明確な理由がある | `fast-worker` を 1 件 |
+| 高リスク設計・複雑な障害の根本原因分析 | `deep-reasoner` か専門 reviewer を 1 件。結論後はメインが実装する |
 
-**Opus 5 と Fable 5 で委譲方針は逆**（model ID で判定する）:
-- Opus 5: 放っておくと spawn しすぎる。数回のツール呼び出しで終わる作業と**自分の成果物の検証**には subagent を使わない（over-verification でトークンだけ焼く）。1 つで足りるなら 1 つに留める
-- Fable 5: 並列 subagent の管理が信頼できるので頻繁に使う。長い実装ランでは fresh-context の verifier を一定間隔で回す
+禁止事項:
+- 目的が同じ subagent を複数起動しない
+- メインが直接終えられる作業を packet 化・再委譲しない
+- verifier、二重レビュー、定期的な fresh-context 起動を既定にしない
+- 委譲結果を待つためだけに別作業を始めない
 
-High-stakes な判断（アーキテクチャ選定・後戻りコストの大きい設計）は `deep-reasoner` と `codex:codex-rescue` に**同じ問題を 1 メッセージ内で並列に**投げ、互いの回答を見せないまま結論だけ受け取って統合する（生ログは取り込まない）。
+Opus / Luna の選択は、性能差よりもタスクの実測時間と利用枠で決める。単純な作業は plain な単一セッションで実行し、モデルをまたぐ委譲は失敗時または明確な並列性がある場合だけ行う。
 
-委譲の規律（packet 書式・executor ladder・vetting・Fable 固有の制約は専任の委譲スキルが SSOT）:
-- **非同期で委譲する**: 結果を待ってブロックせず独立した別作業を進める。脱線や前提不足に気づいたら介入する
-- 軽微な 1〜3 行修正は委譲コストが上回るので直接実装する。機械的な fan-out は `effort: "low"`
-- handoff packet に `git commit` / `git push` / `gh pr create` を含めない（deny rule で落ちる。git 操作はユーザー確認後にメインセッションが行う）
-- subagent の成果物はメインセッションが diff レビューしてから完了報告する
+委譲した場合も、subagent の成果物を確認してから報告する。git の commit / push / PR 作成はメインがユーザー確認後に行う。
 
 ## Core Standards（コーディング基準・AI 検証・過去の教訓）
 

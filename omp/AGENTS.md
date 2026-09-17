@@ -41,9 +41,9 @@
 
 ## ロール活用（モデルルーティング）
 
-omp の model role は `config.yml` の projection（配布元の model-routing.json 台帳から生成）を参照する。ここでは role の責務と fallback 境界だけを定め、具体的な model/provider は台帳・投影に置く。OpenAI Codex OAuth が使えない場合も、暗黙に別 provider へ切り替えず、認証状態を確認して明示的に報告する。
+通常の作業は `default` の単一セッションで直接実装・検証する。`task` / `smol` / `advisor` への委譲は、明確な並列性・長時間の機械作業・高リスク設計がある場合だけ使い、同じ目的の複数委譲や verifier の追加は禁止する。
 
-`default` は親タスクの計画・分解・統合・検収に専念する。重い実装や長い検証は `task`、小さい独立調査や fan-out は `smol`、commit/changelog 生成は `commit` に委譲する。`slow` / `plan` は設計・計画、`advisor` は必要時の独立レビューに使う。`tiny` は OMP 自身の軽量バックグラウンド処理用なので、通常の実装先として明示的に選ばない。親で直接実装するのは、委譲の往復コストが実装コストを上回る軽微な変更（1〜3 行程度）に限る。ユーザーやセッション側が委譲を制限している場合はそちらが優先する。
+モデルの選択は `config.yml` の model role（`modelRoles`）に従う。通常は `default`、重い作業だけ `task` を使う。別 provider への暗黙の fallback はしない。
 
 ## 安全ガード（omp）
 

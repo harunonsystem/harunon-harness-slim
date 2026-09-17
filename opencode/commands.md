@@ -101,6 +101,7 @@ pnpm dlx skills add JimLiu/baoyu-design
 
 | Command | Purpose |
 | --- | --- |
+| `/ai-usage-report` | AI の利用実態をログから棚卸しし、社内申請・月次報告・契約見直しの根拠を作る |
 | `/config-tune` | cclens + Claude ネイティブ insights の実測で設定を定期改善（harness SSOT or ~/.claude へ routing） |
 | `/upgrade` | 開発ツール一括アップグレード（mise / OpenCode / Homebrew） |
 
