@@ -1,42 +1,47 @@
-import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { runProcess } from "../hook-runner/hook-runner.js";
+import {
+  AMBIGUOUS_PR_ACTION,
+  classifyPrCommand,
+} from "../policy/pr-action.js";
 import { resolveToolCwd, sessionBaseCwd } from "./tool-cwd.js";
 
 const KERNEL = fileURLToPath(new URL("../policy/harnessctl.py", import.meta.url));
 
-export function actionFromTool(input, output) {
-  const tool = input?.tool ?? "";
-  if (/github.*create.*pull.*request/i.test(tool)) return "pr.create";
-  if (/github.*merge.*pull.*request/i.test(tool)) return "pr.merge";
-  if (tool !== "bash") return undefined;
-  const command = output?.args?.command;
-  if (typeof command !== "string") return undefined;
-  if (/(^|[;&|\n]\s*)(rtk\s+)?gh\s+pr\s+create(?:\s|$)/.test(command)) {
-    return "pr.create";
-  }
-  if (/(^|[;&|\n]\s*)(rtk\s+)?gh\s+pr\s+merge(?:\s|$)/.test(command)) {
-    return "pr.merge";
-  }
+function commandFromTool(output) {
+  const args = output?.args;
+  if (typeof args?.command === "string") return args.command;
+  if (typeof args?.cmd === "string") return args.cmd;
   return undefined;
 }
 
-function runAuthorize(action, cwd, command) {
-  return new Promise((resolve) => {
-    const child = spawn("python3", [KERNEL, "authorize"], {
-      cwd,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
-    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
-    child.on("error", (error) => resolve({ code: 3, reason: error.message }));
-    child.on("close", (code) => resolve({
-      code: code ?? 3,
-      reason: stdout.trim() || stderr.trim(),
-    }));
-    child.stdin.end(JSON.stringify({ repo: cwd, action, command }));
+function classifyTool(input, output) {
+  const tool = input?.tool ?? input?.name ?? input?.toolName ?? "";
+  if (/github.*create.*pull.*request/i.test(tool)) return "pr.create";
+  if (/github.*merge.*pull.*request/i.test(tool)) return "pr.merge";
+  if (tool !== "bash" && tool !== "exec_command" && tool !== "interactive_shell") {
+    return undefined;
+  }
+  return classifyPrCommand(commandFromTool(output));
+}
+
+export function actionFromTool(input, output) {
+  const action = classifyTool(input, output);
+  return action === AMBIGUOUS_PR_ACTION ? undefined : action;
+}
+
+async function runAuthorize(action, cwd, command) {
+  const result = await runProcess("python3", [KERNEL, "authorize"], {
+    cwd,
+    stdin: JSON.stringify({ repo: cwd, action, command }),
   });
+  return {
+    code: result.code,
+    reason:
+      result.stdout.trim() ||
+      result.stderr.trim() ||
+      `harnessctl exited ${result.code}`,
+  };
 }
 
 // 進行中の Core Workflow タスクが無いリポジトリは gate を課さない（Claude hook と同じ段階導入）。
@@ -59,10 +64,19 @@ export function createHarnessPolicy(authorize = runAuthorize) {
   // （harness-workflow.js と同じ解決。tool-cwd.js が SSOT）。
   return async ({ directory, worktree }) => ({
     "tool.execute.before": async (input, output) => {
-      const action = actionFromTool(input, output);
-      if (action === undefined) return;
-      const command = output?.args?.command;
-      const cwd = resolveToolCwd(sessionBaseCwd({ directory, worktree }), output?.args?.cwd);
+      const classification = classifyTool(input, output);
+      if (classification === AMBIGUOUS_PR_ACTION) {
+        throw new Error(
+          "Core Workflow policy blocked ambiguous PR actions: command contains multiple PR actions",
+        );
+      }
+      if (classification === undefined) return;
+      const action = classification;
+      const command = commandFromTool(output);
+      const cwd = resolveToolCwd(
+        sessionBaseCwd({ directory, worktree }),
+        output?.args?.workdir ?? output?.args?.cwd,
+      );
       const result = await authorize(action, cwd, command);
       if (result.code !== 0 && !isWorkflowInactive(result.reason)) {
         throw new Error(`Core Workflow policy blocked ${action}: ${result.reason}`);

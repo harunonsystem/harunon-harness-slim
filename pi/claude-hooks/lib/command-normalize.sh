@@ -306,6 +306,11 @@ for (1 .. 4) {
 }
 # 起点直後の env 代入と wrapper 語を落として、対象語を起点に隣接させる。
 my $origin = qr/(\A|[;&|\n]|&&|\|\|)/;
+# env/sudo の値付き wrapper option は語だけ落とすと値がコマンド名に残るため、
+# option と値を一組で除去する（例: `env -u NAME git commit`）。
+for (1 .. 4) {
+    $s =~ s/$origin([ \t]*)(?:env|sudo)[ \t]+(?:-u|--unset)(?:[ \t]+|=)[^ \t;&|]+[ \t]*/$1$2/g;
+}
 for (1 .. 4) {
     $s =~ s/$origin([ \t]*)(?:[A-Za-z_][A-Za-z0-9_]*=\S*[ \t]+)+/$1$2/g;
     $s =~ s/$origin([ \t]*)(?:then|do|else|elif|!|command|exec|env|time|nohup|sudo)[ \t]+/$1$2/g;

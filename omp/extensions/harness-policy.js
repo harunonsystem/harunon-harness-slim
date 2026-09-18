@@ -1,46 +1,64 @@
-import { spawn } from "node:child_process";
+import { resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runProcess } from "../hook-runner/hook-runner.js";
+import {
+  AMBIGUOUS_PR_ACTION,
+  classifyPrCommand,
+} from "../policy/pr-action.js";
 
 const DEFAULT_KERNEL = fileURLToPath(
   new URL("../policy/harnessctl.py", import.meta.url),
 );
 
 function commandFromToolCall(event) {
-  return event?.input?.command ?? event?.args?.command ?? event?.params?.command;
-}
-
-export function actionFromToolCall(event) {
-  const tool = event?.tool ?? event?.name ?? "";
-  if (/github.*create.*pull.*request/i.test(tool)) return "pr.create";
-  if (/github.*merge.*pull.*request/i.test(tool)) return "pr.merge";
-  const command = commandFromToolCall(event);
-  if (typeof command !== "string") return undefined;
-  if (/(^|[;&|\n]\s*)(rtk\s+)?gh\s+pr\s+create(?:\s|$)/.test(command)) {
-    return "pr.create";
-  }
-  if (/(^|[;&|\n]\s*)(rtk\s+)?gh\s+pr\s+merge(?:\s|$)/.test(command)) {
-    return "pr.merge";
-  }
+  const input = event?.input;
+  if (typeof input?.command === "string") return input.command;
+  if (typeof input?.cmd === "string") return input.cmd;
+  const args = event?.args;
+  if (typeof args?.command === "string") return args.command;
+  if (typeof args?.cmd === "string") return args.cmd;
+  const params = event?.params;
+  if (typeof params?.command === "string") return params.command;
+  if (typeof params?.cmd === "string") return params.cmd;
   return undefined;
 }
 
-export function runHarnessAuthorize(action, cwd, command, kernel = DEFAULT_KERNEL) {
-  return new Promise((resolve) => {
-    const child = spawn("python3", [kernel, "authorize"], {
-      cwd,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
-    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
-    child.on("error", (error) => resolve({ code: 3, reason: error.message }));
-    child.on("close", (code) => resolve({
-      code: code ?? 3,
-      reason: stdout.trim() || stderr.trim(),
-    }));
-    child.stdin.end(JSON.stringify({ repo: cwd, action, command }));
+function commandCwd(event, baseCwd) {
+  const input = event?.input;
+  const toolCwd =
+    typeof input?.workdir === "string"
+      ? input.workdir
+      : typeof input?.cwd === "string"
+        ? input.cwd
+        : undefined;
+  if (typeof toolCwd !== "string" || toolCwd.trim() === "") return baseCwd;
+  return resolvePath(baseCwd || process.cwd(), toolCwd);
+}
+
+function classifyToolCall(event) {
+  const tool = event?.tool ?? event?.name ?? event?.toolName ?? "";
+  if (/github.*create.*pull.*request/i.test(tool)) return "pr.create";
+  if (/github.*merge.*pull.*request/i.test(tool)) return "pr.merge";
+  return classifyPrCommand(commandFromToolCall(event));
+}
+
+export function actionFromToolCall(event) {
+  const action = classifyToolCall(event);
+  return action === AMBIGUOUS_PR_ACTION ? undefined : action;
+}
+
+export async function runHarnessAuthorize(action, cwd, command, kernel = DEFAULT_KERNEL) {
+  const result = await runProcess("python3", [kernel, "authorize"], {
+    cwd,
+    stdin: JSON.stringify({ repo: cwd, action, command }),
   });
+  return {
+    code: result.code,
+    reason:
+      result.stdout.trim() ||
+      result.stderr.trim() ||
+      `harnessctl exited ${result.code}`,
+  };
 }
 
 // 進行中の Core Workflow タスクが無いリポジトリは gate を課さない（Claude hook と同じ段階導入）。
@@ -58,9 +76,17 @@ export function isWorkflowInactive(reason) {
 
 export function createHarnessPolicyHandler(authorize = runHarnessAuthorize) {
   return async (event, ctx) => {
-    const action = actionFromToolCall(event);
-    if (action === undefined) return undefined;
-    const cwd = ctx?.cwd;
+    const classification = classifyToolCall(event);
+    if (classification === AMBIGUOUS_PR_ACTION) {
+      return {
+        block: true,
+        reason:
+          "Core Workflow policy blocked ambiguous PR actions: command contains multiple PR actions",
+      };
+    }
+    if (classification === undefined) return undefined;
+    const action = classification;
+    const cwd = commandCwd(event, ctx?.cwd);
     const command = commandFromToolCall(event);
     const result = await authorize(action, cwd, command);
     if (result.code === 0) return undefined;

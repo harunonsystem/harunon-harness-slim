@@ -1,28 +1,18 @@
-import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { tool } from "@opencode-ai/plugin";
+import { runProcess } from "../hook-runner/hook-runner.js";
 import { resolveToolCwd, sessionBaseCwd } from "./tool-cwd.js";
 
 const KERNEL = fileURLToPath(new URL("../policy/harnessctl.py", import.meta.url));
 
-function invoke(command, request, cwd) {
-  return new Promise((resolve, reject) => {
-    const child = spawn("python3", [KERNEL, command], {
-      cwd,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
-    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      const output = stdout.trim() || stderr.trim();
-      if (code === 0) resolve(output);
-      else reject(new Error(output || `harnessctl exited ${code}`));
-    });
-    child.stdin.end(JSON.stringify({ repo: cwd, ...request }));
+async function invoke(command, request, cwd) {
+  const result = await runProcess("python3", [KERNEL, command], {
+    cwd,
+    stdin: JSON.stringify({ repo: cwd, ...request }),
   });
+  const output = result.stdout.trim() || result.stderr.trim();
+  if (result.code === 0) return output;
+  throw new Error(output || `harnessctl exited ${result.code}`);
 }
 
 function compile(args) {

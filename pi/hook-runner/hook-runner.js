@@ -31,12 +31,14 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_HOOKS_DIR = join(HERE, "..", "claude-hooks");
 export const DEFAULT_TABLE_PATH = join(HERE, "..", "policy", "hook-pipeline.json");
 export const DEFAULT_TIMEOUT_MS = 60_000;
+export const DEFAULT_MAX_OUTPUT_BYTES = 1_048_576;
 
 /**
  * hook-pipeline.json を読む。読めなければ throw（fail loud）。
@@ -81,38 +83,139 @@ function hookEnv(runtime) {
  * 子プロセスを 1 つ走らせ {code, stdout, stderr} を返す。reject しない:
  * spawn 自体の失敗（cwd 不在の ENOENT 等）は code 1 + stderr に載せて hook 失敗と同じ経路に流す
  * （listener が無いと unhandled 'error' で拡張ホストごと落ちる）。
+ * timeout / 出力上限では子プロセスグループと pipe を閉じ、子孫が pipe を継承しても
+ * close 待ちでハングしない。
  */
-export function runProcess(file, args, { cwd, env, stdin, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+function killProcessTree(child) {
+  if (!child.pid) return;
+  try {
+    if (process.platform === "win32") child.kill("SIGKILL");
+    else process.kill(-child.pid, "SIGKILL");
+  } catch (error) {
+    if (error?.code === "ESRCH") return;
+    try {
+      child.kill("SIGKILL");
+    } catch {
+      // process already exited
+    }
+  }
+}
+
+export function runProcess(
+  file,
+  args,
+  {
+    cwd,
+    env,
+    stdin,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    maxOutputBytes = DEFAULT_MAX_OUTPUT_BYTES,
+  } = {},
+) {
   return new Promise((resolve) => {
-    const child = spawn(file, args, {
-      cwd,
-      env,
-      stdio: [stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"],
-    });
+    let child;
+    try {
+      child = spawn(file, args, {
+        cwd,
+        env,
+        detached: process.platform !== "win32",
+        stdio: [stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+      });
+    } catch (error) {
+      resolve({ code: 1, stdout: "", stderr: `spawn failed (cwd=${cwd}): ${error.message}` });
+      return;
+    }
+
+    const outputLimit =
+      Number.isFinite(maxOutputBytes) && maxOutputBytes >= 0
+        ? Math.floor(maxOutputBytes)
+        : DEFAULT_MAX_OUTPUT_BYTES;
+    const stdoutDecoder = new StringDecoder("utf8");
+    const stderrDecoder = new StringDecoder("utf8");
     let stdout = "";
     let stderr = "";
-    const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on("close", (code) => {
+    let capturedBytes = 0;
+    let settled = false;
+    let timer;
+
+    const finish = (code, diagnostic = "", discardStdout = false) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
+      stdout += stdoutDecoder.end();
+      stderr += stderrDecoder.end();
+      if (diagnostic) {
+        if (stderr && !stderr.endsWith("\n")) stderr += "\n";
+        stderr += diagnostic;
+      }
+      if (discardStdout) stdout = "";
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      child.stdin?.destroy();
       resolve({ code, stdout, stderr });
-    });
+    };
+
+    const abort = (diagnostic) => {
+      killProcessTree(child);
+      finish(1, diagnostic, true);
+    };
+
+    const capture = (stream, chunk) => {
+      if (settled) return;
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      const remaining = outputLimit - capturedBytes;
+      const accepted = remaining > 0 ? buffer.subarray(0, remaining) : buffer.subarray(0, 0);
+      capturedBytes += accepted.length;
+      if (stream === "stdout") stdout += stdoutDecoder.write(accepted);
+      else stderr += stderrDecoder.write(accepted);
+      if (accepted.length < buffer.length) {
+        abort(`hook output exceeded ${outputLimit} bytes`);
+      }
+    };
+
+    child.stdout?.on("data", (chunk) => capture("stdout", chunk));
+    child.stderr?.on("data", (chunk) => capture("stderr", chunk));
+    child.on("close", (code) => finish(code));
     child.on("error", (error) => {
-      clearTimeout(timer);
-      resolve({ code: 1, stdout: "", stderr: `spawn failed (cwd=${cwd}): ${error.message}` });
+      finish(1, `spawn failed (cwd=${cwd}): ${error.message}`, true);
     });
-    if (stdin !== undefined) {
-      // hook が stdin を読み切らず終了すると write が EPIPE になる（deny 系 hook で頻出）。
+    timer = setTimeout(
+      () => abort(`hook timed out after ${timeoutMs}ms`),
+      timeoutMs,
+    );
+    if (stdin !== undefined && child.stdin) {
+      // hook が stdin を読み切らず終了すると EPIPE になる（deny 系 hook で頻出）。
       // 判定は exit code / stdout で受け取るため、stdin の書き込みエラーは無視してよい。
       child.stdin.on("error", () => {});
       child.stdin.end(stdin);
     }
   });
+}
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function protocolError(payload) {
+  if (!isObject(payload)) return "hook output must be a JSON object";
+  if (!Object.hasOwn(payload, "hookSpecificOutput")) return undefined;
+
+  const output = payload.hookSpecificOutput;
+  if (!isObject(output)) return "hookSpecificOutput must be an object";
+
+  if (Object.hasOwn(output, "permissionDecision")) {
+    const decision = output.permissionDecision;
+    if (!["allow", "deny", "ask"].includes(decision)) {
+      return "permissionDecision must be allow, deny, or ask";
+    }
+  }
+  if (Object.hasOwn(output, "permissionDecisionReason") && typeof output.permissionDecisionReason !== "string") {
+    return "permissionDecisionReason must be a string";
+  }
+  if (Object.hasOwn(output, "updatedInput")) {
+    if (!isObject(output.updatedInput)) return "updatedInput must be an object";
+  }
+  return undefined;
 }
 
 /**
@@ -196,9 +299,19 @@ export function createHookRunner({
           warnings.push(`hook stdout is not JSON: ${hook.file}`);
           continue;
         }
+        const invalid = protocolError(parsed);
+        if (invalid) {
+          const message = `hook output is invalid: ${hook.file}: ${invalid}`;
+          if (required) return deny(`required security ${message}`, input, warnings);
+          warnings.push(message);
+          continue;
+        }
         const output = parsed.hookSpecificOutput;
         if (!output) continue;
-        const reason = output.permissionDecisionReason ?? "";
+        const reason =
+          typeof output.permissionDecisionReason === "string"
+            ? output.permissionDecisionReason
+            : "";
         if (output.permissionDecision === "deny") {
           return deny(reason, input, warnings);
         }

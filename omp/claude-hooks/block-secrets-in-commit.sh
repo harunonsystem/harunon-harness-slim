@@ -37,7 +37,7 @@ if ! normalize_command_available; then
   exit 2
 fi
 origin_rc=0
-command_origin_matches "$CMD" '(git|rtk git)[[:space:]]+commit([^A-Za-z0-9_-]|$)' || origin_rc=$?
+command_origin_matches "$CMD" '(git|rtk[[:space:]]+git)[[:space:]]+commit([^A-Za-z0-9_-]|$)' || origin_rc=$?
 case $origin_rc in
   0) ;;
   1) exit 0 ;;
@@ -46,55 +46,59 @@ case $origin_rc in
     exit 2
     ;;
 esac
+# 対象 repo の解決は review-gate.sh 経由で policy/repo_target.py に一本化する。
+TARGET_LIB="$HOOK_DIR/lib/review-gate.sh"
+if [ ! -r "$TARGET_LIB" ]; then
+  echo "commit 対象 repo の解決に必要な lib が読めません: ${TARGET_LIB}（安全側に倒してブロックします）" >&2
+  exit 2
+fi
+# shellcheck source=lib/review-gate.sh
+source "$TARGET_LIB"
 
 # --- 「hook が見る index」と「実際に commit される内容」が食い違う形を先に弾く。
 # PreToolUse は Bash の実行“前”に走るので、同じ呼び出しの中で stage される変更は
 # まだ index に無い。`git add secret.txt && git commit` や `git commit -a` を素通しすると、
-# 検査が空振りしたまま実際にはシークレットごと commit される。
-if printf '%s' "$CMD" | perl -ne 'exit(/(?:^|&&|;|\|)\s*(?:git|rtk\s+git)\s+(?:-[^\s]+\s+)*add\b/ ? 0 : 1)'; then
-  echo "同じコマンドの中で git add と commit を行っています。" >&2
-  echo "  PreToolUse の時点では add がまだ実行されておらず、staged 差分のシークレット検査が空振りします。" >&2
-  echo "  add と commit を別々のコマンドとして実行してください。" >&2
-  exit 2
-fi
-if printf '%s' "$CMD" | perl -ne '
-  exit(/(?:^|&&|;|\|)\s*(?:git|rtk\s+git)\s+(?:-[^\s]+\s+|-C\s+\S+\s+)*commit\b[^&;|]*\s-(?:[A-Za-z]*a[A-Za-z]*)\b/ ? 0 : 1)
-'; then
-  echo "git commit -a は working tree の変更を commit 時に stage するため、" >&2
-  echo "  PreToolUse 時点の index を見るシークレット検査が対象を取りこぼします。" >&2
-  echo "  git add で明示的に stage してから commit してください。" >&2
-  exit 2
-fi
+# 検査が空のまま実際にはシークレットごと commit される。
+add_rc=0
+command_origin_matches "$CMD" '(git|rtk[[:space:]]+git)[[:space:]]+add([^A-Za-z0-9_-]|$)' || add_rc=$?
+case $add_rc in
+  0)
+    echo "同じコマンドの中で git add と commit を行っています。" >&2
+    echo "  PreToolUse の時点では add がまだ実行されておらず、staged 差分のシークレット検査が空振りします。" >&2
+    echo "  add と commit を別々のコマンドとして実行してください。" >&2
+    exit 2
+    ;;
+  1) ;;
+  *)
+    echo "commit 前の add 判定に失敗しました（安全側に倒してブロックします）" >&2
+    exit 2
+    ;;
+esac
 
-# --- commit の対象 repo を解決する。hook プロセスの cwd で git diff --cached を実行すると、
-# `cd /repo-b && git commit ...` や `git -C /repo-b commit ...` の形で別リポジトリを
-# commit しているときに hook 自身の cwd（= 呼び出し元 repo）を見てしまい、判定が的外れになる。
-# 優先順位: (a) commit を打つ git 呼び出し自身の -C <path> → (b) commit 呼び出し
-# より前にある最後の `cd <path> &&` → (c) どちらも無ければ cwd。
-TARGET=$(printf '%s' "$CMD" | perl -ne '
-  if (/(?:^|&&|;|\|)\s*(?:git|rtk\s+git)\s+-C\s+(\S+)\s+commit\b/) {
-    print $1;
-    exit;
-  }
-  if (/^(.*?)(?:^|&&|;|\|)\s*(?:git|rtk\s+git)\s+commit\b/s) {
-    my $prefix = $1;
-    if ($prefix =~ /cd\s+(\S+)\s*$/) {
-      print $1;
-    }
-  }
-')
-TARGET="${TARGET%\"}"; TARGET="${TARGET#\"}"
-TARGET="${TARGET%\'}"; TARGET="${TARGET#\'}"
-TARGET="${TARGET:-$(pwd)}"
+all_rc=0
+command_origin_matches "$CMD" '(git|rtk[[:space:]]+git)[[:space:]]+commit[^;&|]*[[:space:]](-[[:alnum:]]*a[[:alnum:]]*|--all)([^A-Za-z0-9_-]|$)' || all_rc=$?
+case $all_rc in
+  0)
+    echo "git commit -a は working tree の変更を commit 時に stage するため、" >&2
+    echo "  PreToolUse 時点の index を見るシークレット検査が対象を取りこぼします。" >&2
+    echo "  git add で明示的に stage してから commit してください。" >&2
+    exit 2
+    ;;
+  1) ;;
+  *)
+    echo "commit 前の -a 判定に失敗しました（安全側に倒してブロックします）" >&2
+    exit 2
+    ;;
+esac
 
-# 対象 repo を解決できないまま素通しにしない。`git -C $PWD commit` のように hook 側では
-# 未展開のまま渡る形（シェルは後で展開して commit を実行する）や、quote / 追加の global
-# option で resolver を外せる形があり、allow に倒すと検査ごと回避できてしまう。
-if ! git -C "$TARGET" rev-parse --show-toplevel &>/dev/null; then
-  echo "commit 対象の repo を解決できませんでした: ${TARGET}（検査できないため安全側に倒してブロックします）" >&2
-  echo "  対象を明示して単独の commit コマンドで実行してください（変数展開を含む -C は解決できません）" >&2
+# review-gate.sh が policy/repo_target.py で CMD を token 化して解決する。quote / global
+# option / env prefix を独自 Perl で再解釈しない。解決不能時は cwd へ戻さず deny する。
+if ! review_gate_resolve_target_repo "$CMD"; then
+  echo "commit 対象の repo を解決できませんでした: ${REVIEW_GATE_UNRESOLVABLE_REASON:-理由不明}（検査できないため安全側に倒してブロックします）" >&2
+  echo "  対象を明示して単独の commit コマンドで実行してください。" >&2
   exit 2
 fi
+TARGET="$(pwd)"
 
 # --- staged 差分のシークレット検出（block）。高精度パターンのみ、エントロピー
 # ヒューリスティックは使わない。ファイル・行を提示してユーザーの判断を仰ぐ。

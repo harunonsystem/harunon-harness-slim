@@ -71,6 +71,9 @@ _ENV_WRAPPERS = {
 # 汎用にトークン単体で判定すると `git push -o GIT_DIR=1` の `-o` まで拾って
 # しまうため、直前が _ENV_WRAPPERS のときに限定する。
 _WRAPPER_FLAG_RE = re.compile(r"^-[A-Za-z][A-Za-z0-9-]*$")
+# wrapper option の値を 1 トークン取る形（`env -u NAME git ...` など）。値を
+# wrapper 語と同じ扱いにすると、後続の git を引数位置と誤認して cwd へ戻してしまう。
+_ENV_WRAPPER_VALUE_FLAGS = {"-u", "--unset"}
 
 # git のうち値を取るオプション。`git commit -m "--work-tree"` のように値の中身が
 # たまたまオプション名と同じ文字列でも、それは引数であってオプション指定では
@@ -106,7 +109,7 @@ def _has_git_option(tokens: list[str], names: tuple[str, ...]) -> bool:
 def _is_env_prefix_position(tokens: list[str], index: int) -> bool:
     """tokens[index] がコマンドの env prefix 位置（実行時に環境へ効く位置）にあるか。
 
-    コマンド起点、または起点から env 代入 / wrapper 語 / wrapper 直後の短フラグ
+    コマンド起点、または起点から env 代入 / wrapper 語 / wrapper option（値を取る形も含む）
     だけを挟んだ位置を真とする。`echo "GIT_DIR=x"` のような引数位置の文字列は
     偽（誤検知を避ける）。
     """
@@ -117,7 +120,17 @@ def _is_env_prefix_position(tokens: list[str], index: int) -> bool:
             cursor -= 1
             continue
         if (
-            _WRAPPER_FLAG_RE.match(previous)
+            cursor >= 2
+            and tokens[cursor - 1] in _ENV_WRAPPER_VALUE_FLAGS
+            and tokens[cursor - 2] in _ENV_WRAPPERS
+        ):
+            cursor -= 3
+            continue
+        if (
+            (
+                _WRAPPER_FLAG_RE.match(previous)
+                or previous == "--"
+            )
             and cursor > 0
             and tokens[cursor - 1] in _ENV_WRAPPERS
         ):
@@ -181,13 +194,12 @@ def _is_command_start(tokens: list[str], index: int) -> bool:
 
 
 def _is_git_start(tokens: list[str], index: int) -> bool:
-    """`git` トークンがコマンド起点にあるか（`rtk git` 経由も含む）判定する。"""
+    """`git` トークンがコマンド起点にあるか（env/wrapper と `rtk git` を含む）。"""
     if _is_command_start(tokens, index):
         return True
     if index > 0 and tokens[index - 1] == "rtk":
-        return _is_command_start(tokens, index - 1)
-    return False
-
+        return _is_command_start(tokens, index - 1) or _is_env_prefix_position(tokens, index - 1)
+    return _is_env_prefix_position(tokens, index)
 
 def _tokenize(command: str) -> list[str]:
     """制御演算子（; & | && || ( )）を独立トークンとして保持しつつトークン化する。
