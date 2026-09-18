@@ -285,17 +285,6 @@ bash:
     approval: prompt
   - match: '*Drop Database*'
     approval: prompt
-skills:
-  ignoredSkills:
-  - config-tune
-  - cr
-  - empirical-prompt-tuning
-  - figma-implement
-  - pre-review-check
-  - prototype
-  - sentry-fix
-  - setup-matt-pocock-skills
-  - skill-creator
 enabledModels:
 - cursor/composer-2.5-fast
 - openai-codex/*
