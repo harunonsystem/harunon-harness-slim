@@ -12,13 +12,20 @@ paths:
 
 | 原則 | 基準 |
 | --- | --- |
-| レビューは 1 回まで | push 前に `/codex:review` を 1 回だけ実行する。既定は background 起動（`commands/codex/review.md`） |
+| レビューは 1 回まで | push 前に独立 reviewer を 1 回だけ実行する。active provider が `openai-codex` なら runtime-native reviewer、それ以外は `/codex:review`（`commands/codex/review.md`） |
 | 指摘は全件修正する | 結果を提示したうえで、ユーザーの指示を待たずに P0 / P1 / P2 を全件修正する。P0 がこのブランチで直せない場合は push / PR に進まず止まって報告する。P3 と scope 外は直さず PR 本文の「残件」に列挙する。修正後の再レビューはしない |
 | 独断再実行禁止 | ユーザーの明示的指示なしに 2 周目を回さない |
 | 再レビューは明示指示のみ | ユーザーが「再レビュー」と指示した場合だけ 2 周目（done flag の削除が要る。下記） |
 | bypass は quota 切れだけ自動 | `~/.claude/hooks/codex-review-bypass.sh` を人手の理由で叩く前はユーザーに聞く。例外は quota / credit 切れで review が返らなかった場合で、`--quota "<エラー要旨>"` で SKIP を記録して進む（ログに quota 起因と残る） |
 | companion は sandbox 外で実行 | `codex-companion.mjs`（review / task）と `codex app-server` は Bash sandbox 内だと sqlite state runtime init に失敗する（syscall 制限。2026-07-11 実測）。必ず sandbox を外して実行する |
 | quota 切れ・API 失敗はループしない | 再試行を繰り返さない。quota / credit 切れ（companion の出力に usage limit・insufficient quota・rate limit・429・credit の類が出て review が返らない）は `--quota` で SKIP を記録し、PR 本文に「Codex review: SKIP（quota）」と書く。接続失敗など quota 以外の失敗は止まってユーザーに「手動 diff review で代替するか / bypass を承認するか」を確認する。どちらの場合も「レビュー済み」とは書かない |
+
+### Reviewer routing
+
+- If the active model provider is `openai-codex`, use an independent runtime-native reviewer and do not invoke `codex-companion.mjs`.
+- Pi は `reviewer` subagent、OMP は `review-policy.md` を渡した独立 `task`、Codex は `reviewer` agent を 1 回だけ使う。native background 実行があれば利用し、shell session を poll しない。
+- runtime-native reviewer が無ければ停止して未実施と報告する。companion fallback と自己レビューは行わない。
+- active provider が `openai-codex` 以外のときだけ `/codex:review` から companion を background 起動する。
 
 ### 適用範囲
 
@@ -46,7 +53,7 @@ paths:
 ### 標準フロー
 
 1. push 前に `/pre-review-check`（コード変更を含むなら必須。Codex に回す前に Claude 側で潰せるものを潰す）
-2. `/codex:review` を **1 回**だけ実行（background 起動。完了通知が来るまで独立した作業を進める）
+2. 上記 Reviewer routing で選んだ独立 reviewer を **1 回**だけ実行（background 起動できる場合は、完了通知が来るまで独立した作業を進める）
 3. レビュー結果をユーザーに提示する（指摘は原文のまま並べる。要約で件数や優先度を変えない）
 4. 指摘を全件修正する。ユーザーの選択を待たない
    - P0 / P1 / P2: 同じブランチの working tree で修正する。P0 が直せない場合は push / PR に進まず止まって報告する。修正が既存の決定や scope と衝突する場合だけ、その 1 件についてユーザーに聞く

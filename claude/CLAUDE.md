@@ -68,8 +68,8 @@ Opus / Luna の選択は、性能差よりもタスクの実測時間と利用�
 
 ### Quality Gate
 
-- push 前に `/codex:review` を **1 回だけ**実行（SSOT: `rules/codex-review-policy.md`。非常駐のため実施前に Read する）
-- `git push` / `gh pr create` は**打つ前に** codex:review 実施済みかを確認する（hook に BLOCK されてから review する往復を作らない）
+- push 前に `rules/codex-review-policy.md` の Reviewer routing で独立レビューを **1 回だけ**実行（非常駐のため実施前に Read する）
+- `git push` / `gh pr create` は**打つ前に**独立レビュー実施済みかを確認する（hook に BLOCK されてから review する往復を作らない）
 - コードレビューの判定基準・Finding ID 追跡は `rules/review-policy.md`（非常駐。レビュー実施時に Read する）
 - review ↔ fix ループは同じ finding_id が 3 回 persists でアプローチ再検討（codex は 1 回で停止）
 - PR 作成時は `.github/PULL_REQUEST_TEMPLATE.md` に従う（無ければ Summary / Changes / Test plan）
@@ -77,7 +77,7 @@ Opus / Luna の選択は、性能差よりもタスクの実測時間と利用�
 
 ### Delivery Flow
 
-変更は worktree branch → 実装 → テスト green → codex:review と finding 修正 → commit → PR → CI green の順で出し、**merge はユーザーの明示確認を待って止まる**（手順の SSOT は `/implement-issue`。CI green で自動的に merge に進まない。確認が取れたら `~/.claude/hooks/approve-pr.sh <PR番号> "理由"` → 番号を明示した単独の `gh pr merge <PR番号>`）。長い自律ランの前は preflight として sandbox の書き込み可否・pre-push hook の依存・push 承認フラグの状態を確認する（詳細は `rules/core-standards.md` の Git 安全機構）。
+変更は worktree branch → 実装 → テスト green → 独立レビューと finding 修正 → commit → PR → CI green の順で出し、**merge はユーザーの明示確認を待って止まる**（手順の SSOT は `/implement-issue`。CI green で自動的に merge に進まない。確認が取れたら `~/.claude/hooks/approve-pr.sh <PR番号> "理由"` → 番号を明示した単独の `gh pr merge <PR番号>`）。長い自律ランの前は preflight として sandbox の書き込み可否・pre-push hook の依存・push 承認フラグの状態を確認する（詳細は `rules/core-standards.md` の Git 安全機構）。
 
 ## Tools & Environment
 

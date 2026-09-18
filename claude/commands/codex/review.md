@@ -15,6 +15,11 @@ Core constraint:
 - The command itself only runs the review and returns Codex's output verbatim. Do not edit files before the output is back, and do not add review instructions of your own.
 - What happens after the output is back is defined by `rules/codex-review-policy.md` (the section at the end of this file restates it). That follow-up is mandatory, not optional.
 
+Provider routing (resolve before execution mode):
+- If the active model provider is `openai-codex`, delegate exactly once to an independent runtime-native reviewer and do not invoke `codex-companion.mjs`. Use Pi's `reviewer` subagent, OMP's independent `task` role with `review-policy.md`, or Codex's `reviewer` agent. Use native background execution when available and consume its completion notification; do not poll a shell session.
+- If no independent runtime-native reviewer is available, stop and report that review is unavailable. Do not fall back to the companion or self-review.
+- Only non-`openai-codex` providers use the companion flows below.
+
 Execution mode rules:
 - Background is the default. Unless the raw arguments include `--wait`, launch the review as a Claude background task.
 - If the raw arguments include `--wait`, run the review in the foreground.
@@ -26,7 +31,7 @@ Argument handling:
 - Argument safety: the raw arguments are interpolated into a shell command string. Before running, verify every whitespace-separated token consists only of `A-Z a-z 0-9 . _ / @ = -`. If any token contains other characters (quotes, `;`, `&`, `|`, `$`, backticks, parentheses, `<`, `>`, spaces inside a token, etc.), do not run the command; tell the user which token was rejected and ask them to re-run with plain flags.
 - Do not strip `--wait` or `--background` yourself.
 - Do not add extra review instructions or rewrite the user's intent.
-- If the user passes their own `--model`, it is forwarded as-is to the companion script.
+- If the user passes their own `--model`, forward it to the selected reviewer when supported; otherwise report that the native reviewer owns model selection.
 - `/codex:review` is native-review only. It does not support staged-only review, unstaged-only review, or extra focus text.
 - If the user needs custom review instructions or more adversarial framing, they should use `/codex:adversarial-review`.
 

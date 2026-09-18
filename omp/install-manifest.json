@@ -36,6 +36,7 @@
     "tools.approvalMode",
     "plan.defaultOnStartup",
     "display.hideToolActivity",
+    "compaction.thresholdTokens",
     "enabledModels",
     "bash.patterns",
     "skills"
