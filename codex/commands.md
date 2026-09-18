@@ -67,7 +67,8 @@
 | Command | Purpose |
 | --- | --- |
 | `/figma-implement` | Figma デザインから UI 実装 |
-| `/uiux-workflow` | baoyu-design → 実装 → better-interface → frontend-verify のUI/UX workflow |
+| `/impeccable-preflight` | 実装済み UI を Impeccable の決定論的 detector で事前検査 |
+| `/uiux-workflow` | baoyu-design → 実装 → impeccable-preflight → better-interface → frontend-verify のUI/UX workflow |
 | `/interface-review` | branch / PR / uncommitted change を UI・typography・layout・color・writing・a11y 横断でレビュー |
 | `/explain-interface` | Web上のUI・animation・interactionがどう実装されているかを分解して説明 |
 | `/break` | component を全 state / scenario に展開して stress test |
