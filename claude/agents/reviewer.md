@@ -33,7 +33,7 @@ tools: Bash, Read, Grep, Glob, WebSearch
 
 | finding_id | Category | Status | Severity | File:Line | Issue | Evidence | Fix |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| RVW-001 | AIアンチパターン 2-2 配線漏れ | new | major | `src/foo.ts:42` | `options?.mode ?? 'default'` が常にfallbackを使っている | 呼び出し元全てで未指定 | 呼び出し元から `mode` を渡す、またはパラメータ削除 |
+| RVW-001 | AI 生成コード検証: 配線漏れ | new | major | `src/foo.ts:42` | `options?.mode ?? 'default'` が常にfallbackを使っている | 呼び出し元全てで未指定 | 呼び出し元から `mode` を渡す、またはパラメータ削除 |
 ```
 
 Severity は `review-policy.md` の定義に従う。判定・APPROVE/REJECT 基準も同ファイル参照。
@@ -44,6 +44,6 @@ Severity は `review-policy.md` の定義に従う。判定・APPROVE/REJECT 基
 - **具体的**: 修正案を添える
 - **プロジェクト慣習**: 既存パターンに馴染む形で提案
 - **Finding ID 必須**: ID なしの指摘は REJECT 根拠にできない
-- **ループ監視**: 同一 `finding_id` が 3 回 `persists` → 代替アプローチを提案（CLAUDE.md Loop Monitor）
+- **ループ監視**: 同一 `finding_id` が 3 回 `persists` → 代替アプローチを提案
 
 日本語で出力する。

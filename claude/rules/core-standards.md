@@ -83,10 +83,10 @@ paths:
 - 勝手に base branch へマージ: preview deploy 確認目的の push が壊れる
 - 依頼にないリファクタを混ぜる: スコープ厳守。別 PR で提案する
 - 長文レポートをユーザー未確認で書き出す: 必要性を先に確認する
-- 書き出し先を確認せず新規ドキュメントを作成: 追記先の既存ドキュメント（Linear doc 等）があるか書く前に確認する（追記希望だったのに新規作成した失敗あり）
-- 既存を探さず新規 repo / パッケージ / ツールを作成: 同種の既存を検索して報告してから作る（既存 E2E repo があるのにゼロから別 repo を作った失敗あり）
-- 1 台のマシンの利用実績から「未使用」と断定して削除・無効化を提案: 「未使用」判定は根拠（telemetry・grep・git log）と信頼度（HIGH / MEDIUM / LOW）を項目ごとに明示する。単一マシンの telemetry だけなら自動的に LOW で、提案に留めて実行しない（単一マシン推論で plugin を無効化した PR #94 は revert 2 回の末に破棄）
-- 一括削除・prune を一覧提示なしに実行: 対象の全ファイル一覧と件数を出し、承認を得てから消す（306 件の生きたファイルを prune 対象にしかけた実例あり）
+- 書き出し先を確認せず新規ドキュメントを作成: 追記先の既存ドキュメント（Linear doc 等）があるか書く前に確認する
+- 既存を探さず新規 repo / パッケージ / ツールを作成: 同種の既存を検索して報告してから作る
+- 1 台のマシンの利用実績から「未使用」と断定して削除・無効化を提案: 「未使用」判定は根拠（telemetry・grep・git log）と信頼度（HIGH / MEDIUM / LOW）を項目ごとに明示する。単一マシンの telemetry だけなら自動的に LOW で、提案に留めて実行しない
+- 一括削除・prune を一覧提示なしに実行: 対象の全ファイル一覧と件数を出し、承認を得てから消す
 
 Codex レビューの扱いは `rules/codex-review-policy.md` SSOT（1回だけ実行、独断再実行・bypass 独断使用禁止）。
 
@@ -103,7 +103,7 @@ Codex レビューの扱いは `rules/codex-review-policy.md` SSOT（1回だけ�
 block された場合の責務:
 
 - 原因を直す。hook を skip する形の回避を試みない
-- **同じ deny が 2 回出た時点で試行を止め、deny を出した hook スクリプト（`claude-hooks/*.sh`）の該当 rule を読んでから次の手を打つ。** deny メッセージの字面だけを変えた再試行（`&&`→`;`、引数の並べ替え等）は原因を解消しないままトークンを燃やすだけ（git-commit-chain で30回超の空転を起こした実例あり）
+- **同じ deny が 2 回出た時点で試行を止め、deny を出した hook スクリプト（`claude-hooks/*.sh`）の該当 rule を読んでから次の手を打つ。** deny メッセージの字面だけを変えた再試行（`&&`→`;`、引数の並べ替え等）は原因を解消しないままトークンを燃やすだけ
 - シークレット検出が誤検知に見えても、独断で「誤検知だから無視」と判断しない。検出箇所（ファイル・行・値）を提示してユーザーの判断を仰ぐ
 
 push 承認フラグ（`approve-push.sh`）は承認した HEAD に紐づき、**HEAD が remote に到達した時点か 30 分（`PUSH_APPROVAL_TTL_SECONDS`）で失効**する。guard 通過時には消費しないので、後続の pre-push hook（unittest / validator / mise の python 依存）が落ちても同じ承認で再 push できる。フラグは `~/.claude/review-gate/` に書くため sandbox 解除は不要。承認は cwd の repo + branch 単位なので、worktree で push するなら worktree 内（`git -C <worktree>` の対象）で承認する。`gh pr merge` / `close` も同型で、`approve-pr.sh <PR番号> "理由"` の承認（番号紐づき・TTL 30 分）と一致する番号を明示した単独コマンドだけが通る（番号省略形は deny）。長い自律ランは最後の push で止まりやすいため、着手前に `harness-doctor.sh`（前提ツール・未管理スキル・ドリフト）を通してから始める。
@@ -116,13 +116,13 @@ git add / git commit / git push は 1 コマンドずつ実行し、`git add <pa
 
 複数の Claude セッションが同じリポジトリで同時に動いている前提で振る舞う。main の checkout（`gwm` の main_repo）は全セッションが共有する領域なので、そこでは編集も commit もしない。作業は必ず worktree（`EnterWorktree(name: <branch>)`）で行う。
 
-| - `git stash` / `git stash drop | clear` / `git checkout -- <path>` / `git checkout .` / `git restore <path>` / `git reset --hard` は、その checkout にある**他セッションの未 commit 変更も巻き込む**。2026-08 に main の共有 checkout で `git stash` を実行し、並行セッション 2 つの作業を復元不能に消した実例あり。worktree の外では実行しない。worktree 内でもユーザー指示による破棄か確認する（danger table の `git-stash` / `git-checkout-discard` / `git-stash-discard` rule が warn / block する） |
+| - `git stash` / `git stash drop | clear` / `git checkout -- <path>` / `git checkout .` / `git restore <path>` / `git reset --hard` は、その checkout にある**他セッションの未 commit 変更も巻き込む**。worktree の外では実行しない。worktree 内でもユーザー指示による破棄か確認する（danger table の `git-stash` / `git-checkout-discard` / `git-stash-discard` rule が warn / block する） |
 - worktree 作成前に `git status --short` で共有 checkout が clean か確認する。dirty なら誰の変更か分からないので触らず、ユーザーに報告する
-- **stacked PR の base は着手前に確定して表示する**: 既存 PR の上に積むときは `gh pr view <n> --json headRefName,headRefOid` で head を取り、`git fetch origin --prune` 後にその SHA と `git log --oneline -3 <base>` を出して「この上に積む」と明示してからブランチを切る。`gwm` は既定で origin/main から切るので、stacking では base の指定を省略しない。origin/main から切って stale diff と誤った「未マージ」報告を出した実例が 2 回ある
+- **stacked PR の base は着手前に確定して表示する**: 既存 PR の上に積むときは `gh pr view <n> --json headRefName,headRefOid` で head を取り、`git fetch origin --prune` 後にその SHA と `git log --oneline -3 <base>` を出して「この上に積む」と明示してからブランチを切る。`gwm` は既定で origin/main から切るので、stacking では base の指定を省略しない
 
 ### main 直 commit の回収手順
 
-main への push は通らないので、ローカル main に commit してしまったら**放置せずその場で PR に載せ替えてから作業を終える**（放置すると次の `git pull` が diverge して他セッションが詰まる。2026-08-13 に実際に発生）:
+main への push は通らないので、ローカル main に commit してしまったら**放置せずその場で PR に載せ替えてから作業を終える**（放置すると次の `git pull` が diverge して他セッションが詰まる）:
 
 1. 関連する未 commit の変更（テスト修正等）も同じ作業の一部として commit する
 2. `git push origin HEAD:refs/heads/<branch>` で remote に feature branch を作る（ローカルでのブランチ作成は gwm 制約で block されるため、この形式を使う）
@@ -136,7 +136,7 @@ issue は **Linear**、PR は **GitHub**。`triage` / `to-issues` / `implement-i
 
 ### 「確認した」と言う前に実物を見る
 
-すべて REJECT: 実画面（ブラウザ / Storybook）を開かずに完了宣言する、Figma と実装のスクショを突き合わせず「デザイン通り」と報告する、docs / Linear / GitHub issue を引かずに「直しました」と断言する、subagent の「完了しました」をそのまま転記する（成果物ファイルの実在と diff を確認してから完了と言う。報告されたファイルが存在しなかった実例あり）。OK は実物のスクショ / ログ / DOM / DB を見た上で差分を提示した場合だけ。
+すべて REJECT: 実画面（ブラウザ / Storybook）を開かずに完了宣言する、Figma と実装のスクショを突き合わせず「デザイン通り」と報告する、docs / Linear / GitHub issue を引かずに「直しました」と断言する、subagent の「完了しました」をそのまま転記する（成果物ファイルの実在と diff を確認してから完了と言う）。OK は実物のスクショ / ログ / DOM / DB を見た上で差分を提示した場合だけ。
 
 報告する主張は、このセッションのツール結果と突き合わせてから書く。未検証の項目は「未検証」と明言する。
 
@@ -144,28 +144,28 @@ issue は **Linear**、PR は **GitHub**。`triage` / `to-issues` / `implement-i
 
 - 「done」「テスト通った」「CI green」は、**同じ turn でそのコマンドを実行し生出力を見た**場合にだけ書く。前の turn の結果や、diff から推測した結果を根拠にしない
 - 完了報告の末尾に検証結果を列挙する（typecheck・test・lint・validator・CI のうち該当するもの）。1 検査 1 行で、検査名・実行したコマンド・末尾出力の数行・判定（PASS / FAIL / BLOCKED）を並べる。表にすると応答をコピペした先で崩れるので使わない
-- sandbox・credit・permission・hook で検証が実行できなかった項目は **BLOCKED**（PASS でも FAIL でもない第三の状態）として書き、要約文でも「未検証あり」と言う。1 行でも BLOCKED / FAIL があれば「完了」とは書かない。4/7 テスト失敗のまま完了宣言した実例、rulesync / plugin のバージョンを未確認で「最新」と報告した実例あり
-- issue / PR の状態や「マージ済みか」は、Linear や PR 本文の説明ではなく `gh pr view` / `git log` / `git branch --contains` の出力で確定する。Linear の説明文だけから状態を断定し、2 回押し返された実例あり
+- sandbox・credit・permission・hook で検証が実行できなかった項目は **BLOCKED**（PASS でも FAIL でもない第三の状態）として書き、要約文でも「未検証あり」と言う。1 行でも BLOCKED / FAIL があれば「完了」とは書かない
+- issue / PR の状態や「マージ済みか」は、Linear や PR 本文の説明ではなく `gh pr view` / `git log` / `git branch --contains` の出力で確定する
 
-バグ修正の完了判定は「元の症状を再現する手順を、修正後に再実行して消えた」ことで行う。「PR をマージすれば直るはず」「この変更で直るはず」は検証ではない（マージだけでは構造的に直らない sync 障害を、検証質問で初めて発見した実例あり）。再現手段が無い場合はその旨を明言して完了宣言しない。
+バグ修正の完了判定は「元の症状を再現する手順を、修正後に再実行して消えた」ことで行う。「PR をマージすれば直るはず」「この変更で直るはず」は検証ではない。再現手段が無い場合はその旨を明言して完了宣言しない。
 
 ### 表面的修正・合意事項
 
 同じ問題に同じ対処を繰り返す → REJECT。「一旦動くようにした」で終わらない。
 
-設定・ツーリングのバグは、パッチを当てる前に**その値を所有する層**（SSOT）を特定する。生成物・配布物・pin された artifact（配布済み config、model catalog の JSON 等）を直接直しても再生成で消える。ソース側を直して配布を再実行する（Codex の reasoning-effort 修正で、pin された catalog を先に触って revert した実例あり）。
+設定・ツーリングのバグは、パッチを当てる前に**その値を所有する層**（SSOT）を特定する。生成物・配布物・pin された artifact（配布済み config、model catalog の JSON 等）を直接直しても再生成で消える。ソース側を直して配布を再実行する。
 
 ユーザーが一度言ったことは最初に決定した仕様として扱う。
 
 ### トークン消費を無駄にしない姿勢
 
-Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode の classifier に拒否される。`git -C` / `pnpm -C` / 絶対パス起動を使い、cwd が要るなら subshell に入れる。hook でブロック）。検索は Grep ツールを使う。Grep ツールが無いコンテキスト（一部 subagent）では ripgrep を使う（Bash の grep/sed/awk は hook でブロック）。出力を削るプロキシを挟んでいる環境では hook が Bash コマンドを自動で書き換えるので、こちらから経由先を指定しない。パスは推測して Read しない（Glob / ls で確認してから）。既存ファイルへの Write / Edit は同じセッション内で Read 済みの内容にだけ行い、`File has not been read yet` / `modified since read` の precondition エラーは同じ引数の retry では解消しないので対象範囲を Read し直してから再実行する。cloud セッション由来の `/home/user/...` パスをローカルで使い回さない（ローカルは `~` 配下。旧 `~/ghq` は廃止済み）。同じ情報を複数回取得しない。`get_design_context` を大きな親ノードに一発で打たない（`get_metadata` で分割してから）。codex review / pre-review-check は勝手に複数回走らせない。
+Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode の classifier に拒否される。`git -C` / `pnpm -C` / 絶対パス起動を使い、cwd が要るなら subshell に入れる。hook でブロック）。検索は Grep ツールを使う。Grep ツールが無いコンテキスト（一部 subagent）では ripgrep を使う（Bash の grep/sed/awk は hook でブロック）。出力を削るプロキシを挟んでいる環境では hook が Bash コマンドを自動で書き換えるので、こちらから経由先を指定しない。パスは推測して Read しない（Glob / ls で確認してから）。既存ファイルへの Write / Edit は同じセッション内で Read 済みの内容にだけ行い、`File has not been read yet` / `modified since read` の precondition エラーは同じ引数の retry では解消しないので対象範囲を Read し直してから再実行する。cloud セッション由来の `/home/user/...` パスをローカルで使い回さない（ローカルは `~` 配下）。同じ情報を複数回取得しない。`get_design_context` を大きな親ノードに一発で打たない（`get_metadata` で分割してから）。codex review / pre-review-check は勝手に複数回走らせない。
 
 ### macOS 環境の罠（実際に再発したもののみ）
 
 - `xargs -a` は BSD xargs に無い。`< file xargs` を使う
 - 一括置換は実行前後でマッチ件数を突き合わせて取りこぼしを検証する（hidden dir・ignore 設定で検索対象が変わるため件数一致を前提にしない）
-- toolchain はプロジェクトのバージョン管理ツール経由で実行し、長い作業の前に解決されたバージョンを確認する（PATH 順で別の pnpm を掴んだ失敗あり）
+- toolchain はプロジェクトのバージョン管理ツール経由で実行し、長い作業の前に解決されたバージョンを確認する
 
 ### 既存機能・優先順位・commit戦略
 
@@ -179,10 +179,10 @@ Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode
 - 「全部消せ」: 代替案を出す前にまず消す
 - 「気になる」: 質問であり削除 / 変更の指示ではない
 - 「どれにしますか？」と選択肢を並べるより、推奨案を実行するほうが求められている
-- 質問への回答中に見つけた隣接問題: 直さない。回答の末尾に「提案」として列挙する（「未使用フラグはある?」に対し SKILL.md を新規作成した実例あり）
+- 質問への回答中に見つけた隣接問題: 直さない。回答の末尾に「提案」として列挙する
 - 質問（「〜は設定された?」「壊れる?」）: Read / Grep / `gh` / `git` の読み取りだけで答える。worktree・ブランチ・ファイルの作成は「編集」と同じ扱いで、実装依頼が来るまで行わない
-- formatter / lint --fix: リポジトリ全体に掛けない。`git diff --name-only` で得た変更ファイルだけを対象にする（`lint:write` が 65 ファイルを整形し 3 ファイルに戻した実例あり）
-- 「X を片付けて」の X は依頼の対象だけ。同じ場所にある別ブランチ・別 worktree の作業を同じ PR に混ぜない（「open PR の整理」に codex worktree の作業を混ぜて指摘された実例あり）
+- formatter / lint --fix: リポジトリ全体に掛けない。`git diff --name-only` で得た変更ファイルだけを対象にする
+- 「X を片付けて」の X は依頼の対象だけ。同じ場所にある別ブランチ・別 worktree の作業を同じ PR に混ぜない
 
 **同じ方向性に 2 回 pushback されたら、3 回目の説明を書かずに止まる。** 説明を足しても伝わらないのは論点がずれているサイン。問題を 1 文で定義し直し、判断軸付きで 2〜3 案を出して選ばせる（「話が混ざってる」「で?」「そもそも何がしたいの」が 2 回出た時点で該当）。
 

@@ -32,7 +32,7 @@ similarity-ts -h                 # threshold 等の詳細オプション
 ## 使いどころ
 
 1. **リファクタ前の重複洗い出し**: スキャン → 重複ペアを影響度順に整理 → 統合プランを提示。統合先の妥当性判定は `rules/review-policy.md` の DRY 基準に委譲する
-2. **レビュー / pre-review-check の補助**: 変更ファイルを対象に実行し、`rules/core-standards.md`「コーディング基準」の禁止事項『コピペパターン』の機械的裏付けにする
+2. **レビュー / pre-review-check の補助**: 変更ファイルを対象に実行し、`rules/core-standards.md`「実装の梯子」2 段目（既存コードの再利用）の機械的裏付けにする
 3. **新規実装前**: Copy-from-existing 原則のコピー元探しに、書こうとしている処理と似た既存実装を探す
 
 ## 解釈の規律
