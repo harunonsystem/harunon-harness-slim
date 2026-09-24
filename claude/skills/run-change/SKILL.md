@@ -8,11 +8,14 @@ compatibility: codex opencode pi omp claude
 
 Use the runtime-neutral Core Workflow instead of recreating the development process in the prompt.
 
+`run-change` owns lifecycle state, policy gates, and evidence binding. It does **not** own worker selection, spawning, dispatch, retries, worktree management, or runtime-specific handoff. Those belong to each runtime's native orchestration layer.
+
 ## Native Interface First
 
 - OpenCode: use the `harness_workflow` custom tool. State is per git worktree, so when the task lives in a worktree other than the session directory, pass that worktree as `cwd` on every call (the same `cwd` you give the bash tool).
 - Codex: use this skill's `scripts/harness.py`; keep review inside the active Codex runtime.
 - Claude / pi / omp and other runtimes: use `scripts/harness.py`. Runtime adapters translate native tool events to the same policy actions.
+- When phase work is delegated, use the runtime-native execution surface instead of building another coordinator inside `run-change`. Runtime-specific package or tool selection belongs to the target adapter/instructions, not this shared skill.
 
 Do not edit state files directly. Every mutation uses revision compare-and-swap and schema validation.
 
@@ -59,9 +62,15 @@ intake -> clarify? -> isolate -> plan -> implement -> verify
 
 An invalid transition or stale revision must remain blocked. Re-inspect instead of retrying with guessed state.
 
+## Verify
+
+Run deterministic project checks first (tests, typecheck, lint, build, or the repository's declared verification commands). They remain the source of truth for `checks_passed`.
+
+When the shared Jev MCP is available and the change is non-trivial, use `jev_verify` as an advisory evidence check over the task/completion claims, relevant diff or artifacts, and the deterministic check results. Treat its typed judgment as a signal only: it may request more evidence or surface a mismatch, but it never substitutes for executable checks and must not advance or block the Core Workflow by itself. If Jev is unavailable, continue with deterministic verification; do not fail the task solely because the advisory evaluator is missing.
+
 ## Review
 
-At `review`, use the runtime's built-in reviewer. In Codex, use the active runtime's reviewer with the configured `review_model`; when the reviewer subagent is available, spawn the `reviewer` agent. Do not shell out to `codex review` and do not use a plugin process to start another Codex session.
+At `review`, use the runtime's explicit review surface rather than assuming every runtime has a bundled reviewer. In Codex, use the active runtime's reviewer with the configured `review_model`; when the reviewer subagent is available, spawn the `reviewer` agent. In pi / omp, use `/ocr-review` unless the user explicitly selects another review surface. Do not shell out to `codex review` and do not use a plugin process to start another Codex session.
 
 Save the reviewer's complete final output as a temporary artifact, then attach it explicitly:
 
@@ -78,7 +87,7 @@ After the findings are presented, fix every P0 / P1 / P2 on the branch and recor
 If the reviewer did not return because of quota / credit exhaustion, record the skip instead of an attach and move on to publish; the PR body must say the review was skipped:
 
 ```bash
-python3 <skill-dir>/scripts/harness.py skip-review --revision <revision> --provider codex --reason "<reviewer error summary>"
+python3 <skill-dir>/scripts/harness.py skip-review --revision <revision> --provider <provider> --reason "<reviewer error summary>"
 ```
 
 Any other reviewer failure (connection, auth, crash) is not a skip: stop and ask the user.
@@ -90,6 +99,8 @@ python3 <skill-dir>/scripts/harness.py approve-review --revision <revision> --re
 ```
 
 ## Publish
+
+Before drafting the PR body, read `rules/pr-body.md`. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, preserve its headings and checklists while applying the readability rules inside each section.
 
 Before PR creation, authorize the normalized action. In Codex, prefer the GitHub app's pull-request tool when it is available; use `gh` only as a fallback.
 
@@ -103,15 +114,14 @@ An explicit user request to create the PR is the publication confirmation. Do no
 
 PR merge remains subject to the external required status check and branch rules. Never treat writable local state as merge authorization.
 
-## Assignments
+## Delegation Boundary
 
-At `implement` or `review`, a coordinator can delegate the phase to a worker executor instead of doing it inline. Only one assignment is live at a time; create the next one only after the current one is `reported` or `abandoned`.
+At `implement` or `review`, execution may be delegated, but orchestration stays outside `run-change`.
 
-```bash
-python3 <skill-dir>/scripts/harness.py assign implement --executor codex --worker-id <session-id> --revision <revision>
-python3 <skill-dir>/scripts/harness.py dispatched --transport agmsg --ref '{"team":"...","to":"..."}' --at "$(date -u +%FT%TZ)" --revision <revision>
-python3 <skill-dir>/scripts/harness.py report --executor codex --worker-id <session-id> --result-sha "$(git rev-parse HEAD)" --artifact <report-file> --checks '[{"command":"pytest","exitCode":0}]' --revision <revision>
-python3 <skill-dir>/scripts/harness.py abandon --reason "<why the worker was abandoned>" --revision <revision>
-```
+- Runtime-native orchestration owns worker selection, spawn/dispatch, retries, worktree mechanics, and worker-to-reviewer handoff.
+- `run-change` records only lifecycle transitions and the evidence needed by policy gates.
+- The runtime-specific parent/coordinator supplies scope / acceptance criteria / deterministic check commands, then validates the resulting diff and checks before advancing the Core Workflow. Do not mirror the runtime's worker lifecycle as a second manual `assign -> dispatched -> report` loop.
+- The kernel's `assignment.create`, `assignment.dispatched`, `assignment.report`, and `assignment.abandon` operations remain low-level compatibility/provenance APIs for adapters that need an auditable external-worker record. They record facts; they are not the default orchestration API.
+- A runtime may delegate without creating a kernel assignment. Existing gates only require a report when an assignment was explicitly created, so inline and runtime-native delegation remain valid.
 
-`assign` returns a `correlationId` in the state's last assignment; embed it in the dispatch message so the worker's reply can be matched back to this assignment. `report` verifies the worker actually advanced past the assigned base (`resultSha` must be `HEAD`, and the assignment's base must be its ancestor) before marking the assignment `reported`. `phase.advance implemented` is blocked until an `implement` assignment is `reported`; a review assignment reports through this same command or through `attach-review`, whichever is already in flight.
+Keep one source of truth per concern: Core Workflow for lifecycle/policy/evidence, runtime-native orchestration for execution.

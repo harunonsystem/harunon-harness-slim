@@ -24,6 +24,7 @@
     "extensions/omp-denial-reason.js",
     "extensions/post-edit-checks.js",
     "hook-runner",
+    "mcp.json",
     "policy",
     "rules",
     "workflows"
@@ -40,6 +41,9 @@
     "enabledModels",
     "bash.patterns",
     "skills"
+  ],
+  "settingsRemoveKeys": [
+    "permissions"
   ],
   "ledger": ".harunon-slim.installed.json"
 }

@@ -773,11 +773,305 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
     }
 
 
+SUPPORTED_OPERATIONS = (
+    "inspect",
+    "start",
+    "advance",
+    "approve_review",
+    "attach_review",
+    "skip_review",
+    "assign",
+    "dispatched",
+    "report",
+    "abandon",
+    "authorize",
+)
+
+
+def _operation_error(code: str, operation: Any, **details: Any) -> KernelError:
+    return KernelError(code, operation=operation, **details)
+
+
+def _operation_arguments(operation: Any, arguments: Any) -> JsonObject:
+    if not isinstance(operation, str) or not operation:
+        raise _operation_error("INVALID_OPERATION", operation)
+    if operation not in SUPPORTED_OPERATIONS:
+        raise _operation_error("UNKNOWN_OPERATION", operation)
+    if not isinstance(arguments, dict):
+        raise _operation_error(
+            "INVALID_OPERATION_ARGUMENTS",
+            operation,
+            reason="arguments must be a JSON object",
+        )
+    return arguments
+
+
+def _validate_operation_keys(
+    operation: str,
+    arguments: JsonObject,
+    required: tuple[str, ...],
+    optional: tuple[str, ...] = (),
+) -> None:
+    allowed = set(required) | set(optional)
+    unexpected = sorted(set(arguments) - allowed)
+    if unexpected:
+        raise _operation_error(
+            "OPERATION_ARGUMENT_UNEXPECTED",
+            operation,
+            arguments=unexpected,
+        )
+    for name in required:
+        if name not in arguments:
+            raise _operation_error(
+                "OPERATION_ARGUMENT_REQUIRED",
+                operation,
+                argument=name,
+            )
+
+
+def _operation_string(operation: str, arguments: JsonObject, name: str) -> str:
+    value = arguments[name]
+    if not isinstance(value, str) or not value.strip():
+        raise _operation_error(
+            "OPERATION_ARGUMENT_INVALID",
+            operation,
+            argument=name,
+            reason="must be a non-empty string",
+        )
+    return value
+
+
+def _operation_revision(operation: str, arguments: JsonObject) -> int:
+    value = arguments["expectedRevision"]
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise _operation_error(
+            "OPERATION_ARGUMENT_INVALID",
+            operation,
+            argument="expectedRevision",
+            reason="must be a non-negative integer",
+        )
+    return value
+
+
+def _operation_json_object(operation: str, arguments: JsonObject, name: str) -> JsonObject:
+    raw = arguments[name]
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, str):
+        raise _operation_error(
+            "OPERATION_ARGUMENT_INVALID",
+            operation,
+            argument=name,
+            reason="must be a JSON object",
+        )
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise _operation_error(
+            "OPERATION_ARGUMENT_INVALID",
+            operation,
+            argument=name,
+            reason=str(error),
+        ) from error
+    if not isinstance(value, dict):
+        raise _operation_error(
+            "OPERATION_ARGUMENT_INVALID",
+            operation,
+            argument=name,
+            reason="must be a JSON object",
+        )
+    return value
+
+
+def _operation_json_array(operation: str, arguments: JsonObject, name: str) -> list[Any]:
+    raw = arguments[name]
+    if isinstance(raw, list):
+        return raw
+    if not isinstance(raw, str):
+        raise _operation_error(
+            "OPERATION_ARGUMENT_INVALID",
+            operation,
+            argument=name,
+            reason="must be a JSON array",
+        )
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise _operation_error(
+            "OPERATION_ARGUMENT_INVALID",
+            operation,
+            argument=name,
+            reason=str(error),
+        ) from error
+    if not isinstance(value, list):
+        raise _operation_error(
+            "OPERATION_ARGUMENT_INVALID",
+            operation,
+            argument=name,
+            reason="must be a JSON array",
+        )
+    return value
+
+
+def _operation_artifact(operation: str, arguments: JsonObject, name: str) -> str:
+    return str(Path(_operation_string(operation, arguments, name)).expanduser())
+
+
+def _resolve_operation_artifact(artifact: str, repo: Path) -> str:
+    path = Path(artifact)
+    return str(path.resolve() if path.is_absolute() else (repo / path).resolve())
+
+
+def compile_operation(
+    operation: Any,
+    arguments: Any,
+    repo: Path,
+) -> tuple[str, JsonObject]:
+    operation_arguments = _operation_arguments(operation, arguments)
+    assert isinstance(operation, str)
+    if operation == "inspect":
+        _validate_operation_keys(operation, operation_arguments, ())
+        return "inspect", {}
+    if operation == "start":
+        _validate_operation_keys(operation, operation_arguments, ("taskId",), ("mode",))
+        task_id = _operation_string(operation, operation_arguments, "taskId")
+        request: JsonObject = {"type": "task.start", "taskId": task_id}
+        if "mode" in operation_arguments:
+            mode = _operation_string(operation, operation_arguments, "mode")
+            if mode not in ("change", "publish"):
+                raise _operation_error(
+                    "OPERATION_ARGUMENT_INVALID",
+                    operation,
+                    argument="mode",
+                    reason="must be change or publish",
+                )
+            request["mode"] = mode
+        return "apply", request
+    if operation == "advance":
+        _validate_operation_keys(operation, operation_arguments, ("event", "expectedRevision"))
+        return "apply", {
+            "type": "phase.advance",
+            "event": _operation_string(operation, operation_arguments, "event"),
+            "expectedRevision": _operation_revision(operation, operation_arguments),
+        }
+    if operation == "approve_review":
+        _validate_operation_keys(operation, operation_arguments, ("reason", "expectedRevision"))
+        return "apply", {
+            "type": "review.approve",
+            "reason": _operation_string(operation, operation_arguments, "reason"),
+            "expectedRevision": _operation_revision(operation, operation_arguments),
+        }
+    if operation == "attach_review":
+        _validate_operation_keys(
+            operation,
+            operation_arguments,
+            ("expectedRevision", "provider", "subjectSha", "artifact"),
+        )
+        artifact = _operation_artifact(operation, operation_arguments, "artifact")
+        check_artifact_exists(artifact, repo)
+        artifact = _resolve_operation_artifact(artifact, repo)
+        return "apply", {
+            "type": "review.attach",
+            "expectedRevision": _operation_revision(operation, operation_arguments),
+            "evidence": {
+                "kind": "local-review",
+                "trust": "audit-only",
+                "provider": _operation_string(operation, operation_arguments, "provider"),
+                "subjectSha": _operation_string(operation, operation_arguments, "subjectSha"),
+                "artifact": artifact,
+            },
+        }
+    if operation == "skip_review":
+        _validate_operation_keys(operation, operation_arguments, ("expectedRevision", "provider", "reason"))
+        return "apply", {
+            "type": "review.skip",
+            "expectedRevision": _operation_revision(operation, operation_arguments),
+            "evidence": {
+                "kind": "review-skipped",
+                "trust": "audit-only",
+                "provider": _operation_string(operation, operation_arguments, "provider"),
+                "skipReason": "quota",
+                "reason": _operation_string(operation, operation_arguments, "reason"),
+            },
+        }
+    if operation == "assign":
+        _validate_operation_keys(
+            operation,
+            operation_arguments,
+            ("expectedRevision", "role", "executor", "workerId"),
+        )
+        role = _operation_string(operation, operation_arguments, "role")
+        if role not in ("implement", "review"):
+            raise _operation_error(
+                "OPERATION_ARGUMENT_INVALID",
+                operation,
+                argument="role",
+                reason="must be implement or review",
+            )
+        return "apply", {
+            "type": "assignment.create",
+            "expectedRevision": _operation_revision(operation, operation_arguments),
+            "role": role,
+            "executor": _operation_string(operation, operation_arguments, "executor"),
+            "workerId": _operation_string(operation, operation_arguments, "workerId"),
+        }
+    if operation == "dispatched":
+        _validate_operation_keys(
+            operation,
+            operation_arguments,
+            ("expectedRevision", "transport", "ref", "at"),
+        )
+        return "apply", {
+            "type": "assignment.dispatched",
+            "expectedRevision": _operation_revision(operation, operation_arguments),
+            "transport": _operation_string(operation, operation_arguments, "transport"),
+            "ref": _operation_json_object(operation, operation_arguments, "ref"),
+            "at": _operation_string(operation, operation_arguments, "at"),
+        }
+    if operation == "report":
+        _validate_operation_keys(
+            operation,
+            operation_arguments,
+            ("expectedRevision", "executor", "workerId", "resultSha", "artifact"),
+            ("checks",),
+        )
+        artifact = _operation_artifact(operation, operation_arguments, "artifact")
+        check_artifact_exists(artifact, repo)
+        artifact = _resolve_operation_artifact(artifact, repo)
+        checks = (
+            _operation_json_array(operation, operation_arguments, "checks")
+            if "checks" in operation_arguments
+            else []
+        )
+        return "apply", {
+            "type": "assignment.report",
+            "expectedRevision": _operation_revision(operation, operation_arguments),
+            "evidence": {
+                "kind": "worker-report",
+                "trust": "audit-only",
+                "executor": _operation_string(operation, operation_arguments, "executor"),
+                "workerId": _operation_string(operation, operation_arguments, "workerId"),
+                "resultSha": _operation_string(operation, operation_arguments, "resultSha"),
+                "artifact": artifact,
+                "checks": checks,
+            },
+        }
+    if operation == "abandon":
+        _validate_operation_keys(operation, operation_arguments, ("expectedRevision", "reason"))
+        return "apply", {
+            "type": "assignment.abandon",
+            "expectedRevision": _operation_revision(operation, operation_arguments),
+            "reason": _operation_string(operation, operation_arguments, "reason"),
+        }
+    _validate_operation_keys(operation, operation_arguments, ("action",))
+    return "authorize", {"action": _operation_string(operation, operation_arguments, "action")}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-file", type=Path)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("inspect", "apply", "authorize"):
+    for name in ("inspect", "apply", "authorize", "operate"):
         commands.add_parser(name)
     return parser
 
@@ -789,20 +1083,29 @@ def main() -> int:
         repo = resolve_repo(request)
         state_file = resolve_state_file(args.state_file, repo)
         ctx = load_workflow_context()
-        if args.command == "inspect":
+        command = args.command
+        if command == "operate":
+            command, request = compile_operation(
+                request.get("operation"),
+                request.get("arguments"),
+                repo,
+            )
+        if command == "inspect":
             state = read_state(state_file)
             if state.get("schemaVersion") != 2:
                 raise KernelError("STATE_SCHEMA_VERSION_UNSUPPORTED", exit_code=2)
             assert_workflow_bound(state, ctx)
             validate_context(state, repo)
             return emit({"state": state})
-        if args.command == "apply":
+        if command == "apply":
             with state_lock(state_file):
                 state = apply_event(state_file, repo, request, ctx)
                 validate_context(state, repo)
             return emit({"state": state})
         decision = authorize(state_file, repo, request, ctx)
         return emit(decision, 0 if decision["allowed"] else 2)
+
+
     except KernelError as error:
         return emit({"code": error.code, **error.details}, error.exit_code)
     except (KeyError, TypeError, ValueError) as error:

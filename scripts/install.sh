@@ -15,7 +15,8 @@
 #   settingsFormat : json なら settingsKeys だけを既存ファイルへマージ。toml / yaml は
 #                    dest に無いときだけ置き、あれば触らない（同期対象キーは README に列挙）
 #   settingsKeys   : json マージで上書きする dotted path（それ以外のローカル値は保持）
-#   ledger         : dest に置く配布記録のファイル名
+#   settingsRemoveKeys : json マージで dest から消す dotted path（SSOT で退役したキー）
+#   ledger       : dest に置く配布記録のファイル名
 #
 # 配ったファイルは dest の ledger に記録する。次回の install は「前回配ったが今回の payload に
 # 無いファイル」だけを消す（それ以外の dest 側ファイルは触らない）。rsync は dest 側だけにある
@@ -95,6 +96,7 @@ MANIFEST="$PAYLOAD/$MANIFEST_NAME"
 settings_file="$(jq -r '.settingsFile // empty' "$MANIFEST")"
 settings_format="$(jq -r '.settingsFormat // empty' "$MANIFEST")"
 settings_keys_json="$(jq -c '.settingsKeys // []' "$MANIFEST")"
+settings_remove_keys_json="$(jq -c '.settingsRemoveKeys // []' "$MANIFEST")"
 ledger_name="$(jq -r '.ledger' "$MANIFEST")"
 if [ -z "$DEST" ]; then
   config_dir_env="$(jq -r '.configDirEnv // empty' "$MANIFEST")"
@@ -153,14 +155,18 @@ stale_files() {
 
 # --- settings ------------------------------------------------------------------
 
-# json: 既存 settings と payload の settings を settingsKeys（dotted path）だけ突き合わせた結果を
-# stdout に出す。payload 側に無い path は触らない
+# json: 既存 settings と payload の settings を settingsKeys（dotted path）だけ突き合わせ、
+# settingsRemoveKeys を消した結果を stdout に出す。payload 側に無い path は触らない
 merged_settings() {
-  jq -S -s --argjson keys "$settings_keys_json" \
+  jq -S -s --argjson keys "$settings_keys_json" --argjson removals "$settings_remove_keys_json" \
     '.[0] as $local | .[1] as $source
      | reduce $keys[] as $key ($local;
          ($key | split(".")) as $path
-         | if ($source | getpath($path)) != null then setpath($path; $source | getpath($path)) else . end)' \
+         | if ($source | getpath($path)) != null then setpath($path; $source | getpath($path)) else . end)
+     | reduce $removals[] as $key (.;
+         ($key | split(".")) as $path
+         | if ($path[:-1] as $parent | (getpath($parent) | type) == "object" and (getpath($parent) | has($path[-1])))
+           then delpaths([$path]) else . end)' \
     "$DEST/$settings_file" "$PAYLOAD/$settings_file"
 }
 

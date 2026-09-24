@@ -17,7 +17,8 @@
 // claude target 未配布のマシンで guard が黙って無効化される穴だった。
 
 import { createHookRunner } from "../hook-runner/hook-runner.js";
-import { resolveToolCwd, sessionBaseCwd } from "./tool-cwd.js";
+import { normalizeToolCall, restoreToolInput } from "../hook-runner/runtime-mapping.js";
+import { sessionBaseCwd } from "./tool-cwd.js";
 
 export const ClaudeHooksBridge = async ({ directory, worktree, hooksDir, tablePath } = {}) => {
   const runner = createHookRunner({ runtime: "opencode", hooksDir, tablePath });
@@ -25,19 +26,21 @@ export const ClaudeHooksBridge = async ({ directory, worktree, hooksDir, tablePa
 
   return {
     "tool.execute.before": async (input, output) => {
-      if (input?.tool !== "bash") return;
-      if (!output?.args || typeof output.args.command !== "string") return;
-      // hook は spawn cwd で git rev-parse を打つ。bash tool の cwd 引数を無視すると
-      // worktree 側で発行した push 承認フラグが親リポジトリの KEY で探され見つからない。
-      const cwd = resolveToolCwd(base, output.args.cwd);
-      const result = await runner.preToolUse("Bash", { command: output.args.command }, cwd);
+      const normalized = normalizeToolCall(
+        "opencode",
+        input?.tool,
+        output?.args,
+        base,
+      );
+      if (!normalized) return;
+      const result = await runner.preToolUse(normalized.toolName, normalized.input, normalized.cwd);
       for (const warning of result.warnings) {
         console.warn(`[claude-hooks-bridge] ${warning}`);
       }
       if (result.decision !== "allow") {
         throw new Error(result.reason);
       }
-      Object.assign(output.args, result.finalInput);
+      Object.assign(output.args, restoreToolInput("opencode", input.tool, result.finalInput));
     },
   };
 };

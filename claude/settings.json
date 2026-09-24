@@ -6,13 +6,7 @@
   "env": {
     "HARNESS_RUNTIME": "claude",
     "NODE_USE_ENV_PROXY": "1",
-    "ENABLE_TOOL_SEARCH": "auto",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
-    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
-    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
-    "CLAUDE_CODE_THRIFTY_SONIC": "0",
-    "ENABLE_STOP_REVIEW": "0",
+    "DISABLE_AUTOUPDATER": "0",
     "HARNESS_EXPECTED_PLAN": "",
     "HARNESS_EXPECTED_ORG": ""
   },
@@ -30,7 +24,9 @@
       "terraform *",
       "git push *",
       "git fetch *",
-      "git pull *"
+      "git pull *",
+      "git commit *",
+      "git -C * commit *"
     ],
     "network": {
       "allowedDomains": [
@@ -56,6 +52,8 @@
         "~/.omp/agent",
         "~/.pi/agent",
         "~/.local/bin",
+        "~/Library/pnpm/store",
+        "~/Library/Caches/pnpm",
         "~/..claude.harness-distribution.lock",
         "~/..codex.harness-distribution.lock",
         "~/..agents.harness-distribution.lock",
@@ -367,7 +365,7 @@
       "harness の SSOT 配下への rm はユーザーの明示的な許可がある場合のみ"
     ]
   },
-  "model": "claude-fable-5[1m]",
+  "model": "sonnet",
   "hooks": {
     "SessionStart": [
       {
@@ -389,10 +387,6 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/validate-prompt.sh"
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/answer-first-reminder.sh"
           },
           {
             "type": "command",
@@ -504,6 +498,16 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/log-compaction.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/require-japanese-output.py"
           }
         ]
       }
@@ -628,14 +632,8 @@
     }
   },
   "language": "Japanese",
-  "effortLevel": "high",
+  "effortLevel": "medium",
   "plansDirectory": "~/.claude/plans",
   "preferredNotifChannel": "ghostty",
-  "skipAutoPermissionPrompt": true,
-  "mcpServers": {
-    "storybook": {
-      "type": "http",
-      "url": "http://localhost:6006/mcp"
-    }
-  }
+  "skipAutoPermissionPrompt": true
 }

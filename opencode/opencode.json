@@ -162,5 +162,36 @@
     "webfetch": "allow",
     "websearch": "allow"
   },
-  "default_agent": "build"
+  "default_agent": "build",
+  "mcp": {
+    "servers": {
+      "sentry": {
+        "type": "remote",
+        "url": "https://mcp.sentry.dev/mcp"
+      },
+      "linear-server": {
+        "type": "remote",
+        "url": "https://mcp.linear.app/mcp"
+      },
+      "figma": {
+        "type": "remote",
+        "url": "https://mcp.figma.com/mcp"
+      },
+      "notion": {
+        "type": "remote",
+        "url": "https://mcp.notion.com/mcp"
+      },
+      "jev": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "@jkudish/jev-mcp@0.5.0"
+        ],
+        "environment": {
+          "JEV_PROVIDER": "cloudflare"
+        }
+      }
+    }
+  }
 }

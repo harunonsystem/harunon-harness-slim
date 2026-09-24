@@ -105,12 +105,7 @@
             "git push origin +*"
           ]
         }
-      },
-      "prose": [
-        { "file": "packages/targets/opencode/AGENTS.md", "token": "git push origin main" },
-        { "file": "packages/targets/opencode/AGENTS.md", "token": "git push --force" },
-        { "file": "packages/targets/omp/AGENTS.md", "token": "push origin main" }
-      ]
+      }
     },
     {
       "id": "git-commit-chain",
@@ -196,10 +191,7 @@
           "opencode": ["git branch -D main*", "git branch -D master*", "git branch -D origin/*"],
           "omp": ["git branch -D main*", "git branch -D master*"]
         }
-      },
-      "prose": [
-        { "file": "packages/targets/opencode/AGENTS.md", "token": "git branch -D main" }
-      ]
+      }
     },
     {
       "id": "git-update-ref",
@@ -387,11 +379,7 @@
           "action": "block",
           "reason": "omp bash.patterns も git merge main/master を deny にしており、hook の warn より強い"
         }
-      },
-      "prose": [
-        { "file": "packages/targets/opencode/AGENTS.md", "token": "git merge main" },
-        { "file": "packages/targets/omp/AGENTS.md", "token": "merge main" }
-      ]
+      }
     },
     {
       "id": "git-reset-hard",
@@ -417,11 +405,7 @@
           "action": "block",
           "reason": "omp bash.patterns も git reset --hard を deny にしており、hook の warn より強い"
         }
-      },
-      "prose": [
-        { "file": "packages/targets/opencode/AGENTS.md", "token": "git reset --hard" },
-        { "file": "packages/targets/omp/AGENTS.md", "token": "reset --hard" }
-      ]
+      }
     },
     {
       "id": "git-checkout-force",
@@ -447,10 +431,7 @@
           "action": "block",
           "reason": "omp bash.patterns も git checkout -f/--force を deny にしており、hook の warn より強い"
         }
-      },
-      "prose": [
-        { "file": "packages/targets/opencode/AGENTS.md", "token": "git checkout -f" }
-      ]
+      }
     },
     {
       "id": "git-remote",

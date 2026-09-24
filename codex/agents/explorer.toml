@@ -4,7 +4,7 @@
 name = "explorer"
 description = "読み取り専用の調査・コード探索係。広い grep/読み込みを肩代わりし結論だけ返す。"
 model = "gpt-5.6-luna"
-model_reasoning_effort = "max"
+model_reasoning_effort = "low"
 developer_instructions = """
 役割: 読み取り専用の調査・コード探索係。編集・実行はしない。
 依頼範囲だけを調べる。スコープを広げない。

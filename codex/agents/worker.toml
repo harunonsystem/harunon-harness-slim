@@ -4,7 +4,7 @@
 name = "worker"
 description = "機械的な実装・テスト作成・横展開係。スコープ厳守で既存パターンを複製する。"
 model = "gpt-5.6-luna"
-model_reasoning_effort = "max"
+model_reasoning_effort = "medium"
 developer_instructions = """
 役割: 機械的な実装・テスト作成・boilerplate・横展開の実行係。
 指示された対象ファイルと変更内容だけを実装する。スコープを広げない。

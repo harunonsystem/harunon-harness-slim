@@ -22,10 +22,10 @@
 
 | Command | Purpose |
 | --- | --- |
-| `/derive-optimal-solution` | 問題の再構成・上流追跡・帰結予測（`/grill-implementation` の前段） |
+| `/derive-optimal-solution` | 問題の再構成・案の比較。実装前の必須工程ではない |
 | `/grilling` | インタビューの本体。決定ツリーをラウンド単位で聞き、フロンティアが空になるまで回す（upstream 逐語） |
-| `/grill-implementation` | `/grilling` の上に実装着手の契約（決定軸8つ・Phase 5 合意サマリー・スキップ基準・合意の保持）を載せる。実装系の必須初動 |
-| `/grill-me` | upstream の alias。`/grilling` を回すだけで実装着手の契約は持たない（実装前は `/grill-implementation` を使う） |
+| `/grill-implementation` | 実装方針の未決事項を対話で解決。明確な依頼・合意済み方針は再確認しない |
+| `/grill-me` | upstream の alias。`/grilling` を回すだけで実装着手の契約は持たない（実装方針の未決事項には `/grill-implementation`） |
 | `/grill-with-docs` | ADR / glossary を残しながらのインタビュー。記録が目的なので `/grilling` を回す |
 | `/domain-modeling` | ドメインモデル構築・CONTEXT.md / ADR 更新（model-invoked） |
 | `/codebase-design` | deep module 設計の共通語彙（model-invoked） |
@@ -45,7 +45,7 @@
 
 | Command | Purpose |
 | --- | --- |
-| `/run-change` | Agentを跨いで共有できるCore Workflowを開始・再開する |
+| `/run-change` | Agentを跨いで lifecycle / policy gate / evidence を共有するCore Workflowを開始・再開する（worker実行はruntime-native orchestration） |
 | `/implement-issue` | PRD または GitHub/Linear issue から実装 |
 | `/tdd` | Red-Green-Refactor で実装 |
 | `/diagnosing-bugs` | バグ・性能回帰の規律ある診断ループ（旧 diagnose） |

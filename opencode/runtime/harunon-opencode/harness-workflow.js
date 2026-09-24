@@ -16,95 +16,11 @@ async function invoke(command, request, cwd) {
 }
 
 function compile(args) {
-  if (args.operation === "inspect") return ["inspect", {}];
-  if (args.operation === "start") {
-    return ["apply", { type: "task.start", taskId: args.taskId }];
-  }
-  if (args.operation === "advance") {
-    return [
-      "apply",
-      { type: "phase.advance", event: args.event, expectedRevision: args.expectedRevision },
-    ];
-  }
-  if (args.operation === "approve_review") {
-    return [
-      "apply",
-      {
-        type: "review.approve",
-        reason: args.reason,
-        expectedRevision: args.expectedRevision,
-      },
-    ];
-  }
-  if (args.operation === "attach_review") {
-    return [
-      "apply",
-      {
-        type: "review.attach",
-        expectedRevision: args.expectedRevision,
-        evidence: {
-          kind: "local-review",
-          trust: "audit-only",
-          provider: args.provider,
-          subjectSha: args.subjectSha,
-          artifact: args.artifact,
-        },
-      },
-    ];
-  }
-  if (args.operation === "assign") {
-    return [
-      "apply",
-      {
-        type: "assignment.create",
-        expectedRevision: args.expectedRevision,
-        role: args.role,
-        executor: args.executor,
-        workerId: args.workerId,
-      },
-    ];
-  }
-  if (args.operation === "dispatched") {
-    return [
-      "apply",
-      {
-        type: "assignment.dispatched",
-        expectedRevision: args.expectedRevision,
-        transport: args.transport,
-        ref: JSON.parse(args.ref),
-        at: args.at,
-      },
-    ];
-  }
-  if (args.operation === "report") {
-    return [
-      "apply",
-      {
-        type: "assignment.report",
-        expectedRevision: args.expectedRevision,
-        evidence: {
-          kind: "worker-report",
-          trust: "audit-only",
-          executor: args.executor,
-          workerId: args.workerId,
-          resultSha: args.resultSha,
-          artifact: args.artifact,
-          checks: JSON.parse(args.checks || "[]"),
-        },
-      },
-    ];
-  }
-  if (args.operation === "abandon") {
-    return [
-      "apply",
-      {
-        type: "assignment.abandon",
-        expectedRevision: args.expectedRevision,
-        reason: args.reason,
-      },
-    ];
-  }
-  return ["authorize", { action: args.action }];
+  const operation = args.operation;
+  const operationArguments = { ...args };
+  delete operationArguments.operation;
+  delete operationArguments.cwd;
+  return { operation, arguments: operationArguments };
 }
 
 export const HarnessWorkflow = async ({ invokeKernel = invoke } = {}) => ({
@@ -121,6 +37,7 @@ export const HarnessWorkflow = async ({ invokeKernel = invoke } = {}) => ({
           "advance",
           "approve_review",
           "attach_review",
+          "skip_review",
           "assign",
           "dispatched",
           "report",
@@ -129,6 +46,7 @@ export const HarnessWorkflow = async ({ invokeKernel = invoke } = {}) => ({
         ]),
         cwd: tool.schema.string().optional(),
         taskId: tool.schema.string().optional(),
+        mode: tool.schema.enum(["change", "publish"]).optional(),
         event: tool.schema.string().optional(),
         expectedRevision: tool.schema.number().int().optional(),
         provider: tool.schema.string().optional(),
@@ -146,10 +64,10 @@ export const HarnessWorkflow = async ({ invokeKernel = invoke } = {}) => ({
         action: tool.schema.enum(["pr.create", "pr.merge"]).optional(),
       },
       async execute(args, context) {
-        const [command, request] = compile(args);
+        const request = compile(args);
         // bash tool の cwd 引数と同じ規約: 独立 worktree で作業しているセッションは
         // cwd を渡さないと親リポジトリの state（別タスク）を掴んで ACTIVE_TASK_EXISTS になる
-        return invokeKernel(command, request, resolveToolCwd(sessionBaseCwd(context), args.cwd));
+        return invokeKernel("operate", request, resolveToolCwd(sessionBaseCwd(context), args.cwd));
       },
     }),
   },

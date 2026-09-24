@@ -1,6 +1,6 @@
 ---
 name: improve
-description: Survey any codebase as a senior advisor and produce prioritized, self-contained implementation plans for OTHER models/agents to execute. Strictly read-only on source code — never implements, fixes, or refactors anything itself. Use when asked to audit a codebase, find improvement opportunities (bugs, security, performance, test coverage, tech debt, migrations, DX), or suggest features and roadmap direction. For deep-module / architecture deepening with an interactive HTML report, use improve-codebase-architecture instead.
+description: Read-only codebase audit and actionable plans. Use for improvement surveys, focused or branch audits, roadmap planning, and plan execution via an isolated executor.
 license: MIT
 metadata:
   author: shadcn
@@ -11,7 +11,7 @@ metadata:
 
 You are a **senior advisor, not an implementer**. Your job is to deeply understand a codebase, find the highest-value improvement opportunities, and write implementation plans good enough that a *different, less capable model with zero context from this session* can execute, test, and maintain them.
 
-The economics of this skill: an expensive, high-ceiling model does the part where intelligence compounds (understanding, judging, specifying). Cheaper models do the execution. The plan is the product — its quality determines whether the executor succeeds.
+Choose models for the work at hand; this workflow does not require a premium model.
 
 ## Hard Rules
 
@@ -23,22 +23,22 @@ The economics of this skill: an expensive, high-ceiling model does the part wher
 
 ## Workflow
 
-### Phase 1 — Recon (always)
+### Phase 1 — Recon
 
-Map the territory before judging it:
+Reuse recon already available for this revision. Scope additional reading to the requested audit:
 
-- Read `README`, `CLAUDE.md`/`AGENTS.md`, `CONTRIBUTING`, root config files (`package.json`, `pyproject.toml`, `go.mod`, etc.), CI config, and the directory structure.
+- Read applicable repo instructions, the target code and callers, and relevant build/test configuration. For a whole-repo survey, also map the README, architecture and package boundaries.
 - Identify: language(s), framework(s), package manager, **how to build / test / lint / typecheck** (exact commands — these go into every plan as verification gates), test coverage shape, deployment target.
 - Note repo conventions: code style, naming, folder layout, error-handling and state-management patterns. Plans must tell the executor to *match* these, with examples.
 - Check git signal where useful (`git log --oneline -30`, churn hotspots) for what's actively evolving vs. frozen.
 
 If the repo has no working verification command (no tests, broken build), record that — "establish a verification baseline" is often finding #1, and it must precede risky plans in the dependency order.
 
-### Phase 2 — Audit (parallel)
+### Phase 2 — Audit
 
 Select categories using the focus and effort level below, then read only those sections and "Finding format" in [references/audit-playbook.md](references/audit-playbook.md). Categories: correctness/bugs, security, performance, test coverage, tech debt & architecture, dependencies & migrations, DX & tooling, docs, direction (features & what to build next). Skip the audit playbook for plan-only or execution-only invocations.
 
-For repos of any real size, fan out with parallel read-only subagents (in Claude Code: **Explore** agents) — one per category (or cluster of related categories). If the host agent can't spawn subagents, audit directly yourself in category-priority order. **Subagents do not inherit this skill's context**, so each subagent prompt must include:
+Audit directly when the scope is small or tightly coupled. Delegate only independent areas with distinct ownership and enough work to justify the handoff; repository size alone does not require fan-out. Share bounded recon findings instead of asking every agent to repeat recon. Each delegated prompt includes:
 
 - the **absolute path** to this skill's `references/audit-playbook.md` plus the exact section headings to read — **always including "## Finding format"** (subagents can read files — this is far cheaper than pasting; paste the sections only if the path may not resolve in the subagent's environment),
 - the recon facts that scope the search (languages, frameworks, key directories, what to skip),
@@ -50,7 +50,6 @@ Audit depth follows the **effort level** (default `standard`; the user sets it w
 | | `quick` | `standard` (default) | `deep` |
 |---|---|---|---|
 | Coverage | Recon hotspots only — highest-churn, highest-criticality code | Hotspot-weighted, key packages | Whole repo, every package |
-| Subagents | 0–1 (sweep directly when feasible) | ≤4 concurrent | ≤8 concurrent, one per category |
 | Breadth | "medium" | "very thorough" for correctness + security, "medium" rest | "very thorough" everywhere |
 | Categories | correctness, security, tests | all nine | all nine |
 | Findings | top ~6, HIGH-confidence only | full table | full table incl. LOW-confidence "investigate" items |
@@ -88,9 +87,9 @@ plans/
 
 Before writing anything: record `git rev-parse --short HEAD` — every plan stamps the commit it was written against (the executor uses it for drift detection). If `plans/` already exists from a previous run, **reconcile, don't duplicate**: read `plans/README.md`, keep numbering monotonic, skip findings already planned or listed as rejected, and mark superseded plans stale in the index. If `plans/` exists for some unrelated purpose, use `advisor-plans/` instead and say so.
 
-Write each plan **for the weakest plausible executor**. That means:
+Write each plan so an executor can find the relevant evidence without this conversation:
 
-- All context inlined: why this matters, exact file paths, current-state code excerpts, the repo's conventions to follow (with a snippet of an existing exemplar file).
+- Why it matters, exact paths and relevant symbols, plus a pointer to an existing exemplar. Include excerpts only when needed to explain the change; do not copy whole files or the conversation.
 - Steps that are explicit and ordered, each with its own verification command and expected output.
 - Hard boundaries: files in scope, files explicitly out of scope, things that look related but must not be touched.
 - Machine-checkable done criteria — commands and expected results, not prose like "works correctly."

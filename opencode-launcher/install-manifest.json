@@ -10,5 +10,6 @@
   "settingsFile": null,
   "settingsFormat": null,
   "settingsKeys": [],
+  "settingsRemoveKeys": [],
   "ledger": ".harunon-slim.installed.json"
 }

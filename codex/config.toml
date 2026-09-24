@@ -1,9 +1,9 @@
 # model / model_reasoning_effort は Codex app 再起動時の medium リセットを防ぐため
 # settingsSync で push 同期する。
-model = "gpt-5.6-luna"
+model = "gpt-5.6-sol"
 model_provider = "openai"
-model_reasoning_effort = "max"
-plan_mode_reasoning_effort = "max"
+model_reasoning_effort = "medium"
+plan_mode_reasoning_effort = "medium"
 model_reasoning_summary = "concise"
 model_verbosity = "low"
 model_context_window = 272000
@@ -46,7 +46,7 @@ usage_hint_enabled = true
 max_threads = 6
 max_depth = 1
 default_subagent_model = "gpt-5.6-luna"
-default_subagent_reasoning_effort = "max"
+default_subagent_reasoning_effort = "low"
 
 [memories]
 disable_on_external_context = true
@@ -82,3 +82,20 @@ fast_default_opt_out = true
 [desktop]
 avatar-overlay-pet-visible = false
 computerUseAlwaysHidePictureInPicture = true
+
+[mcp_servers.sentry]
+url = "https://mcp.sentry.dev/mcp"
+
+[mcp_servers.linear-server]
+url = "https://mcp.linear.app/mcp"
+
+[mcp_servers.figma]
+url = "https://mcp.figma.com/mcp"
+
+[mcp_servers.notion]
+url = "https://mcp.notion.com/mcp"
+
+[mcp_servers.jev]
+command = "npx"
+args = ["-y", "@jkudish/jev-mcp@0.5.0"]
+env = { JEV_PROVIDER = "cloudflare" }

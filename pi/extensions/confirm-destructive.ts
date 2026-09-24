@@ -15,12 +15,11 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import {
-	PI_TO_CLAUDE_TOOL,
-	toClaudeInput,
-	type BridgeContext,
-	type ToolCallEvent,
-	type ToolCallResponse,
+import { normalizeToolCall } from "../hook-runner/runtime-mapping.js";
+import type {
+	BridgeContext,
+	ToolCallEvent,
+	ToolCallResponse,
 } from "./claude-hooks-bridge.ts";
 
 interface Rule {
@@ -105,11 +104,11 @@ export function destructiveReason(command: string): string | undefined {
 
 export function createConfirmDestructiveHandler() {
 	return async (event: ToolCallEvent, ctx: BridgeContext): Promise<ToolCallResponse> => {
-		if (PI_TO_CLAUDE_TOOL[event.toolName] !== "Bash") {
+		const normalized = normalizeToolCall("pi", event.toolName, event.input, ctx.cwd ?? process.cwd());
+		if (!normalized || normalized.toolName !== "Bash") {
 			return undefined;
 		}
-		const claudeInput = toClaudeInput(event.toolName, event.input);
-		const command = typeof claudeInput.command === "string" ? claudeInput.command : "";
+		const command = typeof normalized.input.command === "string" ? normalized.input.command : "";
 		const reason = destructiveReason(command);
 		if (!reason) {
 			return undefined;

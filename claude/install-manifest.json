@@ -28,7 +28,19 @@
     "fallbackModel",
     "switchModelsOnFlag",
     "env.HARNESS_RUNTIME",
-    "env.NODE_USE_ENV_PROXY"
+    "env.NODE_USE_ENV_PROXY",
+    "env.DISABLE_AUTOUPDATER"
+  ],
+  "settingsRemoveKeys": [
+    "enabledPlugins.mattpocock-skills@mattpocock",
+    "extraKnownMarketplaces.mattpocock",
+    "env.ENABLE_TOOL_SEARCH",
+    "env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS",
+    "env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING",
+    "env.CLAUDE_CODE_SUBAGENT_MODEL",
+    "env.CLAUDE_CODE_DISABLE_AUTO_MEMORY",
+    "env.CLAUDE_CODE_THRIFTY_SONIC",
+    "env.ENABLE_STOP_REVIEW"
   ],
   "ledger": ".harunon-slim.installed.json"
 }

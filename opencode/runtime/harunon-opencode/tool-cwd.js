@@ -6,9 +6,9 @@
 // 「承認したのに push が拒否される」「別タスクが占有中で PR が作れない」になる
 // （2026-08-26 に業務リポジトリで実測）。
 //
-// resolve 順は pi 版 claude-hooks-bridge.ts の resolveBaseCwd と同じ:
+// cwd の解決は共通 hook-runner/runtime-mapping.js の OpenCode 分岐と同じ:
 //   tool 引数の cwd（絶対ならそのまま、相対ならセッション base 基準）> セッション base。
-// non-git セッションで OpenCode が worktree に "/" を渡す防御も 1 箇所に寄せる。
+// non-git セッションで OpenCode が worktree に "/" を渡す防御はここに寄せる。
 
 import { resolve } from "node:path";
 

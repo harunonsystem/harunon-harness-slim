@@ -16,8 +16,8 @@ Core constraint:
 - What happens after the output is back is defined by `rules/codex-review-policy.md` (the section at the end of this file restates it). That follow-up is mandatory, not optional.
 
 Provider routing (resolve before execution mode):
-- If the active model provider is `openai-codex`, delegate exactly once to an independent runtime-native reviewer and do not invoke `codex-companion.mjs`. Use Pi's `reviewer` subagent, OMP's independent `task` role with `review-policy.md`, or Codex's `reviewer` agent. Use native background execution when available and consume its completion notification; do not poll a shell session.
-- If no independent runtime-native reviewer is available, stop and report that review is unavailable. Do not fall back to the companion or self-review.
+- If the active model provider is `openai-codex`, delegate exactly once to an independent runtime-native reviewer or explicit review surface and do not invoke `codex-companion.mjs`. Use Codex's `reviewer` agent, OMP's `/ocr-review` (or independent `task` role with `review-policy.md`), or Pi's `/ocr-review`. Use native background execution when available and consume its completion notification; do not poll a shell session.
+- If no independent reviewer or explicit review surface is available, stop and report that review is unavailable. Do not fall back to the companion or self-review.
 - Only non-`openai-codex` providers use the companion flows below.
 
 Execution mode rules:

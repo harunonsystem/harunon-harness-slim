@@ -46,5 +46,9 @@
     "desktop.avatar-overlay-pet-visible",
     "desktop.computerUseAlwaysHidePictureInPicture"
   ],
+  "settingsRemoveKeys": [
+    "model_catalog_json",
+    "network_access"
+  ],
   "ledger": ".harunon-slim.installed.json"
 }

@@ -7,19 +7,9 @@ metadata:
 
 # Figma実装ワークフロー
 
-## Step 0: grill-implementation（実装方針の stress-test）
+## Step 0: 実装範囲の確認
 
-**デザイン情報取得・実装に着手する前に `grill-implementation` スキルを invoke する。** 詳細は `skills/grill-implementation/SKILL.md`。
-
-このフェーズで押さえるべき Figma 特有の軸:
-
-- 既存のどのコンポーネントを再利用するか（プロジェクトの UI コンポーネントディレクトリを確認）
-- 新規コンポーネントのディレクトリ・命名・Storybook 配置
-- デザイントークンのマッピング（Figma 変数 → プロジェクトトークン、乖離があれば `get_variable_defs` とトークン定義を突き合わせて確認）
-- スタイリング方式（プロジェクトの既存方式に合わせる）
-- レスポンシブ（SP / PC）、アクセシビリティ、状態変化（hover / focus / disabled）
-
-終了条件: grill-implementation Phase 5 サマリーでユーザー明示承認。スキップ基準は grill-implementation SKILL.md の該当節。
+Figma と既存コードから、配置先・再利用コンポーネント・トークン・画面状態を確認する。ユーザー判断が必要な仕様の未決事項、または明示的なインタビュー依頼があるときだけ `grill-implementation` を使う。確定済みの設計は再承認を求めず実装へ進む。
 
 ## Step 1: Node IDの取得
 

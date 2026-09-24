@@ -77,45 +77,23 @@ Epic / Feature（大きな塊）
 3. **既存Issue**: `tracker` に応じて親Issue/Epicの内容を確認（`linear`: Linear MCP の `get_issue` / `github`: `gh issue view`）
 4. **対象リポジトリ**: config.yml の `$layers` マッピングから、各レイヤーに対応するリポジトリを使用
 
-### Phase 1.5: grill-implementation（分解方針の stress-test）
+### Phase 1.5: 未決事項の確認
 
-**Phase 2 の多角的分析エージェント並列起動の前に `grill-implementation` スキルを invoke する。** 詳細は `skills/grill-implementation/SKILL.md`。
+PRD と既存の合意から MVP・リリース順序・対象 repo を確認する。ユーザー固有の判断が残る場合、または対話で方針を詰める依頼がある場合だけ `grill-implementation` を使う。合意済みの方針は再確認しない。
 
-このフェーズで押さえるべき Issue 分解特有の軸:
+### Phase 2: 分解案の分析
 
-- 分割の単位（ページ単位 / 機能単位 / レイヤー単位の優先）
-- 各Issueを tracer bullet 型の縦sliceにできるか
-- リリース順序・Wave 分割の粒度
-- どこまでを最小スコープ（MVP 境界）として切り出すか
-- `$layers` マッピングに含まれないリポジトリ / レイヤーの要否
-- 各 Issue のサイズ感・並列可能性の事前仮説
+次の観点を、今回の機能に必要な範囲で調べる。
 
-終了条件: grill-implementation Phase 5 サマリーでユーザー明示承認。grill-implementation の結論は Phase 2 エージェントへの入力として使う。
+- ユーザーストーリーを端から端まで検証できる縦 slice と、リリース順序
+- 各 slice が通る schema / API / FE / test、repo 間の依存、必要な prefactor
+- サイズ・技術リスク・並列可能性。大きすぎる slice や水平分割の見直し
 
-### Phase 2: 多角的分析（エージェント並列起動）
-
-3つの観点でエージェントを並列起動し、分解案を作成する:
-
-**エージェント1 - ユーザー/リリース観点**:
-- ユーザーストーリー単位の tracer bullet slice 候補
-- demoable / verifiable な最小単位の特定
-- 機能間の依存関係（どの順でリリースすべきか）
-
-**エージェント2 - 技術/アーキテクチャ観点**:
-- schema変更の影響範囲
-- 各sliceが通る schema / API / FE / test の境界
-- リポジトリ間の依存関係
-- 後続sliceを簡単にする prefactor 候補
-
-**エージェント3 - リスク/ボリューム観点**:
-- 各sliceの見積もり難易度（S/M/L）
-- 技術的リスクが高い部分の特定
-- 並列作業可能な部分の特定
-- slice が大きすぎる / 水平分割に戻っている箇所の指摘
+通常はメインが分析する。独立した repo / 領域の調査を分担できる場合だけ並列化し、担当範囲・共有の確定事項・必要な参照先を渡す。結果は根拠付きの要点で受け取り、同じ全体調査を重ねない。
 
 ### Phase 3: 統合 & Issue構造の確定
 
-エージェントの分析結果を統合し、Issue構造を確定する。
+分析結果を統合し、Issue構造を確定する。
 
 出力フォーマット（ユーザーに提示）:
 
@@ -146,24 +124,12 @@ Epic / Feature（大きな塊）
 - **Blocked by**: 先に完了すべきIssue。なければ `None - can start immediately`
 - **User stories covered**: 元資料に user story がある場合の対応
 - **What to build**: レイヤー別作業ではなく、完成後に確認できる end-to-end の振る舞い
-- **Acceptance criteria**: 3〜5項目
+- **Acceptance criteria**: 各 slice の完了を検証できる条件
 - **Layers touched**: `$layers` のうち、このsliceで触る可能性があるもの
 
-**利用中のエージェントのユーザー確認機能で確認を取る**（必須ゲート）:
+案だけの依頼では、Issue 一覧と依存関係を提示して終了する。外部作成への確認を割り込ませない。
 
-作成予定のIssue一覧を提示して承認を得る。
-
-質問の `question` に以下を含める:
-- 全Issueのタイトル、リポジトリ、Wave、Size、Blocked by、Layers touched の一覧表
-- 依存関係の説明
-- 「粒度が粗すぎる / 細かすぎる」「依存関係が違う」「merge / split したいsliceがある」場合は修正する旨
-- 「この内容でIssueを作成してよいですか？」
-
-選択肢:
-- "このまま作成" — Phase 4に進む
-- "修正したい" — ユーザーのフィードバックを受けてPhase 3をやり直す
-
-**ユーザーが「このまま作成」を選択するまでPhase 4に進まない。**
+外部作成が依頼範囲にある場合は、作成予定のタイトル・repo・Wave・Size・Blocked by・Layers touched と依存関係を提示する。既存の承認がその一覧の作成を含むなら再確認せず Phase 4 へ進む。含まれない場合だけ「この内容で Issue を作成してよいですか？」と確認し、承認までは作成しない。
 
 ### Phase 4: Issue一括作成
 

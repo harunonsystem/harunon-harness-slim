@@ -7,11 +7,13 @@
   "managedPaths": [
     "lessons",
     "policy",
+    "rules",
     "skills",
     "workflows"
   ],
   "settingsFile": null,
   "settingsFormat": null,
   "settingsKeys": [],
+  "settingsRemoveKeys": [],
   "ledger": ".harunon-slim.installed.json"
 }

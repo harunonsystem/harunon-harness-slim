@@ -92,14 +92,17 @@ export function modelsFromOpencodeCache(
 	for (const [id, model] of Object.entries(provider.models)) {
 		if (model.status === "deprecated") continue;
 		const cost = model.cost ?? {};
-		const isFree = (cost.input ?? 0) === 0 && (cost.output ?? 0) === 0;
+		const isFree = cost.input === 0 && cost.output === 0;
 		if (from.freeOnly && !isFree) continue;
+		const contextWindow = model.limit?.context ?? 0;
+		const maxTokens = model.limit?.output ?? 0;
+		if (contextWindow <= 0 || maxTokens <= 0) continue;
 		picked.push({
 			id,
 			name: `${model.name ?? id}${suffix}`,
 			reasoning: model.reasoning === true,
-			contextWindow: model.limit?.context ?? 0,
-			maxTokens: model.limit?.output ?? 0,
+			contextWindow,
+			maxTokens,
 		});
 	}
 	picked.sort((a, b) => a.id.localeCompare(b.id));

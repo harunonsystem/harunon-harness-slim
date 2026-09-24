@@ -5,14 +5,11 @@ description: Run the Alibaba OpenCodeReview CLI as the canonical diff-review eng
 
 # OCR canonical review
 
-Use this skill when the user asks for a canonical diff review from pi or omp.
+Use this skill for diff reviews in pi and omp, both on explicit user request and during
+the Core Workflow `review` phase (e.g. in `run-change`).
 
-This runs only on an explicit request for it. It is the one exception to the runtime's
-"route every diff review to the standard reviewer" rule (pi AGENTS.md), so do not reach for
-it on your own: an ordinary review request still goes to the runtime's own reviewer.
-
-The review engine is OpenCodeReview CLI (`ocr`), not the runtime's native
-reviewer. Keep the review semantics aligned across runtimes by using the same
+The review engine is OpenCodeReview CLI (`ocr`), serving as the canonical diff-review
+surface for pi and omp. Keep the review semantics aligned across runtimes by using the same
 command shape and by returning the JSON artifact without editing the worktree.
 
 ## Review
@@ -48,4 +45,4 @@ OCR_ENABLE_TELEMETRY=0 OCR_CONTENT_LOGGING=0 mise exec -- ocr review --audience 
 ```
 
 If OCR is not configured with an LLM, report that configuration is required;
-do not silently switch to a different provider or a runtime-native reviewer.
+do not silently switch to a different provider or an unconfigured reviewer.

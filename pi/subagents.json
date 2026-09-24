@@ -1,5 +1,0 @@
-{
-	"excludedExtensionPackages": [
-		"git:github.com/NVlabs/SoL-Pi@8f8c13916c97fb54c32008e41c05421f9b69ac3b"
-	]
-}

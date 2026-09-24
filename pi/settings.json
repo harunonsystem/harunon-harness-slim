@@ -1,6 +1,6 @@
 {
 	"defaultProvider": "openai-codex",
-	"defaultModel": "gpt-5.6-luna",
+	"defaultModel": "gpt-5.6-sol",
 	"defaultThinkingLevel": "medium",
 	"theme": "dark",
 	"quietStartup": true,
@@ -19,14 +19,13 @@
 		"npm:@howaboua/pi-codex-conversion@3.0.34",
 		"npm:@howaboua/pi-codex-web-run@0.0.2",
 		"npm:@howaboua/pi-codex-imagegen@0.0.5",
-		"npm:@gotgenes/pi-subagents@21.0.0",
-		"git:github.com/NVlabs/SoL-Pi@8f8c13916c97fb54c32008e41c05421f9b69ac3b",
-		"npm:pi-web-access@0.27.0",
-		"npm:pi-mcp-adapter@2.31.0",
-		"npm:@ff-labs/pi-fff@0.10.5",
+		"git:github.com/NVlabs/SoL-Pi@bd005888b9b8a3fcdb511feb91fc27d3dfa8f2b1",
+		"npm:pi-web-access@0.29.0",
+		"npm:pi-mcp-adapter@2.34.0",
+		"npm:@ff-labs/pi-fff@0.10.6",
 		"npm:@pi-lab/input-history@1.0.3",
-		"npm:pi-powerline-footer@0.16.0",
-		"npm:pi-interactive-shell@0.15.1"
+		"npm:pi-powerline-footer@0.17.1",
+		"npm:pi-interactive-shell@0.15.2"
 	],
 	"enabledModels": [
 		"opencode-zen/*",

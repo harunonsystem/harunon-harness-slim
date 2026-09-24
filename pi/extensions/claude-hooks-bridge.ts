@@ -7,9 +7,9 @@
  * SSOT: harunon-harness packages/core/pi-extensions/
  * 設計: docs/plans/004-pi-target-bridge.md
  */
-import { resolve as resolvePath } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createHookRunner } from "../hook-runner/hook-runner.js";
+import { normalizeToolCall, restoreToolInput } from "../hook-runner/runtime-mapping.js";
 
 export interface HookRunResult {
 	decision: "allow" | "deny" | "ask";
@@ -25,59 +25,6 @@ export interface HookRunner {
 		toolInput: Record<string, unknown>,
 		cwd: string,
 	): Promise<HookRunResult>;
-}
-
-/**
- * pi のツール名 → Claude Code のツール名。
- * pi-codex-conversion 導入下では bash/edit/write/read が exec_command/apply_patch に
- * 置き換わる（bash と exec_command が並存する構成もあるため両方残す）。マップ漏れは
- * ガードのすり抜けに直結する（2026-08-14: apply_patch が block-edit-on-main を素通りした
- * インシデント）。
- */
-export const PI_TO_CLAUDE_TOOL: Record<string, string> = {
-	bash: "Bash",
-	edit: "Edit",
-	write: "Write",
-	read: "Read",
-	exec_command: "Bash",
-	interactive_shell: "Bash",
-	apply_patch: "Write",
-};
-
-/** pi の edit/write/read は `path`、Claude hooks は `tool_input.file_path` を読む */
-const PATH_FIELD_TOOLS = new Set(["edit", "write", "read"]);
-
-/** pi の exec_command は `cmd`、Claude の Bash hooks は `tool_input.command` を読む */
-const COMMAND_FIELD_TOOLS = new Set(["exec_command"]);
-
-export function toClaudeInput(
-	piToolName: string,
-	input: Record<string, unknown>,
-): Record<string, unknown> {
-	if (PATH_FIELD_TOOLS.has(piToolName) && typeof input.path === "string") {
-		const { path, ...rest } = input;
-		return { ...rest, file_path: path };
-	}
-	if (COMMAND_FIELD_TOOLS.has(piToolName) && typeof input.cmd === "string") {
-		const { cmd, ...rest } = input;
-		return { ...rest, command: cmd };
-	}
-	return { ...input };
-}
-
-export function toPiInput(
-	piToolName: string,
-	claudeInput: Record<string, unknown>,
-): Record<string, unknown> {
-	if (PATH_FIELD_TOOLS.has(piToolName) && typeof claudeInput.file_path === "string") {
-		const { file_path: filePath, ...rest } = claudeInput;
-		return { ...rest, path: filePath };
-	}
-	if (COMMAND_FIELD_TOOLS.has(piToolName) && typeof claudeInput.command === "string") {
-		const { command, ...rest } = claudeInput;
-		return { ...rest, cmd: command };
-	}
-	return { ...claudeInput };
 }
 
 const APPLY_PATCH_BEGIN_MARKER = "*** Begin Patch";
@@ -124,22 +71,6 @@ export interface BridgeContext {
 	cwd: string;
 }
 
-/**
- * hook へ渡す base cwd を確定する。exec_command の `workdir`（あれば実際の実行 cwd）を
- * 最優先とし、次に `input.cwd` を見る。どちらもセッション base（`ctx.cwd`）基準で解決し
- * （絶対パスならそれが優先される）、どちらも無ければ `ctx.cwd` をそのまま使う。
- * `process.cwd()`（pi プロセス自身の cwd）へのフォールバックは持たない。
- */
-function resolveBaseCwd(ctx: BridgeContext, input: Record<string, unknown>): string {
-	const workdir = typeof input.workdir === "string" ? input.workdir : undefined;
-	const inputCwd = typeof input.cwd === "string" ? input.cwd : undefined;
-	const base = workdir ?? inputCwd;
-	if (base) {
-		return resolvePath(ctx.cwd, base);
-	}
-	return ctx.cwd;
-}
-
 /** runner の decision を pi の応答へ写す。ask は UI 承認で通し、UI が無ければ block に倒す。 */
 async function settle(result: HookRunResult, ctx: BridgeContext): Promise<ToolCallResponse> {
 	if (ctx.hasUI) {
@@ -161,13 +92,11 @@ async function settle(result: HookRunResult, ctx: BridgeContext): Promise<ToolCa
 
 export function createToolCallHandler(runner: HookRunner) {
 	return async (event: ToolCallEvent, ctx: BridgeContext): Promise<ToolCallResponse> => {
-		const claudeToolName = PI_TO_CLAUDE_TOOL[event.toolName];
-		if (!claudeToolName) {
+		const normalized = normalizeToolCall("pi", event.toolName, event.input, ctx.cwd);
+		if (!normalized) {
 			return undefined;
 		}
-		const claudeInput = toClaudeInput(event.toolName, event.input);
-		const baseCwd = resolveBaseCwd(ctx, event.input);
-		const result = await runner.preToolUse(claudeToolName, claudeInput, baseCwd);
+		const result = await runner.preToolUse(normalized.toolName, normalized.input, normalized.cwd);
 		const blocked = await settle(result, ctx);
 		if (blocked) {
 			return blocked;
@@ -185,7 +114,7 @@ export function createToolCallHandler(runner: HookRunner) {
 				const syntheticInput: Record<string, unknown> =
 					envelope !== undefined ? { file_path: "", input: envelope } : { file_path: "" };
 				const patchBlocked = await settle(
-					await runner.preToolUse("Write", syntheticInput, baseCwd),
+					await runner.preToolUse("Write", syntheticInput, normalized.cwd),
 					ctx,
 				);
 				if (patchBlocked) {
@@ -194,7 +123,7 @@ export function createToolCallHandler(runner: HookRunner) {
 			}
 		}
 
-		Object.assign(event.input, toPiInput(event.toolName, result.finalInput));
+		Object.assign(event.input, restoreToolInput("pi", event.toolName, result.finalInput));
 		return undefined;
 	};
 }

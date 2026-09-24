@@ -34,5 +34,8 @@
     "skills",
     "plugin"
   ],
+  "settingsRemoveKeys": [
+    "env"
+  ],
   "ledger": ".harunon-slim.installed.json"
 }

@@ -22,9 +22,9 @@ paths:
 
 ### Reviewer routing
 
-- If the active model provider is `openai-codex`, use an independent runtime-native reviewer and do not invoke `codex-companion.mjs`.
-- Pi は `reviewer` subagent、OMP は `review-policy.md` を渡した独立 `task`、Codex は `reviewer` agent を 1 回だけ使う。native background 実行があれば利用し、shell session を poll しない。
-- runtime-native reviewer が無ければ停止して未実施と報告する。companion fallback と自己レビューは行わない。
+- If the active model provider is `openai-codex`, use an independent runtime-native reviewer or explicit review surface and do not invoke `codex-companion.mjs`.
+- Codex は `reviewer` agent、OMP は `/ocr-review`（または `review-policy.md` を渡した独立 `task`）、Pi は `/ocr-review` を 1 回だけ使う。native background 実行があれば利用し、shell session を poll しない。
+- runtime-native reviewer または明示的な review surface が無ければ停止して未実施と報告する。companion fallback と自己レビューは行わない。
 - active provider が `openai-codex` 以外のときだけ `/codex:review` から companion を background 起動する。
 
 ### 適用範囲

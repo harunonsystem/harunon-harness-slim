@@ -16,11 +16,11 @@ The founding rule survives unchanged: **the advisor never edits source code.** I
 
 ### Dispatch
 
-Spawn **one** `general-purpose` subagent with `isolation: "worktree"`. Executor model: default `sonnet`; use what the user named if they named one (`execute 003 haiku`).
+Use the runtime's native subagent mechanism with an isolated worktree. Select an implementation-capable model available in that runtime; honor an explicit user model choice. Do not require a different provider or premium credits.
 
 The subagent prompt must contain:
 
-1. **The full plan file text, inlined.** The worktree contains only committed files — if `plans/` is uncommitted, the executor can't read it. Never assume; always inline.
+1. The plan path and required references, after checking they are readable from the executor. If an uncommitted plan is unavailable in its isolated worktree, include that plan's text. Do not include unrelated plans or the full conversation.
 2. The executor preamble:
 
 > You are the executor for the implementation plan below. Follow it step by

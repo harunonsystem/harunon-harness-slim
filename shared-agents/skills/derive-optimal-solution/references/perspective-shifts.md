@@ -1,5 +1,5 @@
 ---
-description: derive-optimal-solution の Step 1〜2（症状と構造の切り分け・上流遡及）で視点に迷ったときだけ読む、症状 → 上流の対応パターン一覧。
+description: derive-optimal-solution の 症状と構造の切り分け・上流遡及で視点に迷ったときだけ読む、症状 → 上流の対応パターン一覧。
 ---
 
 ## 典型的な視点シフト

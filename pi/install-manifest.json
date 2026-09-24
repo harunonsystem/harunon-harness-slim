@@ -6,7 +6,6 @@
   "configDirEnv": null,
   "managedPaths": [
     "AGENTS.md",
-    "agents",
     "claude-hooks/approve-pr.sh",
     "claude-hooks/approve-push.sh",
     "claude-hooks/block-dangerous-in-bash.sh",
@@ -31,8 +30,6 @@
     "rules",
     "settings.json",
     "sol-pi.json",
-    "subagents.json",
-    "web-search.json",
     "workflows"
   ],
   "settingsFile": "settings.json",
@@ -55,5 +52,6 @@
     "observational-memory",
     "powerline"
   ],
+  "settingsRemoveKeys": [],
   "ledger": ".harunon-slim.installed.json"
 }

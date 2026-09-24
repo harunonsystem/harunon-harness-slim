@@ -10,8 +10,8 @@
     "viewImageFallback": false,
     "applyPatchOnly": false,
     "viewImageOnly": false,
-    "webRunOnly": false,
-    "imageGenerationOnly": false
+    "webRunOnly": true,
+    "imageGenerationOnly": true
   },
   "ui": {
     "statusLine": false,

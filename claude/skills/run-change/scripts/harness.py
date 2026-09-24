@@ -75,110 +75,66 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    if args.command == "status":
-        kernel_command, request = "inspect", {}
-    elif args.command == "start":
-        kernel_command, request = "apply", {
-            "type": "task.start",
+    operation = "inspect" if args.command == "status" else args.command.replace("-", "_")
+    arguments: dict[str, object] = {}
+    if operation == "start":
+        arguments = {
             "taskId": args.task_id,
             "mode": "publish" if args.publish_only else "change",
         }
-    elif args.command == "advance":
-        kernel_command, request = "apply", {
-            "type": "phase.advance",
-            "event": args.event,
+    elif operation == "advance":
+        arguments = {"event": args.event, "expectedRevision": args.revision}
+    elif operation == "approve_review":
+        arguments = {"reason": args.reason, "expectedRevision": args.revision}
+    elif operation == "attach_review":
+        arguments = {
+            "provider": args.provider,
+            "subjectSha": args.subject_sha,
+            "artifact": str(args.artifact.expanduser().resolve()),
             "expectedRevision": args.revision,
         }
-    elif args.command == "approve-review":
-        kernel_command, request = "apply", {
-            "type": "review.approve",
+    elif operation == "skip_review":
+        arguments = {
+            "provider": args.provider,
             "reason": args.reason,
             "expectedRevision": args.revision,
         }
-    elif args.command == "attach-review":
-        artifact = args.artifact.expanduser().resolve()
-        if not artifact.is_file():
-            print(json.dumps({"code": "REVIEW_ARTIFACT_NOT_FOUND", "artifact": str(artifact)}))
-            return 2
-        kernel_command, request = "apply", {
-            "type": "review.attach",
-            "expectedRevision": args.revision,
-            "evidence": {
-                "kind": "local-review",
-                "trust": "audit-only",
-                "provider": args.provider,
-                "subjectSha": args.subject_sha,
-                "artifact": str(artifact),
-            },
-        }
-    elif args.command == "skip-review":
-        # quota / credit 切れで reviewer が返らなかったときだけ。他の失敗は止まって確認する
-        kernel_command, request = "apply", {
-            "type": "review.skip",
-            "expectedRevision": args.revision,
-            "evidence": {
-                "kind": "review-skipped",
-                "trust": "audit-only",
-                "provider": args.provider,
-                "skipReason": "quota",
-                "reason": args.reason,
-            },
-        }
-    elif args.command == "authorize":
-        kernel_command, request = "authorize", {"action": args.action}
-    elif args.command == "assign":
-        kernel_command, request = "apply", {
-            "type": "assignment.create",
-            "expectedRevision": args.revision,
+    elif operation == "authorize":
+        arguments = {"action": args.action}
+    elif operation == "assign":
+        arguments = {
             "role": args.role,
             "executor": args.executor,
             "workerId": args.worker_id,
-        }
-    elif args.command == "dispatched":
-        try:
-            ref = json.loads(args.ref)
-        except json.JSONDecodeError as error:
-            print(json.dumps({"code": "INVALID_JSON", "reason": str(error)}))
-            return 3
-        kernel_command, request = "apply", {
-            "type": "assignment.dispatched",
             "expectedRevision": args.revision,
+        }
+    elif operation == "dispatched":
+        arguments = {
             "transport": args.transport,
-            "ref": ref,
+            "ref": args.ref,
             "at": args.at,
-        }
-    elif args.command == "report":
-        artifact = args.artifact.expanduser().resolve()
-        if not artifact.is_file():
-            print(json.dumps({"code": "REVIEW_ARTIFACT_NOT_FOUND", "artifact": str(artifact)}))
-            return 2
-        try:
-            checks = json.loads(args.checks)
-        except json.JSONDecodeError as error:
-            print(json.dumps({"code": "INVALID_JSON", "reason": str(error)}))
-            return 3
-        kernel_command, request = "apply", {
-            "type": "assignment.report",
             "expectedRevision": args.revision,
-            "evidence": {
-                "kind": "worker-report",
-                "trust": "audit-only",
-                "executor": args.executor,
-                "workerId": args.worker_id,
-                "resultSha": args.result_sha,
-                "artifact": str(artifact),
-                "checks": checks,
-            },
         }
-    else:
-        kernel_command, request = "apply", {
-            "type": "assignment.abandon",
+    elif operation == "report":
+        arguments = {
+            "executor": args.executor,
+            "workerId": args.worker_id,
+            "resultSha": args.result_sha,
+            "artifact": str(args.artifact.expanduser().resolve()),
+            "checks": args.checks,
             "expectedRevision": args.revision,
-            "reason": args.reason,
         }
+    elif operation == "abandon":
+        arguments = {"reason": args.reason, "expectedRevision": args.revision}
     result = subprocess.run(
-        [sys.executable, str(locate_kernel()), kernel_command],
-        input=json.dumps({"repo": str(args.repo.resolve()), **request}),
+        [sys.executable, str(locate_kernel()), "operate"],
+        input=json.dumps(
+            {
+                "repo": str(args.repo.resolve()),
+                "operation": operation,
+                "arguments": arguments,
+            }
+        ),
         capture_output=True,
         text=True,
     )

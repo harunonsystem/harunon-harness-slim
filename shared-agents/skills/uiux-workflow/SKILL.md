@@ -1,6 +1,6 @@
 ---
 name: uiux-workflow
-description: Orchestrate frontend design work from exploration through implementation and review. Use for UI/UX requests, Figma reconstruction, prototypes, design-system-aware frontend changes, or pre-release visual review.
+description: Choose design, Figma implementation, prototype, and UI review tools for the requested frontend scope.
 ---
 
 # UI/UX workflow
@@ -28,30 +28,37 @@ Before installing `baoyu-design`, read the SKILL.md you are about to install and
 ### New design or uncertain direction
 
 1. Clarify the user goal, target screen, users, states, constraints, and what is explicitly out of scope.
-2. Invoke `baoyu-design` to produce one or more self-contained prototypes or a design direction, with the Japanese language requirement above included in the prompt.
+2. Use `baoyu-design` when available and useful for exploration, with the Japanese language requirement above. Otherwise develop the direction with the available tools.
 3. Record the selected direction and design-system decisions before production implementation.
 4. Implement in the existing component/token conventions; do not copy prototype code blindly into production.
-5. Invoke `impeccable-preflight` against the narrowest useful changed UI scope and triage deterministic findings.
-6. Invoke `better-interface` for the holistic implementation review.
-7. Invoke `frontend-verify` for the final live-browser evidence.
+5. Select verification using the scope table below; record evidence and any unavailable checks.
 
 ### Existing Figma design
 
 1. If the goal is a production screen, use `figma-implement` when it is installed (or `baoyu-design` for import/prototyping when that is the explicit goal). With neither installed, say so and implement directly from the design against the repository's own components and tokens.
 2. Preserve the repository's existing components, tokens, responsive conventions, and accessibility behavior.
-3. Run `impeccable-preflight`, then `better-interface`, then `frontend-verify`.
+3. Select verification using the scope table below.
 
 ### Review-only request
 
 1. Determine whether the user wants source review, visual review, or both.
-2. For source/frontend review, run `impeccable-preflight` first and retain only findings that survive verification against project intent. Do not apply fixes in review-only mode.
-3. Run `better-interface` for holistic source/design-quality findings when installed.
-4. Run `frontend-verify` for actual browser behavior and screenshots when visual/runtime review is in scope.
-5. Separate deterministic detector findings, inferred design issues, and verified runtime issues.
+2. Select only the relevant checks below. Review-only requests do not authorize fixes.
+3. Separate verified detector findings, inferred design issues, and observed runtime issues.
+
+## Verification scope
+
+| Scope | Checks |
+| --- | --- |
+| Copy-only or a small change to an existing component | Check the diff and existing targeted tests. Use browser evidence when wrapping, layout, or interaction may change; no automatic full design audit. |
+| New screen, layout, or interaction changes | Use `frontend-verify` for affected states, responsive behavior, and keyboard interaction. Add `impeccable-preflight` for applicable static checks. |
+| Holistic design/accessibility review requested | Use `better-interface`; use `impeccable-preflight` for applicable source checks and `frontend-verify` for rendered claims. |
+| A specific design concern | Use the owning `better-*` skill rather than the full suite; verify relevant runtime behavior where needed. |
+
+Select by the change and user request, not by a fixed sequence. Reuse evidence already obtained for the same revision and states. Missing tools limit what can be claimed; they do not authorize installation or unrelated work.
 
 ## Review handoff
 
-Return a short record containing:
+Return a short record of the checks actually selected; omit unused layers. Include:
 
 - selected design direction or source design reference;
 - implementation scope and intentionally unsupported states;
