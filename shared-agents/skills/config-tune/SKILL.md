@@ -1,6 +1,6 @@
 ---
 name: config-tune
-description: "cclens と /insights の実測で Claude Code 設定を定期改善する。harness 環境は packages/core（SSOT）、非 harness は ~/.claude へ反映。「config-tune」「設定の健康診断」で起動。"
+description: "cclens と /insights の Claude Code 実測で設定や skill 導線を改善する。harness 環境は packages/core（SSOT）、非 harness は ~/.claude へ反映。「config-tune」「設定の健康診断」で起動。"
 ---
 
 # config-tune
@@ -37,6 +37,8 @@ cclens prompts                  # steering / correction の比率
 上のサブコマンドと `--scope` の有無は cclens 0.2.1 の `--help` で確認した契約（`stuck` / `overhead` / `prompts` に `--scope` は無い）。cclens を更新したら `cclens <sub> --help` で差分を確認し、ここを追従させる。
 
 固定レポートで拾えない疑問は `cclens sql`（read-only。`SELECT sql FROM sqlite_master` でスキーマ確認）で store に直接問い合わせる。
+
+skill の整理を依頼された場合は `cclens inventory` と `cclens usage` で導入状況・起動回数・観測期間を確認し、候補を呼ぶ workflow と routing を SSOT 内で探す。cclens は Claude Code の記録だけを扱うため、他 runtime の未使用を証明したことにはしない。0 回でも新規導入・専門用途・暗黙適用を区別し、重複や退役の根拠があるものだけ削除候補にする。
 
 insights 側: ユーザーが直近 `/insights` を実行済みなら結果を取り込む。未実行なら実行を促す。得られない場合は、ユーザーが明示記録した教訓（ログ推測より信頼度が高い）だけ読んで進める。読む場所は 2 つあり別物: `~/.claude/memory/<topic>.md`（harness の Lesson Memory。Phase 4 の記録先と同じ）と `~/.claude/projects/*/memory/*.md`（Claude 純正の per-project feedback memory）。
 

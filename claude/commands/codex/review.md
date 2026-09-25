@@ -6,7 +6,7 @@ allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*)
 
 Run a Codex review through the shared built-in reviewer.
 
-This user-level command overrides the plugin's `/codex:review` to enforce background-by-default execution and to hand the result to the fix flow in `rules/codex-review-policy.md`. The default review model is `gpt-5.6-sol` with `medium` reasoning, synchronized from `packages/targets/codex/profiles/review.config.toml`; pass `--model` to override it for one review.
+This user-level command overrides the plugin's `/codex:review` to enforce background-by-default execution and to hand the result to the fix flow in `rules/codex-review-policy.md`. The default review model is `gpt-6-sol` with `medium` reasoning, synchronized from `packages/targets/codex/profiles/review.config.toml`; pass `--model` to override it for one review.
 
 Raw slash-command arguments:
 `$ARGUMENTS`

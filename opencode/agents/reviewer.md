@@ -3,7 +3,7 @@
 # 出典: https://opencode.ai/docs/agents/ で frontmatter スキーマ（mode/permission）を確認（2026-07-11）。
 description: "diff レビュー係。finding を file:line 付きで返す。"
 mode: subagent
-model: openai/gpt-5.6-sol
+model: openai/gpt-6-sol
 reasoningEffort: medium
 steps: 8
 permission:

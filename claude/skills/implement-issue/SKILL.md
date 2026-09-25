@@ -57,7 +57,7 @@ gh issue view <issue-number> --repo <owner/repo>
 
 ### Phase 1.5: 未決事項の確認
 
-既存コード・タスク記述・既存の合意から実装範囲を確認する。ユーザー判断が必要な未決事項があるとき、またはインタビューを依頼されたときだけ `grill-implementation` を使う。要件が明確なら Phase 2 へ進む。
+既存コード・タスク記述・既存の合意から目的と実装範囲を確認する。手段が未承認の提案か未指定で、既存機構を含む実質的に異なる解法が複数残る場合は `derive-optimal-solution` で比較してから進む。ユーザー固有の判断が残るとき、またはインタビューを依頼されたときだけ `grill-implementation` を使う。方針が決まれば Phase 2 へ進む。
 
 ### Phase 2: worktree 作成
 
