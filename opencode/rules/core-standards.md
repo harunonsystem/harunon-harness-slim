@@ -116,7 +116,7 @@ git add / git commit / git push は 1 コマンドずつ実行し、`git add <pa
 
 複数の Claude セッションが同じリポジトリで同時に動いている前提で振る舞う。main の checkout（`gwm` の main_repo）は全セッションが共有する領域なので、そこでは編集も commit もしない。作業は必ず worktree（`EnterWorktree(name: <branch>)`）で行う。
 
-| - `git stash` / `git stash drop | clear` / `git checkout -- <path>` / `git checkout .` / `git restore <path>` / `git reset --hard` は、その checkout にある**他セッションの未 commit 変更も巻き込む**。worktree の外では実行しない。worktree 内でもユーザー指示による破棄か確認する（danger table の `git-stash` / `git-checkout-discard` / `git-stash-discard` rule が warn / block する） |
+- `git stash` / `git stash drop | clear` / `git checkout -- <path>` / `git checkout .` / `git restore <path>` / `git reset --hard` は、その checkout にある**他セッションの未 commit 変更も巻き込む**。worktree の外では実行しない。worktree 内でもユーザー指示による破棄か確認する（共有 checkout では `git-discard-in-shared-checkout` が block、worktree 内では `git-stash` / `git-checkout-discard` が warn する）
 - worktree 作成前に `git status --short` で共有 checkout が clean か確認する。dirty なら誰の変更か分からないので触らず、ユーザーに報告する
 - **stacked PR の base は着手前に確定して表示する**: 既存 PR の上に積むときは `gh pr view <n> --json headRefName,headRefOid` で head を取り、`git fetch origin --prune` 後にその SHA と `git log --oneline -3 <base>` を出して「この上に積む」と明示してからブランチを切る。`gwm` は既定で origin/main から切るので、stacking では base の指定を省略しない
 
@@ -126,7 +126,7 @@ main への push は通らないので、ローカル main に commit してし�
 
 1. 関連する未 commit の変更（テスト修正等）も同じ作業の一部として commit する
 2. `git push origin HEAD:refs/heads/<branch>` で remote に feature branch を作る（ローカルでのブランチ作成は gwm 制約で block されるため、この形式を使う）
-3. `git switch <branch>` → PR 作成 → `git switch main && git reset --hard origin/main`（commit は branch に保持済み）
+3. `git switch <branch>` → PR 作成 → `git switch main && git reset --keep origin/main`（commit は branch に保持済み。`--keep` は未 commit 変更を消す場合に止まる）
 
 ### Issue tracker の規約
 

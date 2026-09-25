@@ -486,6 +486,52 @@ EOF
   fi
 }
 
+# cwd の checkout が linked worktree（git worktree add / gwm add 由来）か判定する。
+# linked worktree は git-dir ≠ git-common-dir、メイン checkout と submodule は一致する。
+# --git-dir / --git-common-dir は相対表現になり得る（main checkout の
+# サブディレクトリでは `.git` vs `../../.git` のように同じ dir の別表記）。
+# 文字列比較だと誤って linked worktree と判定して allow してしまうため、
+# cd -P で物理絶対パスに正規化してから比較する。
+_is_linked_worktree() {
+  local git_dir common_dir git_dir_abs common_dir_abs
+  git_dir=$(git rev-parse --git-dir 2>/dev/null || echo "")
+  common_dir=$(git rev-parse --git-common-dir 2>/dev/null || echo "")
+  git_dir_abs=$(cd -P -- "$git_dir" 2>/dev/null && pwd -P || echo "")
+  common_dir_abs=$(cd -P -- "$common_dir" 2>/dev/null && pwd -P || echo "")
+  [ -n "$git_dir_abs" ] && [ -n "$common_dir_abs" ] && [ "$git_dir_abs" != "$common_dir_abs" ]
+}
+
+# rule: git-discard-in-shared-checkout
+custom_git_discard_in_shared_checkout() {
+  # メインの共有 checkout での stash / reset --hard / checkout -- / restore を
+  # ブランチを問わずブロックする。これらは checkout 全体の未 commit 変更を退避・破棄
+  # するため、同じ checkout で並行する他セッションの作業を巻き込む。linked worktree
+  # 内では table の git-stash / git-reset-hard / git-checkout-discard の warn に任せる。
+  ere_matches "$NORMALIZED" "${ORIGIN}${ere}" || return 0
+
+  if ! review_gate_resolve_target_repo "$COMMAND"; then
+    echo "${message}（対象 repo を確定できません: ${REVIEW_GATE_UNRESOLVABLE_REASON}）" >&2
+    declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-discard-in-shared-checkout" "${COMMAND:-}" || true
+    exit 2
+  fi
+  # git repo の外は git 自体が失敗するだけなので止めない。
+  git rev-parse --git-dir >/dev/null 2>&1 || return 0
+
+  # submodule は git-dir と common-dir が一致するため、所属する superproject が
+  # linked worktree かどうかで判定する。
+  local super
+  super=$(git rev-parse --show-superproject-working-tree 2>/dev/null || echo "")
+  if [ -n "$super" ]; then
+    (cd -- "$super" && _is_linked_worktree) && return 0
+  else
+    _is_linked_worktree && return 0
+  fi
+
+  echo "$message" >&2
+  declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-discard-in-shared-checkout" "${COMMAND:-}" || true
+  exit 2
+}
+
 # rule: git-commit-on-main
 custom_git_commit_on_main() {
   # main / master ブランチのメイン checkout（linked worktree ではない方）での
@@ -511,20 +557,8 @@ custom_git_commit_on_main() {
     *) return 0 ;;
   esac
 
-  # linked worktree（git worktree add / gwm add 由来）は git-dir ≠ git-common-dir。
-  # メイン checkout と submodule は両者が一致する。worktree 内の main ブランチは
-  # 共有 checkout を汚さないので許可する。
-  # --git-dir / --git-common-dir は相対表現になり得る（main checkout の
-  # サブディレクトリでは `.git` vs `../../.git` のように同じ dir の別表記）。
-  # 文字列比較だと誤って linked worktree と判定して allow してしまうため、
-  # cd -P で物理絶対パスに正規化してから比較する。
-  git_dir=$(git rev-parse --git-dir 2>/dev/null || echo "")
-  common_dir=$(git rev-parse --git-common-dir 2>/dev/null || echo "")
-  git_dir_abs=$(cd -P -- "$git_dir" 2>/dev/null && pwd -P || echo "")
-  common_dir_abs=$(cd -P -- "$common_dir" 2>/dev/null && pwd -P || echo "")
-  if [ -n "$git_dir_abs" ] && [ -n "$common_dir_abs" ] && [ "$git_dir_abs" != "$common_dir_abs" ]; then
-    return 0
-  fi
+  # worktree 内の main ブランチは共有 checkout を汚さないので許可する。
+  _is_linked_worktree && return 0
 
   cat >&2 <<'EOF'
 main / master ブランチのメイン checkout で直接 commit しないでください。gwm で worktree を作成してから作業してください:

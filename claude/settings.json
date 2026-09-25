@@ -362,7 +362,8 @@
       "PR / issue へのコメント投稿（gh pr comment / gh api での comment 書き込み）はユーザーの明示的な許可がある場合のみ",
       "rtk init -g / --global は rtk のグローバル設定ファイルを上書きするため実行しない。harness 配布版は再配布で復元する",
       "git stash drop / clear はユーザーの明示的な許可がある場合のみ",
-      "harness の SSOT 配下への rm はユーザーの明示的な許可がある場合のみ"
+      "harness の SSOT 配下への rm はユーザーの明示的な許可がある場合のみ",
+      "メインの共有 checkout（linked worktree ではない方）で git stash / git reset --hard / git checkout -- / git restore を実行しない。他セッションの未 commit 変更を巻き込む"
     ]
   },
   "model": "sonnet",
@@ -508,6 +509,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/require-japanese-output.py"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/require-evidence-for-completion.py"
           }
         ]
       }

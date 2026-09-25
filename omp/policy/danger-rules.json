@@ -710,6 +710,21 @@
       }
       },
     {
+      "id": "git-discard-in-shared-checkout",
+      "action": "block",
+      "impl": "custom",
+      "targets": ["claude", "omp", "opencode", "pi"],
+      "message": "メインの共有 checkout で git stash / git reset --hard / git checkout -- / git restore を実行しないでください。同じ checkout で動く他セッションの未 commit 変更も退避・破棄されます。worktree 内で実行してください",
+      "autoMode": [
+        { "tier": "soft_deny", "prose": "メインの共有 checkout（linked worktree ではない方）で git stash / git reset --hard / git checkout -- / git restore を実行しない。他セッションの未 commit 変更を巻き込む" }
+      ],
+      "match": {
+        "ere": "(git|rtk git)([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+(stash([[:space:]]*$|[[:space:]]+(push|save|-[A-Za-z-]|--[A-Za-z]))|reset[[:space:]]+--hard|checkout[[:space:]]+(([^-[:space:]][^[:space:]]*[[:space:]]+)?--([[:space:]]|$)|\\.([[:space:]]|$))|restore[[:space:]]+([^-[:space:]]|(-W|--worktree|-s|--source)([[:space:]]|=)))",
+        "origin": "default",
+        "wordEnd": false
+      }
+    },
+    {
       "id": "sql-drop",
       "action": "confirm",
       "impl": "table",
