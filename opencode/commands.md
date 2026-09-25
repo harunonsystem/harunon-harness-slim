@@ -16,7 +16,7 @@
 | `/codex:rescue` | Codex に実装・調査を委譲 |
 | `/difit` | difit で差分レビュー依頼 / findings コメント付き差分表示 |
 | `/ocr-review` | OpenCodeReview CLI を canonical な diff レビュー engine として実行（pi / omp 用） |
-| `/similarity-check` | AST ベースの重複コード検出（similarity-ts/py） |
+| `/similarity-check` | 差分の言語から選ぶ重複コード検出（TS/JS、Python、Rust、CSS、Markdown、Elixir） |
 
 ### Plan / Design
 
