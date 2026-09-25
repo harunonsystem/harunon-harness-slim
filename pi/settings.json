@@ -25,7 +25,8 @@
 		"npm:@ff-labs/pi-fff@0.10.6",
 		"npm:@pi-lab/input-history@1.0.3",
 		"npm:pi-powerline-footer@0.17.1",
-		"npm:pi-interactive-shell@0.15.2"
+		"npm:pi-interactive-shell@0.15.2",
+		"npm:@tian.zuo/pi-devin-acp@0.4.0"
 	],
 	"enabledModels": [
 		"opencode-zen/*",
