@@ -6,6 +6,8 @@
 	"quietStartup": true,
 	"collapseChangelog": true,
 	"hideThinkingBlock": true,
+	"steeringMode": "all",
+	"followUpMode": "all",
 	"treeFilterMode": "no-tools",
 	"compaction": {
 		"enabled": true,
