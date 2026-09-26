@@ -1,11 +1,11 @@
 ---
 name: implement-issue
-description: PRD または Linear task / GitHub issue の URL から worktree を作成し、実装・レビュー・PR 作成まで一貫して行う。URL を渡すか「issue 実装」「タスク実装」などで起動。
+description: PRD・Linear task・GitHub issue から要件と worktree を解決し、必要に応じて run-change に引き継いで実装・レビュー・PR 作成まで進める。「issue 実装」「タスク実装」で起動。
 ---
 
 # implement-issue: Issue実装スキル
 
-PRD、Linear task、GitHub issue の URL、またはタスク説明を受け取り、worktree 作成 → 実装 → セルフレビュー → PR 作成を一貫して行う。
+PRD、Linear task、GitHub issue の URL、またはタスク説明を受け取り、要件と worktree を解決する。コード変更は `run-change` の Core Workflow に引き継いで PR 作成まで進める。
 
 **運用前提**: issue 管理は **Linear が主軸**。GitHub issue は副次的に使用される場合があり、PR は **GitHub** で作成する。
 
@@ -98,101 +98,15 @@ git -C $main_repo status --short   # 出力があれば他セッションの作�
 
 6. ユーザーに作成した worktree とこれから実装する内容のサマリーを報告する。
 
-### Phase 3: 実装
+### Phase 3: 実装への引き継ぎ
 
-対象 repo の指示、既存実装、検証コマンドに従い、要件に必要な変更とテストを行う。新しい挙動・不具合修正は失敗を再現する検証から始める。文言や設定だけの変更では、効果を確認できる最小の検証を選ぶ。
+worktree に移動したら `run-change` skill を読み、その worktree を cwd にして status を確認する。同じ task の active state は再開し、別 task の active state を上書きしない。state が無いか inactive の場合、変更対象がすべて Markdown 等で `rules/codex-review-policy.md` の review 免除に該当するなら、Core Workflow を開始せず repo の検証・公開規約に従う。実装中に review 対象のファイルが加わったら、review・公開前に `run-change` を開始する。それ以外は Linear ID、GitHub の `<owner/repo>#<number>`、または PRD・直接説明から決めた branch 名で開始する。Phase 1〜2 で確定した issue 情報や worktree を取り直さない。
 
-### Phase 4: セルフレビュー
+次の情報を実行側の context に渡す：目的、受け入れ条件、task URL / ID、対象 repo、base と branch、repo の検証コマンド、既存の公開承認。設定済みなら `pr_template` と `lint_fix_cmd` も使う。Core Workflow を開始した場合は取得・隔離済みの事実を遷移として記録し、以後の lifecycle、policy gate、review evidence、PR 作成は `run-change` の手順と repo の規約に従う。worker の選択や実装は runtime-native の実行面が担う。
 
-実装完了後、ローカルの変更内容をレビューする。
+**完了条件**: 受け入れ条件に照らした変更と検証結果があり、許可された公開操作を終え、PR を作成した場合は URL を報告している。許可がない操作だけは実行前に確認する。
 
-1. 変更内容の確認：
-```bash
-git diff --stat
-git diff
-```
+## 作業中の入力と公開
 
-2. 受け入れ条件・変更範囲・repo の品質基準と照合し、変更に関係する不具合やセキュリティリスクを確認する。lint / typecheck / test は repo のコマンドを使い、結果を記録する。
-
-3. 未解決の重大な不具合・データ不整合・必要な検証の欠落があれば、checkpoint 前に解消する。不要な新規テストやスタイル変更を増やさない。
-
-### Phase 4.5: レビュー対象の checkpoint commit
-
-Phase 4 の未解決問題が残っていれば、先に解消する。Codex review の証跡は commit SHA に結びつくため、review より先に候補 commit を作る。
-
-1. 変更をコミット：
-`--no-verify` 不使用。
-```bash
-git add <変更ファイル>
-git commit -m "$(cat <<'EOF'
-コミットメッセージ
-EOF
-)"
-```
-
-Core Workflowを使用中なら、checkpoint後に`committed`へ遷移する。
-
-### Phase 5: Codex レビューと PR 作成
-
-詳細は `rules/codex-review-policy.md`（SSOT）。
-
-#### レビュー
-
-1. 事前に `/pre-review-check`（コード変更を含むなら必須。Codex に回す前に Claude 側で潰せるものを潰す）
-2. checkpoint commit の HEAD に対して、Core Workflowが選択したreview adapterを **1 回だけ**実行（background 起動が既定）
-3. 結果をユーザーに提示する（指摘は原文のまま。件数や優先度を要約で変えない）
-4. 指摘を修正する。ユーザーの選択は待たない
-   - P0 / P1 / P2: 同じブランチで修正する。P0 が直せない場合は push / PR に進まず止まって報告する
-   - P3 / scope 外: 直さず PR 本文の「残件」に finding 単位で列挙する
-   - 修正はレビュー対象の差分に閉じる（無関係な未 commit 変更を巻き込まない）。commit は通常の Git 規約どおりユーザー確認のうえ、対象ファイルを明示して行う。Core Workflow 使用中は `findings_fixed` で decide → publish に進める（再レビューはしない。PR gate はレビュー済み commit が HEAD の祖先なら通す）
-5. reviewer が quota / credit 切れで返らなかった場合は SKIP: `~/.claude/hooks/codex-review-bypass.sh --quota "<エラー要旨>"`（Core Workflow 使用中は kernel にも `review.skip` が記録される）を実行し、PR 本文に「Codex review: SKIP（quota）」と書く。接続・認証・crash など quota 以外の失敗は止まってユーザーに確認する
-6. 2 回目の review はユーザーが明示的に許可した場合だけ実行する
-
-#### 公開
-
-1. リモートに push：
-```bash
-git push -u origin <branch-name>
-```
-
-2. `rules/pr-body.md` を読み、PR Template があれば併せて読み込んで PR description を生成する：
-   - まず `cat $pr_template` でテンプレートを読み込む
-   - テンプレートのセクションに沿って書く。**埋めるために項目を作らない**（書くことがないセクションは省略可）
-   - body 例をハードコードしない。実際のテンプレートの構造・セクション・チェックリストを保ち、その各欄に `rules/pr-body.md` の情報優先度を適用する
-   - Evidence には before → after の証拠と、実際に実行した test / lint / typecheck / build の結果を書く。未実行は理由を明記する
-```bash
-gh pr create --title "<PRタイトル>" --body "$(cat <<'EOF'
-<PR Templateの各セクションを埋めた内容>
-EOF
-)"
-```
-
-3. 作成された PR URL をユーザーに報告する。
-
-4. 追加レビューはユーザーの依頼、または未確認の具体的なリスクがある場合だけ行う。既に確認済みの同じ差分を再レビューしない。
-
-## ガードレール
-
-### 実装中の合意事項保持（軌道修正の最大の原因）
-
-- 実装時はタスクの受け入れ条件と既存の合意を参照する。インタビューした場合はそのサマリーも使う
-- レビュー時は受け入れ条件と diff を照合する。合意した仕様を変更する必要がある場合だけ、その判断を確認する
-- ユーザー固有の判断が残る部分だけ保留し、独立した作業は続ける。既存規約で決まる実装上の細部は自分で解決する
-- サマリーの「保留事項」が実装に関わったら、停止してユーザーに質問
-
-### スコープと入力の扱い
-
-- 実装中のユーザーメッセージが**状態確認・診断だけを求めている**場合、まず質問に回答する。その質問を根拠に新しい編集を始めない。判定は句読点ではなく意図で行う（「これ直せる?」は変更依頼、「テスト通った?」は状態確認）
-- answer-first で回答した後、**進行中の承認済み実装はそのまま継続する**。止めるのはユーザーが停止・取消・方針変更を指示した時だけ
-
-### Git 操作
-
-- `git commit --no-verify` 禁止。エラーが起きた場合は `$lint_fix_cmd` で解消する
-- commit 前に `git rev-parse --show-toplevel` と `git branch --show-current` で意図したブランチ確認
-- ブランチ名は既存の worktree と重複しないよう `$worktree_cmd list` で確認する
-- base branch への独断マージ禁止（preview push は push 先指定を守る）
-
-## 注意事項
-
-- コミット・push・PR 作成は、**既存の依頼・承認がその操作を明示的に含むか**を操作ごとに判定する。含むなら再質問しない（例: 明示的な PR 作成依頼は PR 作成の承認）。含まれない操作だけ実行前に確認を取る。ある操作の承認を別の操作（PR 作成の依頼 → commit / push / merge）まで広げない。platform 側の権限確認は別途そのまま表示する
-- Linear task / GitHub issue がある場合、PR description にリンクを含める（Linear がある場合は Linear を主にリンク）
+- 状態確認の質問には実測を先に答え、その質問だけを理由に新しい編集を始めない。回答後は承認済みの実装を継続する。「直せる?」など具体的な変更依頼は句読点でなく意図で判定し、元の依頼から実質的に範囲が広がる場合だけ確認する。
+- commit、push、PR 作成、merge は操作ごとに既存の依頼・承認を確認する。明示的な PR 作成依頼について同じ確認を繰り返さず、merge の承認には広げない。platform 側の権限確認はそのまま扱う。

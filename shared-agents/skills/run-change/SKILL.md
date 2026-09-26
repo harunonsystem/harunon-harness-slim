@@ -39,6 +39,8 @@ If the result is `STATE_NOT_FOUND`, start the task. A previous task that never l
 python3 <skill-dir>/scripts/harness.py start <task-id>
 ```
 
+When an intake skill such as `implement-issue` has already resolved the task and created the worktree, use the native interface from that worktree. Reuse its task ID, acceptance criteria, and verification commands; record completed intake/isolation as phase transitions without fetching the issue or creating another worktree. Keep the task details in the runtime's context; the kernel stores lifecycle state and evidence, not a second task brief.
+
 For a branch that is already implemented, checked, committed, and pushed, enter the publish-only path instead of replaying the change phases:
 
 ```bash
@@ -69,6 +71,8 @@ Run deterministic project checks first (tests, typecheck, lint, build, or the re
 When the shared Jev MCP is available and the change is non-trivial, use `jev_verify` as an advisory evidence check over the task/completion claims, relevant diff or artifacts, and the deterministic check results. Treat its typed judgment as a signal only: it may request more evidence or surface a mismatch, but it never substitutes for executable checks and must not advance or block the Core Workflow by itself. If Jev is unavailable, continue with deterministic verification; do not fail the task solely because the advisory evaluator is missing.
 
 ## Review
+
+For changes containing code, run `pre-review-check` and resolve its findings before invoking the reviewer, as required by `rules/codex-review-policy.md`.
 
 At `review`, use the runtime's explicit review surface rather than assuming every runtime has a bundled reviewer. In Codex, use the active runtime's reviewer with the configured `review_model`; when the reviewer subagent is available, spawn the `reviewer` agent. In pi / omp, use `/ocr-review` unless the user explicitly selects another review surface. Do not shell out to `codex review` and do not use a plugin process to start another Codex session.
 
