@@ -39,6 +39,7 @@
 | --- | --- |
 | 実装・runtime 診断・Git 操作の固有規約 | `rules/core-standards.md` の該当節 |
 | 非自明な実装で手段が指定されている、または実装方針が未確定 | 目的・前提と native / 既存機構を確認する。明示的な再構成・比較依頼、または既存調査後も実質的に異なる解法が複数残る場合は `derive-optimal-solution` skill を読む。合意済み仕様や既存パターンで一意なら読まない |
+| テストの追加・変更・監査 | `test-audit` skill。新規テストの価値、owner boundary、既存 coverage との重複、pre-fix regression proof を確認する |
 | レビュー | `rules/review-policy.md`。push 前の reviewer 選択・回数制限は `rules/codex-review-policy.md` |
 | 開発フローの開始・再開・状態確認 | `run-change` skill |
 | skill / agent 指示の変更 | `skill-improvement` skill |
