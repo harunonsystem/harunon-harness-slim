@@ -6,7 +6,7 @@ allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*)
 
 Run a Codex review through the shared built-in reviewer.
 
-This user-level command overrides the plugin's `/codex:review` to enforce background-by-default execution and to hand the result to the fix flow in `rules/codex-review-policy.md`. The default review model is `gpt-6-sol` with `medium` reasoning, synchronized from `packages/targets/codex/profiles/review.config.toml`; pass `--model` to override it for one review.
+This user-level command overrides the plugin's `/codex:review` to enforce background-by-default execution and to hand the result to the fix flow in `rules/codex-review-policy.md`. The default review model and reasoning level come from the Codex review profile distributed with the harness; pass `--model` to override it for one review.
 
 Raw slash-command arguments:
 `$ARGUMENTS`
@@ -50,8 +50,8 @@ Bash({
   run_in_background: true
 })
 ```
-- Do not call `BashOutput` or wait for completion in this turn.
-- After launching the command, tell the user: "Codex review started in the background. Check `/codex:status` for progress."
+- Do not wait for completion in this turn; the completion notification arrives on its own.
+- After launching the command, tell the user: "Codex review started in the background. Check `/codex:status` for progress." (`/codex:status` and `/codex:result` are also user-level overrides that hand a finished review to the fix flow below.)
 
 Foreground flow (`--wait` passed):
 - Run:
@@ -62,7 +62,7 @@ COMPANION=$(ls -t "$HOME"/.claude/plugins/cache/openai-codex/codex/*/scripts/cod
 - Do not paraphrase, summarize, or add commentary before or after it.
 
 After the review output is available (background completion or foreground return), follow `rules/codex-review-policy.md`:
-- Present the findings verbatim, then fix every P0 / P1 / P2 finding in the working tree on the current branch without waiting for the user to choose. Touch only files inside the reviewed diff; never sweep unrelated uncommitted changes into the fix.
+- Present the findings verbatim, then fix every P0 / P1 / P2 finding in the working tree on the current branch without waiting for the user to choose. Touch only files inside the reviewed diff; never sweep unrelated uncommitted changes into the fix. The plugin's `codex-result-handling` skill says to stop and ask which issues to fix; that rule does not apply here.
 - If a P0 cannot be fixed on this branch, stop: no push, no PR. Report it to the user.
 - Committing the fixes follows the normal Git rule: confirm with the user unless the current task already delegated commit / PR, and stage the fixed files explicitly (`git add <paths>`). Do not re-run the review afterwards; the PR gate accepts the reviewed commit as an ancestor of HEAD.
 - Do not fix P3 or out-of-scope findings; list them as 残件 in the PR body.
