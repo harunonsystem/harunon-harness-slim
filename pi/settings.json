@@ -19,15 +19,15 @@
 	"enableSkillCommands": true,
 	"packages": [
 		"npm:@howaboua/pi-codex-conversion@3.0.39",
-		"npm:@howaboua/pi-codex-web-run@0.0.2",
-		"git:github.com/NVlabs/SoL-Pi@bd005888b9b8a3fcdb511feb91fc27d3dfa8f2b1",
-		"npm:pi-web-access@0.29.0",
-		"npm:pi-mcp-adapter@2.34.0",
-		"npm:@ff-labs/pi-fff@0.10.6",
+		"npm:@howaboua/pi-codex-web-run@0.0.4",
+		"git:github.com/NVlabs/SoL-Pi@1559b5cb12c72da4a485bc50fe326586b216fb19",
+		"npm:pi-web-access@0.33.0",
+		"npm:pi-mcp-adapter@3.1.0",
+		"npm:@ff-labs/pi-fff@0.11.0",
 		"npm:@pi-lab/input-history@1.0.3",
-		"npm:pi-powerline-footer@0.17.1",
-		"npm:pi-interactive-shell@0.15.2",
-		"npm:@tian.zuo/pi-devin-acp@0.4.0"
+		"npm:pi-powerline-footer@0.18.0",
+		"npm:pi-interactive-shell@0.17.0",
+		"npm:@tian.zuo/pi-devin-acp@0.5.0"
 	],
 	"enabledModels": [
 		"opencode-zen/*",
