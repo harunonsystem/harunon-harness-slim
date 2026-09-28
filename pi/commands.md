@@ -56,6 +56,7 @@
 
 | Command | Purpose |
 | --- | --- |
+| `/spec-ready` | 大きい Issue を repo / contract / ADR に ground して Spec Ready 化し、architecture / release 境界を決め、人手の分割承認なしで実装可能な子 Issue へ分割 |
 | `/to-prd` | 会話文脈を PRD 化して tracker に publish |
 | `/to-issues` | PRD/プランを vertical slice issue に分割 |
 | `/triage` | 受信 issue / 外部 PR の state-machine トリアージ |
