@@ -18,7 +18,7 @@
 	"enableInstallTelemetry": false,
 	"enableSkillCommands": true,
 	"packages": [
-		"npm:@howaboua/pi-codex-conversion@3.0.34",
+		"npm:@howaboua/pi-codex-conversion@3.0.39",
 		"npm:@howaboua/pi-codex-web-run@0.0.2",
 		"git:github.com/NVlabs/SoL-Pi@bd005888b9b8a3fcdb511feb91fc27d3dfa8f2b1",
 		"npm:pi-web-access@0.29.0",
