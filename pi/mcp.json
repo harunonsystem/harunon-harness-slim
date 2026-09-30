@@ -11,16 +11,6 @@
     },
     "notion": {
       "url": "https://mcp.notion.com/mcp"
-    },
-    "jev": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@jkudish/jev-mcp@0.11.0"
-      ],
-      "env": {
-        "JEV_PROVIDER": "cloudflare"
-      }
     }
   }
 }

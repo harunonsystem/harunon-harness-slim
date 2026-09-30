@@ -180,17 +180,6 @@
       "notion": {
         "type": "remote",
         "url": "https://mcp.notion.com/mcp"
-      },
-      "jev": {
-        "type": "local",
-        "command": [
-          "npx",
-          "-y",
-          "@jkudish/jev-mcp@0.11.0"
-        ],
-        "environment": {
-          "JEV_PROVIDER": "cloudflare"
-        }
       }
     }
   }

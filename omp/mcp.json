@@ -15,17 +15,6 @@
     "notion": {
       "url": "https://mcp.notion.com/mcp",
       "type": "http"
-    },
-    "jev": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@jkudish/jev-mcp@0.11.0"
-      ],
-      "type": "stdio",
-      "env": {
-        "JEV_PROVIDER": "cloudflare"
-      }
     }
   },
   "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json"

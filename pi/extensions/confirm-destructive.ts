@@ -12,8 +12,7 @@
  * 確認ダイアログ層が黙って消える事故を防ぐ）。
  * SSOT: harunon-harness packages/core/pi-extensions/
  */
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { normalizeToolCall } from "../hook-runner/runtime-mapping.js";
@@ -109,40 +108,12 @@ export interface ToolAnnotations {
 	openWorldHint?: boolean;
 }
 
-// ponytail: jev-mcp 0.11 は annotation を宣言しないが副作用のない評価器なので、harness 配布の jev の既知 tool だけ固定で除外する。
-// jev の tool が増えたらここを更新する。
-const READ_ONLY_MCP_TOOLS = new Set(
-	["audit", "classify", "compare", "decide", "extract", "find", "gate", "noul", "rerank", "review", "screen", "verify"].map(
-		(name) => `mcp__jev__jev_${name}`,
-	),
-);
-
-/**
- * 信頼済み project の .pi/mcp.json は同名の global server を置き換えるので、
- * project が jev を定義していれば同名 tool でも harness 配布の jev とはみなさない。
- * 読めない・壊れた file も上書きの可能性を否定できないため同様に扱う。
- */
-export function projectOverridesJev(cwd: string): boolean {
-	const path = join(cwd, ".pi", "mcp.json");
-	if (!existsSync(path)) return false;
-	try {
-		return JSON.parse(readFileSync(path, "utf8"))?.mcpServers?.jev !== undefined;
-	} catch {
-		return true;
-	}
-}
-
 /**
  * MCP tool annotation から確認要否を決める（Pi docs の Codex 相当ルール）。
  * hint が無い tool は MCP 既定どおり「書き込みあり・外部到達あり」とみなす。
  */
-export function mcpNeedsApproval(
-	toolName: string,
-	hints: ToolAnnotations | undefined,
-	jevOverridden = false,
-): boolean {
+export function mcpNeedsApproval(hints: ToolAnnotations | undefined): boolean {
 	if (hints?.destructiveHint === true) return true;
-	if (!jevOverridden && READ_ONLY_MCP_TOOLS.has(toolName)) return false;
 	return !hints?.readOnlyHint && ((hints?.destructiveHint ?? true) || (hints?.openWorldHint ?? true));
 }
 
@@ -162,9 +133,8 @@ export function createConfirmDestructiveHandler(
 	return async (event: ToolCallEvent, ctx: BridgeContext): Promise<ToolCallResponse> => {
 		// codemode script 内の MCP 呼び出しも個別の tool_call で届くため、codemode tool 自体は判定しない。
 		if (event.toolName.startsWith("mcp__")) {
-			const cwd = ctx.cwd ?? process.cwd();
 			const hints = annotationsOf(event.toolName);
-			if (!mcpNeedsApproval(event.toolName, hints, projectOverridesJev(cwd))) return undefined;
+			if (!mcpNeedsApproval(hints)) return undefined;
 			return confirmOrBlock(
 				ctx,
 				"MCP ツールの確認",

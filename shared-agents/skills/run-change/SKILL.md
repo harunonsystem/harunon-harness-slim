@@ -68,8 +68,6 @@ An invalid transition or stale revision must remain blocked. Re-inspect instead 
 
 Run deterministic project checks first (tests, typecheck, lint, build, or the repository's declared verification commands). They remain the source of truth for `checks_passed`.
 
-When the shared Jev MCP is available and the change is non-trivial, use `jev_verify` as an advisory evidence check over the task/completion claims, relevant diff or artifacts, and the deterministic check results. Treat its typed judgment as a signal only: it may request more evidence or surface a mismatch, but it never substitutes for executable checks and must not advance or block the Core Workflow by itself. If Jev is unavailable, continue with deterministic verification; do not fail the task solely because the advisory evaluator is missing.
-
 ## Review
 
 Before push or PR creation, run `pre-review-check` over the whole branch diff, not just the last commit. Resolve its critical and major findings and run the required deterministic checks. `BLOCKED` or `INCOMPLETE` is not publication-ready. Save the complete `PASSED` report, including the base/head, findings, check results, and unavailable optional checks, as a temporary artifact.
