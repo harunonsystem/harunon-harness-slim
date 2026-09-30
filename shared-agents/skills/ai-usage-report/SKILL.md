@@ -84,7 +84,28 @@ done
 
 omp はモデル名に `<provider>/<model>` の形で provider が付くので、pi の裸のモデル名と合算するときは provider を落としてから揃える。枠制約の話をするときは落とさない方がよい（どの provider が使えなくなったかが要点になる）。
 
-OpenCode は `~/.local/share/opencode/storage/session/` に別形式で持つが、実測でセッション数が一桁なら報告では「使っていない」と書いて集計しない。
+OpenCode は `~/.local/share/opencode/opencode.db` と旧 `storage/session/` の両方を確認する（`XDG_DATA_HOME` 指定時はその配下）。DB は読み取り専用で開き、`sqlite_master` でスキーマを確認してから `session` / `message` / `part` を集計する。root session と子セッションを分け、user role でも synthetic / subtask の投入を人間の依頼に数えない。両保存先の重複は session ID で照合し、未確認なら別記して合算しない。
+
+保存先ごとの対象期間・取得件数・除外条件・読み取り失敗を報告する。少数のログや取得不能を「未使用」と扱わず、観測できた範囲だけを書く。SQLite の WAL がある場合はそれも含む一貫した snapshot を使い、`immutable=1` で WAL を無視した件数を全件として報告しない。
+
+列が `session(id, parent_id)`・`message(id, session_id, data)`・`part(id, message_id, data)` と一致する場合、読み取り専用接続で次の照会を使う。1行は message ではなく part。`subtask` → `synthetic` → 子 session → 直接入力候補の順で分類する。直接入力候補も人間の入力と断定しない。
+
+```sql
+SELECT s.id AS session_id, m.id AS message_id, p.id AS part_id,
+       CASE
+         WHEN json_extract(p.data, '$.type') = 'subtask' THEN 'subtask'
+         WHEN json_extract(p.data, '$.synthetic') = 1 THEN 'synthetic'
+         WHEN s.parent_id IS NOT NULL THEN 'child_session'
+         ELSE 'direct_user_candidate'
+       END AS classification
+FROM session s
+JOIN message m ON m.session_id = s.id
+JOIN part p ON p.message_id = m.id
+WHERE json_extract(m.data, '$.role') = 'user'
+  AND json_extract(p.data, '$.type') IN ('text', 'subtask');
+```
+
+旧形式は `storage/session/**/*.json` の JSON `id` を読み、DB の `SELECT id FROM session` と集合で照合する。共通 ID は重複 session とし、message/part 件数とは混ぜない。JSON 不正・`id` 欠落は読み取り失敗として別記し、ファイル名で推測しない。
 
 ## Phase 4: 成果側（issue tracker）
 

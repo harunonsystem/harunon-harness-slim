@@ -334,7 +334,6 @@
       "Edit(~/.claude/rules/**)",
       "Edit(~/.claude/skills/**)",
       "Edit(~/.claude/commands/**)",
-      "Edit(~/.claude/commands.md)",
       "Edit(~/.claude/workflows/**)",
       "Edit(~/.claude/settings.json)"
     ],

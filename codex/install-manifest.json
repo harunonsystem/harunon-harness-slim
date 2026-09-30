@@ -7,7 +7,6 @@
   "managedPaths": [
     "AGENTS.md",
     "agents",
-    "commands.md",
     "config.toml",
     "keybindings.json",
     "review-high.config.toml",

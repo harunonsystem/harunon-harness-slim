@@ -7,7 +7,6 @@
   "managedPaths": [
     "AGENTS.md",
     "agents",
-    "commands.md",
     "opencode.json",
     "plugins",
     "rules",

@@ -18,7 +18,6 @@
     "claude-hooks/lib",
     "claude-hooks/post-edit-checks.sh",
     "claude-hooks/rtk-rewrite.sh",
-    "commands.md",
     "config.yml",
     "extensions/harness-policy.js",
     "extensions/omp-denial-reason.js",

@@ -47,7 +47,6 @@
 | 図・HTML・チャートの作成 | `rules/visual-design.md` |
 | 外部 OSS への貢献 | `rules/oss-contribution.md` |
 | PR 作成 | `rules/pr-body.md`（repo の `.github/PULL_REQUEST_TEMPLATE.md` があれば併用） |
-| 利用可能な skill / command 一覧 | `commands.md` |
 
 ブラウザ操作のデフォルトは `agent-browser`（headless。ユーザーの画面にウィンドウを出さない）。ユーザーのログイン済みタブが必要な時だけ、利用可能なら `opencli-browser` skill を参照して OpenCLI を bind-first で使い、明示依頼なしに `open`・新規タブ・`INTERCEPT` を実行せず、OpenCLI が利用できないか bind できるタブがなければ中止して確認する。
 
