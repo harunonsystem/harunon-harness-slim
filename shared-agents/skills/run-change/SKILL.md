@@ -41,7 +41,7 @@ python3 <skill-dir>/scripts/harness.py start <task-id>
 
 When an intake skill such as `implement-issue` has already resolved the task and created the worktree, use the native interface from that worktree. Reuse its task ID, acceptance criteria, and verification commands; record completed intake/isolation as phase transitions without fetching the issue or creating another worktree. Keep the task details in the runtime's context; the kernel stores lifecycle state and evidence, not a second task brief.
 
-For a branch that is already implemented, checked, committed, and pushed, enter the publish-only path instead of replaying the change phases:
+For a branch that is already implemented, checked, and committed, enter the publish-only path instead of replaying the change phases:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py start <task-id> --publish-only
@@ -72,23 +72,23 @@ When the shared Jev MCP is available and the change is non-trivial, use `jev_ver
 
 ## Review
 
-For changes containing code, run `pre-review-check` and resolve its findings before invoking the reviewer, as required by `rules/codex-review-policy.md`.
+Before push or PR creation, run `pre-review-check` over the whole branch diff, not just the last commit. Resolve its critical and major findings and run the required deterministic checks. `BLOCKED` or `INCOMPLETE` is not publication-ready. Save the complete `PASSED` report, including the base/head, findings, check results, and unavailable optional checks, as a temporary artifact.
 
-At `review`, use the runtime's explicit review surface rather than assuming every runtime has a bundled reviewer. In Codex, use the active runtime's reviewer with the configured `review_model`; when the reviewer subagent is available, spawn the `reviewer` agent. In pi / omp, use `/ocr-review` unless the user explicitly selects another review surface. Do not shell out to `codex review` and do not use a plugin process to start another Codex session.
-
-Save the reviewer's complete final output as a temporary artifact, then attach it explicitly:
+The default evidence is this self-check, not an independent external review. Attach the actual report explicitly:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py attach-review \
-  --revision <revision> --provider codex --subject-sha "$(git rev-parse HEAD)" \
-  --artifact <review-output-file>
+  --revision <revision> --provider self-check --subject-sha "$(git rev-parse HEAD)" \
+  --artifact <self-check-report-file>
 ```
 
-The kernel refuses a missing artifact, a stale HEAD, an invalid phase, or an unapproved second review. Local evidence is explicitly `audit-only`: it prevents accidental PR creation but is not a security boundary.
+The kernel refuses a missing artifact, a stale HEAD, an invalid phase, or an unapproved second attachment. Local evidence is explicitly `audit-only`: it prevents accidental PR creation but is not a security boundary. The agent must verify the report's `PASSED` status; the kernel does not interpret its findings. Use `advance accepted` to reach `publish`. Never describe this evidence as an independent review or use it to authorize a merge.
+
+Invoke an independent reviewer only when the user explicitly requests one. In Codex, use the active runtime's reviewer with the configured `review_model`; when the reviewer subagent is available, spawn the `reviewer` agent. Other runtimes must use an available independent review surface. Do not shell out to `codex review` and do not use a plugin process to start another Codex session. Follow `rules/codex-review-policy.md`, save the complete reviewer output, and attach it with the actual provider instead of `self-check`.
 
 After the findings are presented, fix every P0 / P1 / P2 on the branch and record `findings_fixed` with `advance` (no second review; the PR gate accepts the reviewed commit as an ancestor of HEAD). P3 and out-of-scope findings go to the PR body as 残件. Use `accepted` when there is nothing to fix, `findings_deferred` when the user explicitly defers, and `fix_selected` only when the user asks for a fix loop with a second review.
 
-If the reviewer did not return because of quota / credit exhaustion, record the skip instead of an attach and move on to publish; the PR body must say the review was skipped:
+If an explicitly requested reviewer did not return because of quota / credit exhaustion, record the skip instead of an attach only after the mandatory self-check has passed; the PR body must say the external review was skipped:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py skip-review --revision <revision> --provider <provider> --reason "<reviewer error summary>"
@@ -112,7 +112,7 @@ Before PR creation, authorize the normalized action. In Codex, prefer the GitHub
 python3 <skill-dir>/scripts/harness.py authorize pr.create
 ```
 
-Runtime gates only apply while a task has recorded progress. `STATE_NOT_FOUND` (never started) and `WORKFLOW_INACTIVE` (previous task `complete`, or still at `intake` with revision 0) are not blocks; the gate falls back to the runtime's default PR policy. Start a new task with `start` if you want the workflow to govern the change.
+Runtime gates only apply while a task has recorded progress. `STATE_NOT_FOUND` (never started) and `WORKFLOW_INACTIVE` (previous task `complete`, or still at `intake` with revision 0) fall back to legacy runtime gates; they do not waive the mandatory self-check. Before publishing without an active task, use `start --publish-only`, perform the self-check, and attach its report rather than creating legacy bypass flags.
 
 An explicit user request to create the PR is the publication confirmation. Do not ask for the same confirmation again; only surface a platform permission prompt when the runtime itself requires one.
 

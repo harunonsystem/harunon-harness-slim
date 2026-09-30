@@ -15,8 +15,8 @@
 | `/codex:review` | Codex コードレビュー（push 前1回のみ） |
 | `/codex:rescue` | Codex に実装・調査を委譲 |
 | `/difit` | difit で差分レビュー依頼 / findings コメント付き差分表示 |
-| `/ocr-review` | OpenCodeReview CLI を canonical な diff レビュー engine として実行（pi / omp 用） |
 | `/similarity-check` | 差分の言語から選ぶ重複コード検出（TS/JS、Python、Rust、CSS、Markdown、Elixir） |
+| `/test-audit` | テスト追加・変更・監査時に、守る契約・既存 coverage との重複・修正前の回帰再現を確認する |
 
 ### Plan / Design
 
@@ -50,7 +50,6 @@
 | `/tdd` | Red-Green-Refactor で実装 |
 | `/diagnosing-bugs` | バグ・性能回帰の規律ある診断ループ（旧 diagnose） |
 | `/improve-codebase-architecture` | アーキ改善・deepening opportunity 発掘（バグ/セキュリティ/テスト/perf の一般監査で実行プランが欲しいときは `/improve`） |
-| `/resolving-merge-conflicts` | git merge/rebase conflict の解消 |
 
 ### Issue / PRD
 
