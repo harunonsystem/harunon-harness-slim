@@ -5,6 +5,7 @@
 import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { withCredentialLock } from "./lib/credential-lock.mjs";
 
 const account = process.argv[2];
 if (account !== "work" && account !== "personal") process.exit(2);
@@ -32,21 +33,19 @@ function credential(value) {
 	};
 }
 
-const accounts = readJson(accountsPath);
-let current = credential(accounts?.[account]);
-if (!current && account === "work") current = credential(readJson(authPath)?.["openai-codex"]);
-if (!current) process.exit(3);
-
-async function refresh(value) {
+async function refresh(value, accounts) {
 	if (!value.refresh || (value.expires && value.expires > Date.now() + 60_000)) return value;
 	const response = await fetch(tokenUrl, {
+		signal: AbortSignal.timeout(20_000),
 		method: "POST",
 		headers: { "content-type": "application/x-www-form-urlencoded" },
 		body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: value.refresh, client_id: clientId }),
 	});
-	if (!response.ok) process.exit(4);
+	if (!response.ok) throw Object.assign(new Error("OAuth refresh failed"), { exitCode: 4 });
 	const body = await response.json();
-	if (typeof body?.access_token !== "string" || typeof body?.expires_in !== "number") process.exit(5);
+	if (typeof body?.access_token !== "string" || typeof body?.expires_in !== "number") {
+		throw Object.assign(new Error("Invalid OAuth refresh response"), { exitCode: 5 });
+	}
 	const next = {
 		access: body.access_token,
 		refresh: typeof body.refresh_token === "string" ? body.refresh_token : value.refresh,
@@ -73,8 +72,14 @@ async function refresh(value) {
 }
 
 try {
-	const active = await refresh(current);
+	const active = await withCredentialLock(configDir, async () => {
+		const accounts = readJson(accountsPath);
+		let current = credential(accounts?.[account]);
+		if (!current && account === "work") current = credential(readJson(authPath)?.["openai-codex"]);
+		if (!current) throw Object.assign(new Error("Account not configured"), { exitCode: 3 });
+		return refresh(current, accounts);
+	});
 	process.stdout.write(active.access);
-} catch {
-	process.exit(6);
+} catch (error) {
+	process.exitCode = error.exitCode ?? 6;
 }

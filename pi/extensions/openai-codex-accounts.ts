@@ -15,6 +15,7 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { withCredentialLock } from "./lib/credential-lock.mjs";
 import type {
 	ExtensionAPI,
 	ExtensionContext,
@@ -137,18 +138,20 @@ function clearTransientAuthCredential(): void {
 	writePrivateJson(authPath, auth);
 }
 
-export function importCurrentCodexCredential(account: AccountName): boolean {
-	const auth = readJson(configPath("auth.json"));
-	if (!auth || typeof auth !== "object" || Array.isArray(auth)) return false;
-	const credential = asCredential((auth as Record<string, unknown>)[CODEX_PROVIDER]);
-	if (!credential) return false;
-	const accounts = readAccounts();
-	accounts[account] = { type: "oauth", ...credential };
-	writeAccounts(accounts);
-	// Once work is in the account store, avoid letting Pi's single built-in auth
-	// slot select an unrelated account before streamSimple runs.
-	if (asCredential(accounts.work)) clearTransientAuthCredential();
-	return true;
+export async function importCurrentCodexCredential(account: AccountName): Promise<boolean> {
+	return withCredentialLock(configDir(), () => {
+		const auth = readJson(configPath("auth.json"));
+		if (!auth || typeof auth !== "object" || Array.isArray(auth)) return false;
+		const credential = asCredential((auth as Record<string, unknown>)[CODEX_PROVIDER]);
+		if (!credential) return false;
+		const accounts = readAccounts();
+		accounts[account] = { type: "oauth", ...credential };
+		writeAccounts(accounts);
+		// Once work is in the account store, avoid letting Pi's single built-in auth
+		// slot select an unrelated account before streamSimple runs.
+		if (asCredential(accounts.work)) clearTransientAuthCredential();
+		return true;
+	});
 }
 
 function updateAccountCredential(account: AccountName, credential: AccountCredential): void {
@@ -178,6 +181,7 @@ export function accountIdFromAccessToken(token: string): string | undefined {
 async function refreshCredential(credential: AccountCredential): Promise<AccountCredential> {
 	if (!credential.refresh) return credential;
 	const response = await fetch(TOKEN_URL, {
+		signal: AbortSignal.timeout(20_000),
 		method: "POST",
 		headers: { "content-type": "application/x-www-form-urlencoded" },
 		body: new URLSearchParams({
@@ -199,25 +203,27 @@ async function refreshCredential(credential: AccountCredential): Promise<Account
 }
 
 async function accessTokenFor(account: AccountName): Promise<string | undefined> {
-	const credential = readAccountCredential(account);
-	if (!credential) return undefined;
-	if (!credential.expires || credential.expires > Date.now() + REFRESH_SKEW_MS) {
-		return credential.access;
-	}
-	const refreshed = await refreshCredential(credential);
-	if (account === "work" && !readAccounts()[account]) {
-		// Keep the built-in provider's normal auth storage in sync when work has
-		// not yet been imported into the account file.
-		const authPath = configPath("auth.json");
-		const auth = readJson(authPath);
-		if (auth && typeof auth === "object" && !Array.isArray(auth)) {
-			(auth as Record<string, unknown>)[CODEX_PROVIDER] = { type: "oauth", ...refreshed };
-			writePrivateJson(authPath, auth);
+	return withCredentialLock(configDir(), async () => {
+		const credential = readAccountCredential(account);
+		if (!credential) return undefined;
+		if (!credential.expires || credential.expires > Date.now() + REFRESH_SKEW_MS) {
+			return credential.access;
 		}
-	} else {
-		updateAccountCredential(account, refreshed);
-	}
-	return refreshed.access;
+		const refreshed = await refreshCredential(credential);
+		if (account === "work" && !readAccounts()[account]) {
+			// Keep the built-in provider's normal auth storage in sync when work has
+			// not yet been imported into the account file.
+			const authPath = configPath("auth.json");
+			const auth = readJson(authPath);
+			if (auth && typeof auth === "object" && !Array.isArray(auth)) {
+				(auth as Record<string, unknown>)[CODEX_PROVIDER] = { type: "oauth", ...refreshed };
+				writePrivateJson(authPath, auth);
+			}
+		} else {
+			updateAccountCredential(account, refreshed);
+		}
+		return refreshed.access;
+	});
 }
 
 function headerValue(headers: Record<string, string>, name: string): string | undefined {
@@ -430,7 +436,7 @@ function registerAccountCommand(pi: ExtensionAPI, currentState: Map<string, Acco
 				return;
 			}
 			if (command === "import" && isAccountName(value)) {
-				ctx.ui.notify(importCurrentCodexCredential(value) ? `Imported current OAuth credential as ${value}` : "No openai-codex OAuth credential found in auth.json", "info");
+				ctx.ui.notify((await importCurrentCodexCredential(value)) ? `Imported current OAuth credential as ${value}` : "No openai-codex OAuth credential found in auth.json", "info");
 				return;
 			}
 			if (command === "use" && isAccountName(value)) {
