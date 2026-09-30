@@ -159,7 +159,7 @@ issue は **Linear**、PR は **GitHub**。`triage` / `to-issues` / `implement-i
 
 ### トークン消費を無駄にしない姿勢
 
-Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode の classifier に拒否される。`git -C` / `pnpm -C` / 絶対パス起動を使い、cwd が要るなら subshell に入れる。hook でブロック）。検索は Grep ツールを使う。Grep ツールが無いコンテキスト（一部 subagent）では ripgrep を使う（Bash の grep/sed/awk は hook でブロック）。出力を削るプロキシを挟んでいる環境では hook が Bash コマンドを自動で書き換えるので、こちらから経由先を指定しない。パスは推測して Read しない（Glob / ls で確認してから）。既存ファイルへの Write / Edit は同じセッション内で Read 済みの内容にだけ行い、`File has not been read yet` / `modified since read` の precondition エラーは同じ引数の retry では解消しないので対象範囲を Read し直してから再実行する。cloud セッション由来の `/home/user/...` パスをローカルで使い回さない（ローカルは `~` 配下）。同じ情報を複数回取得しない。`get_design_context` を大きな親ノードに一発で打たない（`get_metadata` で分割してから）。codex review / pre-review-check は勝手に複数回走らせない。
+Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode の classifier に拒否される。`git -C` / `pnpm -C` / 絶対パス起動を使い、cwd が要るなら subshell に入れる。hook でブロック）。検索は ripgrep（`rg`）を使う（Bash の再帰 grep と `sed -i` は hook でブロック。`sed -n` での読み取りやパイプ内の grep / awk は通る）。出力を削るプロキシを挟んでいる環境では hook が Bash コマンドを自動で書き換えるので、こちらから経由先を指定しない。パスは推測して Read しない（Glob / ls で確認してから）。既存ファイルへの Write / Edit は同じセッション内で Read 済みの内容にだけ行い、`File has not been read yet` / `modified since read` の precondition エラーは同じ引数の retry では解消しないので対象範囲を Read し直してから再実行する。cloud セッション由来の `/home/user/...` パスをローカルで使い回さない（ローカルは `~` 配下）。同じ情報を複数回取得しない。`get_design_context` を大きな親ノードに一発で打たない（`get_metadata` で分割してから）。codex review / pre-review-check は勝手に複数回走らせない。
 
 ### macOS 環境の罠（実際に再発したもののみ）
 

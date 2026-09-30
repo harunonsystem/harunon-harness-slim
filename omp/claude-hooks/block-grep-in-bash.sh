@@ -30,21 +30,30 @@ else
   NORMALIZED="$COMMAND"
 fi
 
-if echo "$NORMALIZED" | command grep -qE '(^|\||&&|;)[[:space:]]*(e|f)?grep\b'; then
-  echo "grepではなくrg（ripgrep）を使ってください。または専用のGrepツールを使ってください。" >&2
+# 止めるのは再帰 grep（rg の方が .gitignore を尊重し速い）と sed のインプレース編集
+# （Edit の read-before-write を迂回する）だけ。ファイル単体やパイプ内の grep、sed -n、
+# awk は読み取りなので通す。Claude Code の auto mode がこれらを Bash で使うよう指示して
+# おり、全面禁止だと 30 日で約 660 回の deny → 再試行を生んでいた（cclens 2026-09-30）。
+# 判定範囲は同じコマンドの引数まで（[^|;&]*）。パイプ先の `sort -r` を grep に帰属させない。
+# ponytail: sed の `w file` コマンドや grep -d recurse は見ていない。実測で出たら足す。
+# grep のオプション判定用に、パターン引数をオプションと取り違えない形へ落とす:
+#   - `-e <pattern>` の引数（`grep -e '-r' f`）。正規化は '' を消して次の語を繰り上げる
+#     ため（`-e '' -r` → `-e  -r`）、quote が残っている正規化前のコマンドで落とす
+#   - `--` 以降（`grep -- -r f`）。オプション解析はそこで終わる
+GREP_FLAGS=$(echo "$COMMAND" | command sed -E "s/(^|[[:space:]])-e[[:space:]]+('[^']*'|\"[^\"]*\"|[^[:space:]|;&]+)/\\1/g")
+if declare -f normalize_command_available >/dev/null 2>&1 && normalize_command_available; then
+  GREP_FLAGS=$(normalize_command "$GREP_FLAGS") || GREP_FLAGS="$NORMALIZED"
+fi
+GREP_FLAGS=$(echo "$GREP_FLAGS" | command sed -E 's/[[:space:]]--([[:space:]][^|;&]*)?$|[[:space:]]--[[:space:]][^|;&]*([|;&])/ \2/g')
+if echo "$GREP_FLAGS" | command grep -qE '(^|\||&&|;)[[:space:]]*(e|f)?grep\b[^|;&]*[[:space:]](-[A-Za-z]*[rR]|--(dereference-)?recursive\b)'; then
+  echo "再帰検索は grep -r ではなく rg（ripgrep）を使ってください。例: rg -n 'pattern' src" >&2
   declare -f record_denial >/dev/null 2>&1 && record_denial "block-grep-in-bash" "grep-in-bash" "$COMMAND" || true
   exit 2
 fi
 
-if echo "$NORMALIZED" | command grep -qE '(^|\||&&|;)[[:space:]]*sed\b'; then
-  echo "sedではなくEditツールまたはperlを使ってください。例: perl -pi -e 's/old/new/g' file.txt" >&2
+if echo "$NORMALIZED" | command grep -qE '(^|\||&&|;)[[:space:]]*sed\b[^|;&]*[[:space:]](-[A-Za-z]*i|--in-place)'; then
+  echo "sed -i ではなく Edit ツールまたは perl を使ってください。例: perl -pi -e 's/old/new/g' file.txt（読み取りの sed -n は使えます）" >&2
   declare -f record_denial >/dev/null 2>&1 && record_denial "block-grep-in-bash" "sed-in-bash" "$COMMAND" || true
-  exit 2
-fi
-
-if echo "$NORMALIZED" | command grep -qE '(^|\||&&|;)[[:space:]]*awk\b'; then
-  echo "awkではなくperlを使ってください。例: perl -lane 'print \$F[0]' file.txt" >&2
-  declare -f record_denial >/dev/null 2>&1 && record_denial "block-grep-in-bash" "awk-in-bash" "$COMMAND" || true
   exit 2
 fi
 
