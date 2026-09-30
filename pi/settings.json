@@ -1,6 +1,6 @@
 {
 	"defaultProvider": "openai-codex",
-	"defaultModel": "gpt-6-sol",
+	"defaultModel": "gpt-6.1-sol",
 	"defaultThinkingLevel": "medium",
 	"theme": "dark",
 	"quietStartup": true,
@@ -22,7 +22,6 @@
 		"npm:@howaboua/pi-codex-web-run@0.0.4",
 		"git:github.com/NVlabs/SoL-Pi@1559b5cb12c72da4a485bc50fe326586b216fb19",
 		"npm:pi-web-access@0.33.0",
-		"npm:pi-mcp-adapter@3.1.0",
 		"npm:@ff-labs/pi-fff@0.11.0",
 		"npm:@pi-lab/input-history@1.0.3",
 		"npm:pi-powerline-footer@0.18.0",

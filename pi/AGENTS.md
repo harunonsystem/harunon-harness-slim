@@ -65,7 +65,7 @@
 
 ## Hooks（自動適用）
 
-pi は `~/.pi/agent/extensions/` で Claude Code hooks を実行する。`confirm-destructive` は破壊的コマンドを確認し、非対話では拒否する。Markdown テーブルは GFM に修正される。
+pi は `~/.pi/agent/extensions/` で Claude Code hooks を実行する。`confirm-destructive` は破壊的コマンドと書き込み系 MCP を確認し、非対話では拒否する。Markdown テーブルは GFM に修正される。
 
 ## Account rotation boundary
 
