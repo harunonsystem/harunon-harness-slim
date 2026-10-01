@@ -5,13 +5,9 @@
     "additionalProviders": []
   },
   "tools": {
-    "webRun": true,
-    "imageGeneration": true,
     "viewImageFallback": false,
     "applyPatchOnly": false,
-    "viewImageOnly": false,
-    "webRunOnly": true,
-    "imageGenerationOnly": true
+    "viewImageOnly": false
   },
   "ui": {
     "statusLine": false,
@@ -25,7 +21,7 @@
     "backgroundShellCloseShortcut": "alt+r"
   },
   "compaction": {
-    "responsesCompaction": true
+    "method": "v2"
   },
   "openai": {
     "fast": false,
