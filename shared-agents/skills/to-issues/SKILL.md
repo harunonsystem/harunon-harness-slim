@@ -5,6 +5,8 @@ description: Break a plan, spec, or PRD into independently-grabbable issues on t
 
 # To Issues
 
+When `yomiyasu` is unavailable, proofread the wording locally under the same constraints instead of invoking it.
+
 Break a plan into independently-grabbable issues using vertical slices (tracer bullets).
 
 The issue tracker and triage label vocabulary should have been provided to you — run `/setup-matt-pocock-skills` if not.
@@ -35,6 +37,8 @@ Break the plan into **tracer bullet** issues. Each issue is a thin vertical slic
 
 ### 4. Quiz the user
 
+Before presenting the breakdown for approval, finalize the slice count, dependencies, and user-story mapping, then apply `yomiyasu --domain business` as a wording-only pass to the human-facing draft. Preserve the number of slices, dependency graph, user-story coverage, and technical constraints. Use only the rewritten draft; do not include yomiyasu's improvement-point appendix.
+
 Present the proposed breakdown as a numbered list. For each slice, show:
 
 - **Title**: short descriptive name
@@ -50,6 +54,8 @@ Ask the user:
 Iterate until the user approves the breakdown.
 
 ### 5. Publish the issues to the issue tracker
+
+The published issue body is an agent handoff artifact. Do not run yomiyasu over it after approval; preserve the approved structure and exact acceptance criteria.
 
 For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the correct triage label unless instructed otherwise.
 

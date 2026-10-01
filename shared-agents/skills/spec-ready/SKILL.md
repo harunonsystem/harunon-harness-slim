@@ -5,6 +5,8 @@ description: 大きいIssueをコードベース・契約・既存方針にgroun
 
 # Spec Ready
 
+`yomiyasu` は利用可能な場合だけ使用する。未導入の場合は、各手順の制約を保ち、その場で表現だけを推敲する。
+
 PdM / product-level の大きい Issue を、実装 agent が迷わず着手できる状態まで具体化し、必要なら複数の子 Issue に分割する入口。
 
 通常の粒度確認や分割承認のために人間を挟まない。Issue・repo・ADR・既存契約から決められない product decision だけを例外として止める。
@@ -24,6 +26,8 @@ READY にできるのは、以下がすべて満たされたときだけ。
 - rollout 後に消す旧経路・flag・compatibility code がある場合、その cleanup 条件がある
 
 repo や既存資料から解けない product decision が残る場合は BLOCKED にし、必要な判断だけを列挙する。routine な「この分割でいいですか」は聞かない。
+
+BLOCKED で人間の product decision を求める場合だけ、判断材料・選択肢・質問を確定した後に `yomiyasu --domain business` を最終推敲として適用する。選択肢の数、制約、既知/未知の境界、推奨の強さは変えず、推敲済み本文だけを返す。READY のまま子 Issue を自動作成して次の agent workflow へ流す場合は適用しない。
 
 ## Workflow
 

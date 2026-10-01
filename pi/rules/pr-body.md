@@ -30,6 +30,12 @@ repo固有 template がない場合は次の順序を使う。
 
 既存の `.github/PULL_REQUEST_TEMPLATE.md` がある場合は、その見出し・checklistを優先する。ただし各欄の中ではこの情報優先度を維持し、同じ内容を複数セクションに重複させない。
 
+## 最終推敲
+
+日本語のPR本文は、構成と事実関係を確定した後、公開前の最終段階で `yomiyasu --domain business` を適用する。`yomiyasu` は構成や事実を作る工程ではなく、確定済みの本文からAI特有の言い回し、不自然な比喩、過剰な装飾、冗長さを除く最終推敲として使う。技術的制約、数値、Evidence、Merge risk、未実行項目、残件は削除・追加・断定変更しない。
+
+PR本文が英語のみの場合はこの工程を省略してよい。`yomiyasu` が利用できないruntimeでは本文をそのまま公開せず、同じ原則で手動推敲してから作成する。
+
 ## Shape of change
 
 `Shape of change` 自体は必須。図は装飾ではなく review navigation なので、差分の理解時間を縮める場合だけ使う。図が有効でない変更では、同じsectionに短い変更要約を書く。

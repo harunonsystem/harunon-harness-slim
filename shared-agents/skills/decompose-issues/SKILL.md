@@ -5,6 +5,8 @@ description: 大きな機能・エピックをtracer bullet型の縦slice Issue�
 
 # decompose-issues: Issue分解スキル
 
+`yomiyasu` は利用可能な場合だけ使用する。未導入の場合は、各手順の制約を保ち、その場で表現だけを推敲する。
+
 大きな機能・エピックを Issue に分解する。
 
 **運用前提**: issue 管理は **Linear が主軸**。`config.yml` の `tracker` で `linear` / `github` を選択。デフォルトは `linear`。
@@ -79,7 +81,7 @@ Epic / Feature（大きな塊）
 
 ### Phase 1.5: 未決事項の確認
 
-PRD と既存の合意から MVP・リリース順序・対象 repo を確認する。ユーザー固有の判断が残る場合、または対話で方針を詰める依頼がある場合だけ `grill-implementation` を使う。合意済みの方針は再確認しない。
+PRD と既存の合意から MVP・リリース順序・対象 repo を確認する。ユーザー固有の判断が残る場合、または対話で方針を詰める依頼がある場合だけ `grill-implementation` を使う。その結果をユーザーへ提示して判断を待つ場合は、質問・選択肢・制約を確定した後、呼び出し元で `yomiyasu --domain business` を wording-only の最終推敲として適用する。選択肢や依存関係、技術的制約は変えない。合意済みの方針は再確認しない。
 
 ### Phase 2: 分解案の分析
 
@@ -94,6 +96,8 @@ PRD と既存の合意から MVP・リリース順序・対象 repo を確認す
 ### Phase 3: 統合 & Issue構造の確定
 
 分析結果を統合し、Issue構造を確定する。
+
+Phase 3 がユーザーの確認・選択を待つ human checkpoint になる場合は、Issue 数・依存関係・Size・受け入れ条件を確定してから、ユーザーに提示する分解案を `yomiyasu --domain business` で最終推敲する。Issue 数、依存関係、チェックリスト、技術的制約は変えず、推敲済み本文だけを提示する。外部作成まで既に承認済みでそのまま Phase 4 へ進む場合は適用しない。Phase 4 で公開する Issue 本文は agent handoff なので、yomiyasu で再構成しない。
 
 出力フォーマット（ユーザーに提示）:
 

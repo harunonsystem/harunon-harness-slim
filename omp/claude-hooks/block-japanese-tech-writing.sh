@@ -18,7 +18,7 @@ jq -n --arg reason "$REASON" '{
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
-    "permissionDecisionReason": ("BLOCKED: 日本語技術文書ゲートに違反しています。" + $reason)
+    "permissionDecisionReason": ("BLOCKED: 日本語技術文書ゲートに違反しています。" + $reason + " PR本文を確定後、利用可能なら yomiyasu --domain business で最終推敲してください。未導入の場合は指摘された表現をその場で修正してから再実行してください。")
   }
 }'
 exit 0

@@ -5,6 +5,8 @@ description: PRD・Linear task・GitHub issue から要件と worktree を解決
 
 # implement-issue: Issue実装スキル
 
+`yomiyasu` は利用可能な場合だけ使用する。未導入の場合は、各手順の制約を保ち、その場で表現だけを推敲する。
+
 PRD、Linear task、GitHub issue の URL、またはタスク説明を受け取り、要件と worktree を解決する。コード変更は `run-change` の Core Workflow に引き継いで PR 作成まで進める。
 
 **運用前提**: issue 管理は **Linear が主軸**。GitHub issue は副次的に使用される場合があり、PR は **GitHub** で作成する。
@@ -55,7 +57,7 @@ gh issue view <issue-number> --repo <owner/repo>
 
 ### Phase 1.5: 未決事項の確認
 
-既存コード・タスク記述・既存の合意から目的と実装範囲を確認する。手段が未承認の提案か未指定で、既存機構を含む実質的に異なる解法が複数残る場合は `derive-optimal-solution` で比較してから進む。ユーザー固有の判断が残るとき、またはインタビューを依頼されたときだけ `grill-implementation` を使う。方針が決まれば Phase 2 へ進む。
+既存コード・タスク記述・既存の合意から目的と実装範囲を確認する。手段が未承認の提案か未指定で、既存機構を含む実質的に異なる解法が複数残る場合は `derive-optimal-solution` で比較してから進む。ユーザー固有の判断が残るとき、またはインタビューを依頼されたときだけ `grill-implementation` を使う。`derive-optimal-solution` / `grill-implementation` の結果をユーザーへ提示して判断を待つ場合は、選択肢・制約・推奨を確定した後、呼び出し元で `yomiyasu --domain business` を wording-only の最終推敲として適用する。選択肢の数、制約、推奨の強さ、技術的事実は変えず、改善ポイント等のメタ出力は返さない。判断待ちがなくそのまま Phase 2 へ進む場合は適用しない。方針が決まれば Phase 2 へ進む。
 
 ### Phase 2: worktree 作成
 

@@ -6,6 +6,8 @@ compatibility: codex opencode pi omp claude
 
 # Run Change
 
+When `yomiyasu` is unavailable, proofread the wording locally under the same constraints instead of invoking it.
+
 Use the runtime-neutral Core Workflow instead of recreating the development process in the prompt.
 
 `run-change` owns lifecycle state, policy gates, and evidence binding. It does **not** own worker selection, spawning, dispatch, retries, worktree management, or runtime-specific handoff. Those belong to each runtime's native orchestration layer.
@@ -102,7 +104,7 @@ python3 <skill-dir>/scripts/harness.py approve-review --revision <revision> --re
 
 ## Publish
 
-Before drafting the PR body, read `rules/pr-body.md`. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, preserve its headings and checklists while applying the readability rules inside each section.
+Before drafting the PR body, read `rules/pr-body.md`. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, preserve its headings and checklists while applying the readability rules inside each section. After the structure, facts, evidence, and risk statements are fixed, run the final Japanese prose through `yomiyasu --domain business` before publication. Treat `yomiyasu` as a wording-only pass: it must not invent, remove, or strengthen technical claims, evidence, risk, or unresolved findings.
 
 Before PR creation, authorize the normalized action. In Codex, prefer the GitHub app's pull-request tool when it is available; use `gh` only as a fallback.
 
