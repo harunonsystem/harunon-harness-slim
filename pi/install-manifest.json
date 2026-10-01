@@ -40,6 +40,8 @@
     "defaultThinkingLevel",
     "theme",
     "quietStartup",
+    "tuiMode",
+    "fullscreenExitOutput",
     "collapseChangelog",
     "hideThinkingBlock",
     "steeringMode",

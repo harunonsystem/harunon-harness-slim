@@ -4,6 +4,8 @@
 	"defaultThinkingLevel": "medium",
 	"theme": "dark",
 	"quietStartup": true,
+	"tuiMode": "fullscreen",
+	"fullscreenExitOutput": "resume-hint",
 	"collapseChangelog": true,
 	"hideThinkingBlock": true,
 	"steeringMode": "all",

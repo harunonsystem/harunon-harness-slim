@@ -16,8 +16,9 @@
   "ui": {
     "statusLine": false,
     "toolRenaming": true,
-    "compactTools": true,
-    "backgroundShellWidget": true,
+    "compactTools": "minimal",
+    "codeModeDetails": false,
+    "backgroundShellWidget": false,
     "backgroundShellToggleShortcut": "alt+w",
     "backgroundShellPrevShortcut": "alt+q",
     "backgroundShellNextShortcut": "alt+e",
