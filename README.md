@@ -1,7 +1,7 @@
 # harunon-harness-slim
 
-複数の AI コーディングエージェントに同じ skills・rules・安全 hook・subagent 定義を配るためのハーネスです。
-各ランタイムの設定ディレクトリへそのまま置ける完成形（payload）を target ごとに収め、`scripts/install.sh` が配布します。
+複数のAIコーディングエージェントへ、共通のskills・rules・安全hookとruntime別の設定を配布します。
+各runtimeの設定一式をtargetごとのディレクトリに収めています。`scripts/install.sh`で設定ディレクトリへインストールできます。
 
 ## 構成
 
@@ -12,11 +12,11 @@
 | `opencode/` | `~/.config/opencode` | OpenCode 用の AGENTS.md・agents・plugins・runtime・opencode.json |
 | `opencode-launcher/` | `~/.local/bin` | OpenCode を安全設定付きで起動する `opencode` ラッパー（PATH で本体より前に置く） |
 | `omp/` | `~/.omp/agent` | oh-my-pi 用の AGENTS.md・extensions・hook-runner・policy・config.yml |
-| `pi/` | `~/.pi/agent` | pi coding agent 用の AGENTS.md・agents・extensions・hook-runner・policy・settings.json |
+| `pi/` | `~/.pi/agent` | pi coding agent用のAGENTS.md・extensions・hook-runner・policy・settings.json |
 | `shared-agents/` | `~/.agents` | Codex / OpenCode / omp / pi が共通に読む skills・policy・workflows |
 
-各 target ディレクトリの `install-manifest.json` に、配布先（`configDir`）・管理パス（`managedPaths`）・設定ファイルの同期方法が書いてあります。
-skills は Claude 以外のランタイムには `shared-agents/` から 1 回だけ配り、各ランタイムの configDir には複製しません。
+各targetの`install-manifest.json`に、配布先の`configDir`、管理パスの`managedPaths`、設定ファイルの同期方法を記載しています。
+Claude以外のruntimeが使う共通skillsは、`shared-agents/`から1回だけ配布します。Codex専用skillsは別途`codex/`から配布します。
 
 ## インストール
 
@@ -27,31 +27,33 @@ scripts/install.sh claude                 # 配布
 scripts/install.sh claude --check         # 配布後のドリフト確認（差分があれば exit 1）
 ```
 
-`claude` の部分を `codex` / `opencode` / `opencode-launcher` / `omp` / `pi` / `shared-agents` に替えて、使うランタイムの分だけ実行します。
-配布先は `--dest DIR` で変えられます。
+`claude`の部分を使うtarget名に替えて実行してください。Codex / OpenCode / omp / piを使う場合は、`shared-agents`もインストールします。
+配布先は`--dest DIR`で指定できます。
 
-`install.sh` は `managedPaths` だけを rsync し、配布先にある未管理ファイルは触りません。
-配ったファイルは配布先の `.harunon-slim.installed.json` に記録し、次回は「前回配ったが今回の payload に無いファイル」だけを消します。
-上書き・削除される既存ファイルは配布先の `.harunon-slim.backups/<timestamp>/` に退避するので、手で編集していた CLAUDE.md 等はそこから取り戻せます。
-`codex/` は環境変数 `CODEX_HOME` が設定されていればそこへ配ります（`install-manifest.json` の `configDirEnv`）。
+`install.sh`は`managedPaths`にあるファイルだけをrsyncで配布し、未管理のファイルは変更しません。
+配布済みのファイルは`.harunon-slim.installed.json`に記録します。次回の配布では、前回配ったファイルのうち、今回の配布物にないものだけを削除します。
+上書き・削除する既存ファイルは`.harunon-slim.backups/<timestamp>/`に退避します。手元の修正はそこから復元できます。
+Codexの配布先は、`CODEX_HOME`が設定されていればそのディレクトリになります。
 
 ## 設定ファイルの扱い
 
-- JSON（`claude/settings.json`・`opencode/opencode.json`・`pi/settings.json`）: 既存ファイルがあれば `install-manifest.json` の `settingsKeys` に挙がったキーだけをマージし、それ以外のローカル値は保持します。無ければファイルごと置きます
-- TOML / YAML（`codex/config.toml`・`omp/config.yml`）: 配布先に無いときだけ置きます。既にある場合は触らず `S config.toml (not merged: toml; ...)` と知らせるので、その target の `install-manifest.json` にある `settingsKeys` のキーを手で取り込んでください
+JSON（`claude/settings.json`・`opencode/opencode.json`・`pi/settings.json`）は、既存ファイルがあれば`install-manifest.json`の`settingsKeys`にあるキーだけをマージします。それ以外のローカル値は保持し、ファイルがなければ全体をコピーします。
+
+TOML / YAML（`codex/config.toml`・`omp/config.yml`）は、配布先にないときだけコピーします。既にある場合は変更せず、`S config.toml (not merged: toml; ...)`と表示します。該当targetの`install-manifest.json`にある`settingsKeys`のキーを手で取り込んでください。
 
 ## 前提ツール
 
-- `jq` と `rsync`（`install.sh`）。`validate.sh` はさらに `node` と `python3` を使います
-- hook は `node`（hook-runner）と `python3`（policy）で動きます。skill の一部（`skill-creator` の検証スクリプト）は `python3` に PyYAML が入っていることを前提にします
-- `rtk-rewrite.sh` は rtk（コマンド出力を圧縮する CLI）が無ければ何もせず素通りします（任意）
-- `enforce-gwm-for-worktree.sh` は worktree 作成を gwm（worktree 管理 CLI）経由に強制します。gwm を使わない場合は rigor profile を `casual` にするか、`policy/hook-pipeline.json` からこの hook の配線を外してください
+`install.sh`には`jq`と`rsync`、`validate.sh`にはさらに`node`と`python3`が必要です。hookもhook-runnerに`node`、policyの処理に`python3`を使います。`skill-creator`の検証スクリプトなど、一部のskillにはPyYAMLが必要です。
+
+コマンド出力を圧縮するCLIのrtkは任意です。未導入の場合、`rtk-rewrite.sh`はコマンドを変更せずに通します。
+
+`enforce-gwm-for-worktree.sh`は、worktree管理CLIのgwm経由での作成を必須にします。gwmを使わない場合は、rigor profileを`casual`にするか、`policy/hook-pipeline.json`からこのhookの配線を外してください。
 
 ## 境界
 
-認証情報、OAuth token、provider の API key は含めません。モデル定義には credential の参照先だけを書きます。
-`scripts/validate.sh` が credential らしき文字列を検出したら失敗します。
+認証情報、OAuth token、providerのAPI keyは含めません。モデル定義に記載するのはcredentialの参照先だけです。
+`scripts/validate.sh`は、credentialらしき文字列を検出すると失敗します。
 
 ## このリポジトリについて
 
-このリポジトリは SSOT から生成された成果物です。ここで直接編集した内容は次の生成で巻き戻るので、変更は SSOT 側に還流してください。
+このリポジトリはSSOTから生成した配布物です。ここで直接編集した内容は次の生成で上書きされるため、継続して使う変更はSSOT側へ取り込んでください。
