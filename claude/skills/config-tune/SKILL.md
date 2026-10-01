@@ -67,7 +67,7 @@ findings の一覧を提示し、利用中のエージェントのユーザー�
   - 機械的ガード（繰り返し block されている操作） → `hooks/` + `policy/danger-rules.json`
   - プロジェクト固有 → extras 側（会社・プロジェクト固有を置く private submodule）の `rules/`
 - 書き込み前に既存内容と照合し、重複は「記載済み」でスキップ、矛盾は両方を提示して解決方針を確認する
-- 適用後の検証は変更した層に合わせる。全変更で `"$(mise which python3)" scripts/validate-harness.py` と `"$(mise which python3)" scripts/run-tests.py`。hooks / policy を触ったら加えて `node --test "scripts/tests/node/*.test.ts"` と `shellcheck -S warning packages/core/hooks/*.sh`
+- 適用後の検証は変更した層に合わせる。全変更で `"$(mise --dry-run which python3)" scripts/validate-harness.py` と `"$(mise --dry-run which python3)" scripts/run-tests.py`。hooks / policy を触ったら加えて `node --test "scripts/tests/node/*.test.ts"` と `shellcheck -S warning packages/core/hooks/*.sh`
 - 配布は push モードを明示して `/sync-settings --push <target>`（`distribute.py <target> --push`）。引数なしの `/sync-settings` は check に落ちるので live には届かない。core skill は Claude へ `claude` target、Codex / OpenCode / pi / omp へ `shared-agents` target から届くため、skill を変えたら利用する runtime に対応する target を含める
 
 ### standalone mode
