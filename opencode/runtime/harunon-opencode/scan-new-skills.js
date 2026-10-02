@@ -6,8 +6,8 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
-const SKILLS_DIR = `${process.env.HOME}/.config/opencode/skills`;
-const MANIFEST = "/tmp/.opencode-skills-manifest";
+const SKILLS_DIR = `${process.env.HOME}/.agents/skills`;
+const MANIFEST = `${process.env.HOME}/.agents/.opencode-skills-manifest`;
 
 async function readManifest() {
   try {
@@ -90,7 +90,7 @@ export const ScanNewSkills = async ({ $ }) => {
   return {
     "tool.execute.after": async (input, output) => {
       if (input.tool !== "bash") return;
-      const cmd = output?.args?.command;
+      const cmd = input?.args?.command;
       if (!cmd) return;
 
       // スキルインストール系コマンドのみ対象
