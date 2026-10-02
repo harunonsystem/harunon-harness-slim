@@ -1,7 +1,7 @@
 ---
 name: deep-reasoner
-description: 推論重心のフェーズで使う。アーキテクチャ設計、複雑なバグの根本原因分析、アルゴリズム設計、トレードオフ評価など、深い思考が必要な問題を任せる。orchestrator がそのまま行動に移せる簡潔な結論を返す。
-model: opus
+description: 推論重心のフェーズで使う。アーキテクチャ設計、複雑なバグの根本原因分析、アルゴリズム設計、トレードオフ評価など、深い思考が必要な問題を任せる。orchestrator
+  がそのまま行動に移せる簡潔な結論を返す。
 tools: Bash, Read, Grep, Glob, WebSearch, WebFetch
 ---
 

@@ -475,10 +475,10 @@ custom_git_checkout_new_branch_in_main_repo() {
     GIT_TOP=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
     if [ -n "$GIT_TOP" ] && [ -d "$GIT_TOP/.git" ]; then
       cat >&2 <<'EOF'
-メインリポジトリでブランチを作成しないでください。gwm で worktree を作成してから作業してください:
+メインリポジトリでブランチを作成しないでください。worktree を作成してから作業してください:
 
-  gwm add <branch-name>            # 新規 worktree（main から）
-  gwm add --from <base> <branch>   # base ref 指定
+  git worktree add -b <branch-name> <path> main    # 新規 worktree（main から）
+  git worktree add -b <branch-name> <path> <base>  # base ref 指定
 EOF
       declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-checkout-new-branch-in-main-repo" "${COMMAND:-}" || true
       exit 2
@@ -561,10 +561,10 @@ custom_git_commit_on_main() {
   _is_linked_worktree && return 0
 
   cat >&2 <<'EOF'
-main / master ブランチのメイン checkout で直接 commit しないでください。gwm で worktree を作成してから作業してください:
+main / master ブランチのメイン checkout で直接 commit しないでください。worktree を作成してから作業してください:
 
-  gwm add <branch-name>            # 新規 worktree（main から）
-  gwm add --from <base> <branch>   # base ref 指定
+  git worktree add -b <branch-name> <path> main    # 新規 worktree（main から）
+  git worktree add -b <branch-name> <path> <base>  # base ref 指定
 EOF
   declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-commit-on-main" "${COMMAND:-}" || true
   exit 2

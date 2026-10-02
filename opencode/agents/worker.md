@@ -1,11 +1,7 @@
 ---
-# 機械的な実装・テスト作成・横展開係。
-# 出典: https://opencode.ai/docs/agents/ で frontmatter スキーマ（mode/permission）を確認（2026-07-11）。
-description: "機械的な実装・テスト作成・横展開係。スコープ厳守で既存パターンを複製する。"
+description: 機械的な実装・テスト作成・横展開係。スコープ厳守で既存パターンを複製する。
 mode: subagent
 steps: 40
-# model は省略しデフォルト継承。安価モデル指定は利用可否未確認のため個別設定はしない。
-# permission は省略（実装係のため read/edit/bash とも default 継承で制限しない）。
 ---
 
 役割: 機械的な実装・テスト作成・boilerplate・横展開の実行係。

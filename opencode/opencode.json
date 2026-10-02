@@ -1,11 +1,4 @@
 {
-  "instructions": [],
-  "skills": {
-    "paths": [
-      "~/.agents/skills"
-    ]
-  },
-  "plugin": [],
   "permission": {
     "bash": {
       "*": "ask",
@@ -162,7 +155,12 @@
     "webfetch": "allow",
     "websearch": "allow"
   },
-  "default_agent": "build",
+  "instructions": [],
+  "skills": {
+    "paths": [
+      "~/.agents/skills"
+    ]
+  },
   "mcp": {
     "servers": {
       "sentry": {

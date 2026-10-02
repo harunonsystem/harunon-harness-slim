@@ -24,11 +24,7 @@
     "permissions.ask",
     "autoMode.hard_deny",
     "autoMode.soft_deny",
-    "fallbackModel",
-    "switchModelsOnFlag",
-    "env.HARNESS_RUNTIME",
-    "env.NODE_USE_ENV_PROXY",
-    "env.DISABLE_AUTOUPDATER"
+    "env.HARNESS_RUNTIME"
   ],
   "settingsRemoveKeys": [
     "enabledPlugins.mattpocock-skills@mattpocock",

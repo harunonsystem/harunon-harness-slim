@@ -11,9 +11,9 @@ main_repo: ~/projects/your-project
 #   ABC: ~/projects/repo-a
 #   XYZ: ~/projects/repo-b
 
-# worktree管理コマンド（add / list サブコマンドを持つこと）
-# example: gwm, git worktree
-worktree_cmd: gwm
+# 任意の管理コマンド（add --from <base> <branch> に対応すること）
+# 未設定なら runtime 標準機能か git worktree add -b を使う。Git はこのキーに指定しない。
+worktree_cmd: null
 
 # PR Templateのパス（リポジトリルートからの相対パス）
 pr_template: .github/PULL_REQUEST_TEMPLATE.md

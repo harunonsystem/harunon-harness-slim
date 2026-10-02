@@ -8,7 +8,7 @@
 | ディレクトリ | 配布先 | 内容 |
 | --- | --- | --- |
 | `claude/` | `~/.claude` | Claude Code 用の CLAUDE.md・skills・rules・hooks・agents・commands・settings.json |
-| `codex/` | `~/.codex` | Codex 用の AGENTS.md・rules・Codex 専用 skills・config.toml・review 用 config |
+| `codex/` | `~/.codex` | Codex 用の AGENTS.md・rules・Codex 専用 skills・config.toml |
 | `opencode/` | `~/.config/opencode` | OpenCode 用の AGENTS.md・agents・plugins・runtime・opencode.json |
 | `opencode-launcher/` | `~/.local/bin` | OpenCode を安全設定付きで起動する `opencode` ラッパー（PATH で本体より前に置く） |
 | `omp/` | `~/.omp/agent` | oh-my-pi 用の AGENTS.md・extensions・hook-runner・policy・config.yml |
@@ -41,13 +41,17 @@ JSON（`claude/settings.json`・`opencode/opencode.json`・`pi/settings.json`）
 
 TOML / YAML（`codex/config.toml`・`omp/config.yml`）は、配布先にないときだけコピーします。既にある場合は変更せず、`S config.toml (not merged: toml; ...)`と表示します。該当targetの`install-manifest.json`にある`settingsKeys`のキーを手で取り込んでください。
 
+公開設定は安全hookと共通機能に必要なキーだけです。モデル、UI、個人用plugin / npm packageは指定しません。既存の値は保持し、新規環境ではruntimeの既定値を使います。
+
 ## 前提ツール
 
 `install.sh`には`jq`と`rsync`、`validate.sh`にはさらに`node`と`python3`が必要です。hookもhook-runnerに`node`、policyの処理に`python3`を使います。`skill-creator`の検証スクリプトなど、一部のskillにはPyYAMLが必要です。
 
 コマンド出力を圧縮するCLIのrtkは任意です。未導入の場合、`rtk-rewrite.sh`はコマンドを変更せずに通します。
 
-`enforce-gwm-for-worktree.sh`は、worktree管理CLIのgwm経由での作成を必須にします。gwmを使わない場合は、rigor profileを`casual`にするか、`policy/hook-pipeline.json`からこのhookの配線を外してください。
+worktreeはruntimeの標準機能かGitで作成できます。gwmは必須ではありません。共有checkoutの保護や破壊的操作の確認hookは残しています。
+
+外部skillは自動取得しません。`tdd` / `diagnosing-bugs`が未導入でも、rulesにあるテスト先行・根本原因調査の手順で進められます。Issue trackerはプロジェクト設定と入力URLに従います。
 
 ## 境界
 

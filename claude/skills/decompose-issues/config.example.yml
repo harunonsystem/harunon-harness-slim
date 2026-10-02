@@ -2,8 +2,8 @@
 # config.yml にコピーして環境に合わせて編集すること。
 # スキル実行時に config.yml がReadされる。
 
-# issue tracker: linear or github
-tracker: linear
+# issue tracker: linear or github（未設定ならプロジェクトの規約と入力 URL から解決）
+tracker: null
 
 # Linear team / project（tracker: linear の場合）
 linear_team: YOUR_TEAM

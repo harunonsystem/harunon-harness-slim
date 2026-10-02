@@ -1,6 +1,5 @@
 {
 	"version": 1,
-	
 	"stages": [
 		"guard",
 		"rewrite"
@@ -83,29 +82,6 @@
 				"codex",
 				"omp"
 			]
-		},
-		{
-			"id": "enforce-gwm-for-worktree",
-			"file": "enforce-gwm-for-worktree.sh",
-			"event": "PreToolUse",
-			"stage": "guard",
-			"order": 30,
-			"required": true,
-			"when": {
-				"tools": [
-					"Bash",
-					"EnterWorktree"
-				]
-			},
-			"runtimes": [
-				"claude",
-				"codex",
-				"pi",
-				"omp"
-			],
-			"absent": {
-				"opencode": "worktree 作成は Claude 側の運用に閉じているため未配線"
-			}
 		},
 		{
 			"id": "block-secrets-in-commit",

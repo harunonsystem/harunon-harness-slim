@@ -1,6 +1,7 @@
 ---
 name: architecture-reviewer
-description: アーキテクチャ特化のコードレビュアー。core-standards.md「コーディング基準」節の構造的基準（Phase Separation, Resolution Responsibility, 抽象化レベル一貫性、インターフェース設計）に基づきレビューする。
+description: アーキテクチャ特化のコードレビュアー。core-standards.md「コーディング基準」節の構造的基準（Phase Separation,
+  Resolution Responsibility, 抽象化レベル一貫性、インターフェース設計）に基づきレビューする。
 tools: Bash, Read, Grep, Glob, WebSearch
 ---
 

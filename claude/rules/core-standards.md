@@ -8,7 +8,7 @@ paths:
 
 正確さはスピードに優先し、コードの正確性は実装の容易さに優先する。ツール実行はプロジェクト定義のスクリプトを使う。
 
-バグ修正・ロジック変更は対象の失敗テストから始め、green 後に整理する。詳細は `tdd` skill。
+バグ修正・ロジック変更は対象の失敗テストから始め、green 後に整理する。`tdd` skill が利用可能なら詳細を読む。未導入でも、失敗する最小テスト → 通す最小実装 → テストを変えず整理、の順を守る。
 
 ### 実装の梯子
 
@@ -114,25 +114,23 @@ git add / git commit / git push は 1 コマンドずつ実行し、`git add <pa
 
 ### 共有 checkout と worktree（並行セッションの作業を壊さない）
 
-複数の Claude セッションが同じリポジトリで同時に動いている前提で振る舞う。main の checkout（`gwm` の main_repo）は全セッションが共有する領域なので、そこでは編集も commit もしない。作業は必ず worktree（`EnterWorktree(name: <branch>)`）で行う。
+複数のセッションが同じリポジトリで同時に動いている前提で振る舞う。main の checkout は全セッションが共有する領域なので、そこでは編集も commit もしない。作業は必ず worktree で行う。runtime の標準機能か、プロジェクト指定の管理コマンドを使い、指定がなければ `git worktree add -b <branch> <path> <base>` を使う。
 
 - `git stash` / `git stash drop | clear` / `git checkout -- <path>` / `git checkout .` / `git restore <path>` / `git reset --hard` は、その checkout にある**他セッションの未 commit 変更も巻き込む**。worktree の外では実行しない。worktree 内でもユーザー指示による破棄か確認する（共有 checkout では `git-discard-in-shared-checkout` が block、worktree 内では `git-stash` / `git-checkout-discard` が warn する）
 - worktree 作成前に `git status --short` で共有 checkout が clean か確認する。dirty なら誰の変更か分からないので触らず、ユーザーに報告する
-- **stacked PR の base は着手前に確定して表示する**: 既存 PR の上に積むときは `gh pr view <n> --json headRefName,headRefOid` で head を取り、`git fetch origin --prune` 後にその SHA と `git log --oneline -3 <base>` を出して「この上に積む」と明示してからブランチを切る。`gwm` は既定で origin/main から切るので、stacking では base の指定を省略しない
+- **stacked PR の base は着手前に確定して表示する**: 既存 PR の上に積むときは `gh pr view <n> --json headRefName,headRefOid` で head を取り、`git fetch origin --prune` 後にその SHA と `git log --oneline -3 <base>` を出して「この上に積む」と明示してからブランチを切る。stacking では base の指定を省略しない
 
 ### main 直 commit の回収手順
 
 main への push は通らないので、ローカル main に commit してしまったら**放置せずその場で PR に載せ替えてから作業を終える**（放置すると次の `git pull` が diverge して他セッションが詰まる）:
 
 1. 関連する未 commit の変更（テスト修正等）も同じ作業の一部として commit する
-2. `git push origin HEAD:refs/heads/<branch>` で remote に feature branch を作る（ローカルでのブランチ作成は gwm 制約で block されるため、この形式を使う）
+2. `git push origin HEAD:refs/heads/<branch>` で remote に feature branch を作る
 3. `git switch <branch>` → PR 作成 → `git switch main && git reset --keep origin/main`（commit は branch に保持済み。`--keep` は未 commit 変更を消す場合に止まる）
 
 ### Issue tracker の規約
 
-issue は **Linear**、PR は **GitHub**。`triage` / `to-issues` / `implement-issue` 等の skill 本文は upstream 由来で `gh` の例を書いているが、issue 側の操作は Linear MCP tool（`list_issues`, `save_comment` 等）に読み替える。
-
-（この規約を vendored skill 本文に書き戻さない。upstream 同期のたびに消えるため、harness 側の rules が SSOT）
+issue / PR はプロジェクトで設定された tracker とホスティング先を使う。未設定なら入力 URL とリポジトリの設定を確認し、それでも判断できないときだけユーザーに確認する。
 
 ### 「確認した」と言う前に実物を見る
 
@@ -186,11 +184,11 @@ Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode
 
 **同じ方向性に 2 回 pushback されたら、3 回目の説明を書かずに止まる。** 説明を足しても伝わらないのは論点がずれているサイン。問題を 1 文で定義し直し、判断軸付きで 2〜3 案を出して選ばせる（「話が混ざってる」「で?」「そもそも何がしたいの」が 2 回出た時点で該当）。
 
-### 再発バグは /diagnosing-bugs を強制起動する
+### 再発バグは根本原因を調査する
 
-初回の bug 報告は通常通り対応する。同じエラーメッセージ / スタックトレース / 画面挙動の 2 回目、または「またこれ」「同じバグ」「前にも見た」が出た時点で表面修正を REJECT し、`/diagnosing-bugs` を Phase 1 から回す。パラメータ調整・条件分岐追加だけの「動くようにした」も REJECT で、根本原因まで掘る。
+初回の bug 報告は通常通り対応する。同じエラーメッセージ / スタックトレース / 画面挙動の 2 回目、または「またこれ」「同じバグ」「前にも見た」が出た時点で表面修正を REJECT する。`diagnosing-bugs` skill が利用可能なら Phase 1 から回す。未導入なら再現条件とログを集め、呼び出し元を追い、仮説を検証して根本原因の失敗テストから修正する。パラメータ調整・条件分岐追加だけで調査を終えない。
 
-ユーザーが「また」「同じ」「前に直した」と言ったら自己診断を発動。同一ファイル/関数で2回目以降の修正 → 構造的問題を疑い `/improve-codebase-architecture` も検討。
+同一ファイル・関数で2回目以降の修正なら構造的問題を疑う。`improve-codebase-architecture` skill が利用可能なら調査に使う。
 
 ### Claude sandbox の既知の制約
 

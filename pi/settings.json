@@ -1,51 +1,5 @@
 {
-	"defaultProvider": "openai-codex",
-	"defaultModel": "gpt-6.1-sol",
-	"defaultThinkingLevel": "medium",
-	"theme": "dark",
-	"quietStartup": true,
-	"tuiMode": "fullscreen",
-	"fullscreenExitOutput": "resume-hint",
-	"collapseChangelog": true,
-	"hideThinkingBlock": true,
-	"steeringMode": "all",
-	"followUpMode": "all",
-	"treeFilterMode": "no-tools",
-	"compaction": {
-		"enabled": true,
-		"reserveTokens": 172000,
-		"keepRecentTokens": 20000
-	},
-	"enableAnalytics": false,
-	"enableInstallTelemetry": false,
-	"enableSkillCommands": true,
-	"packages": [
-		"npm:@howaboua/pi-codex-conversion@3.0.39",
-		"npm:@howaboua/pi-codex-web-run@0.0.4",
-		"git:github.com/NVlabs/SoL-Pi@1559b5cb12c72da4a485bc50fe326586b216fb19",
-		"npm:pi-web-access@0.33.0",
-		"npm:@ff-labs/pi-fff@0.11.0",
-		"npm:@pi-lab/input-history@1.0.3",
-		"npm:pi-powerline-footer@0.18.0",
-		"npm:pi-interactive-shell@0.17.0",
-		"npm:@tian.zuo/pi-devin-acp@0.5.0"
-	],
-	"enabledModels": [
-		"opencode-zen/*",
-		"openai-codex/*",
-		"devin/*"
-	],
-	"observational-memory": {
-		"compactAfterTokens": 81000,
-		"compactAfterTokensMode": "ratio",
-		"compactAfterTokensRatio": 0.5,
-		"model": {
-			"provider": "openai-codex",
-			"id": "gpt-6-luna",
-			"thinking": "low"
-		}
-	},
-	"powerline": {
-		"welcome": false
-	}
+  "enableAnalytics": false,
+  "enableInstallTelemetry": false,
+  "enableSkillCommands": true
 }

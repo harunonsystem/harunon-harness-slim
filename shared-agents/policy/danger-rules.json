@@ -149,9 +149,9 @@
       "action": "block",
       "impl": "custom",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "メインリポジトリでブランチを作成しないでください。gwm で worktree を作成してから作業してください:",
+      "message": "メインリポジトリでブランチを作成しないでください。worktree を作成してから作業してください:",
       "autoMode": [
-        { "tier": "soft_deny", "prose": "メインリポジトリのチェックアウト上で branch を作成しない。gwm で worktree を切ってから作業する" }
+        { "tier": "soft_deny", "prose": "メインリポジトリのチェックアウト上で branch を作成しない。worktree を作成してから作業する" }
       ],
       "match": {
         "ere": "(git|rtk git)[[:space:]]+(checkout[[:space:]]+-[bB]|switch[[:space:]]+(-[cC]|--create))",
@@ -164,9 +164,9 @@
       "action": "block",
       "impl": "custom",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "main / master ブランチのメイン checkout で直接 commit しないでください。gwm で worktree を作成してから作業してください:",
+      "message": "main / master ブランチのメイン checkout で直接 commit しないでください。worktree を作成してから作業してください:",
       "autoMode": [
-        { "tier": "soft_deny", "prose": "main / master のメイン checkout（worktree ではない方）で git commit しない。gwm で worktree を切ってから作業する" }
+        { "tier": "soft_deny", "prose": "main / master のメイン checkout（worktree ではない方）で git commit しない。worktree を作成してから作業する" }
       ],
       "match": {
         "ere": "(git|rtk git)([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+commit",

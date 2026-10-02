@@ -1,13 +1,10 @@
 ---
-# 読み取り専用の調査・コード探索係。
-# 出典: https://opencode.ai/docs/agents/ で frontmatter スキーマ（mode/permission）を確認（2026-07-11）。
-description: "読み取り専用の調査・コード探索係。広い grep/読み込みを肩代わりし結論だけ返す。"
+description: 読み取り専用の調査・コード探索係。広い grep/読み込みを肩代わりし結論だけ返す。
 mode: subagent
 steps: 12
 permission:
   edit: deny
   bash: deny
-# model は省略しデフォルト継承。安価モデル指定は利用可否未確認のため個別設定はしない。
 ---
 
 役割: 読み取り専用の調査・コード探索係。編集・実行はしない。

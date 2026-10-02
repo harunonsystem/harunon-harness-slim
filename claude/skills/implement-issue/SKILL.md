@@ -11,11 +11,11 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, Agent, 
 
 PRD、Linear task、GitHub issue の URL、またはタスク説明を受け取り、要件と worktree を解決する。コード変更は `run-change` の Core Workflow に引き継いで PR 作成まで進める。
 
-**運用前提**: issue 管理は **Linear が主軸**。GitHub issue は副次的に使用される場合があり、PR は **GitHub** で作成する。
+issue tracker は入力 URL とプロジェクト設定に従う。この skill は Linear / GitHub Issues を扱い、PR は GitHub に作成する。
 
 ## 入力
 
-`$ARGUMENTS` に **PRD**、**Linear task URL**（主）、GitHub issue URL、またはタスク説明が含まれる。
+`$ARGUMENTS` に PRD、Linear task URL、GitHub issue URL、またはタスク説明が含まれる。
 
 ## 設定
 
@@ -27,7 +27,7 @@ PRD、Linear task、GitHub issue の URL、またはタスク説明を受け取�
 config.yml の設定:
 - `main_repo` — メインリポジトリのパス（単一リポジトリ運用）
 - `repos` — issue ID の prefix → メインリポジトリのパス のマッピング（複数リポジトリ運用。`main_repo` より優先）
-- `worktree_cmd` — worktree 管理コマンド（add / list サブコマンド）
+- `worktree_cmd` — 任意の worktree 管理コマンド（`add --from <base> <branch>` に対応するもの）。未設定なら runtime 標準機能か Git を使う。global / project 指示に指定があればそちらを優先する
 - `pr_template` — PR Template のパス
 - `lint_fix_cmd` — lint 修正コマンド
 
@@ -40,10 +40,10 @@ config.yml の設定:
 #### PRD の場合
 ユーザーが渡した PRD をタスク定義として使用する。複数 issue に分割済みの場合は、今回の `$ARGUMENTS` に含まれる単一 issue のみをスコープとする。
 
-#### Linear task の場合（主軸）
+#### Linear task の場合
 Linear MCP の `get_issue` または WebFetch で Linear URL からタスク情報を取得する。優先順位: MCP > WebFetch。
 
-#### GitHub issue の場合（副）
+#### GitHub issue の場合
 ```bash
 gh issue view <issue-number> --repo <owner/repo>
 ```
@@ -73,7 +73,7 @@ git -C $main_repo status --short   # 出力があれば他セッションの作�
 
 2.5. base を確定して表示する（**コードを書く前の必須出力**）：
    - 通常: `origin/main`
-   - 既存 PR の上に積む（stacked PR）: `gh pr view <n> --json headRefName,headRefOid` で head を取り、その branch を base にする。`$worktree_cmd add` は既定で origin/main から切るので base の指定を省略しない
+   - 既存 PR の上に積む（stacked PR）: `gh pr view <n> --json headRefName,headRefOid` で head を取り、その branch を base にする。base の指定を省略しない
    - どちらの場合も base の branch 名・SHA・`git log --oneline -3 <base>` をユーザーに提示し、「この上に積む」と明示してから次へ進む（origin/main から切って stale diff を出した失敗が複数ある）
 
 3. ブランチ名をタスクから決定する：
@@ -81,22 +81,19 @@ git -C $main_repo status --short   # 出力があれば他セッションの作�
    - GitHub issue: `feature/<issue内容の要約>` or `fix/<issue内容の要約>`
    - ブランチ名は kebab-case で簡潔に
 
-4. worktree を作成（base が origin/main か stacked かで経路が違う）：
+4. 確定した base で worktree を作成する。Claude Code で通常の base を使う場合は `EnterWorktree(name: <branch-name>)`。指定された管理コマンドがあればその契約に従う。未指定で CLI を使う場合は、既存 worktree と重ならないパスを選び、Git 標準の `git worktree add -b` で作成する：
 ```bash
-# base が origin/main:
-#   Claude Code: EnterWorktree ツールに name: <branch-name> を渡す。
-#   WorktreeCreate hook が main_repo で gwm add <branch-name> を実行する（origin の default branch 起点）。
-#   その他: $worktree_cmd add <branch-name>（main_repo で実行）
-# stacked PR（2.5 で選んだ base を実際に渡す。EnterWorktree(name:) 経由では base を指定できない）:
-#   (cd $main_repo && $worktree_cmd add --from <base-branch> <branch-name>)   # 出力の worktree パスを控える
+git -C "$main_repo" worktree list
+git -C "$main_repo" worktree add -b <branch-name> <worktree-path> <base>
 ```
+   stacked PR は選んだ base を CLI に渡す（`EnterWorktree(name:)` では base を指定できない）。管理コマンドを使う場合も base を明示する。
 
 5. worktree ディレクトリに移動（Bash の `cd` ではセッションの作業ディレクトリが変わらない）：
 ```bash
 # Claude Code:
 #   base が origin/main → 4 の EnterWorktree(name: <branch-name>) が作成と移動を兼ねるので追加操作なし
 #   stacked PR         → EnterWorktree(path: <4 で控えた worktree パス>)
-# その他: $worktree_cmd add の出力パスを runtime の worktree 移動機能へ渡す
+# その他: 4 で作成したパスを runtime の worktree 移動機能へ渡す
 ```
    移動後に `git log --oneline -1` の SHA が 2.5 で提示した base の SHA と一致することを確認する。一致しなければ base の取り違えなので、実装に入らずやり直す。
 

@@ -221,8 +221,8 @@ while IFS= read -r candidate; do
 [main-branch guard] main ブランチで直接ファイルを編集しようとしています。
 worktree を作成してから作業してください:
 
-  gwm add <branch-name>     # 新規 worktree 作成
-  gwm list                  # 既存 worktree 一覧
+  git worktree add -b <branch-name> <path>  # 新規 worktree 作成
+  git worktree list                        # 既存 worktree 一覧
 
 現在のリポジトリ: $BLOCKED_REPO
 現在のブランチ: $BLOCKED_BRANCH

@@ -4,7 +4,7 @@
 
 - 依頼のスコープを守る。状態確認・診断だけの質問では編集しない。「直せる?」など変更の依頼や承認済みの作業は進める。
 - 破壊的操作・commit・push・PR 作成・merge・deploy はユーザーの承認範囲で実行する。明示依頼を再確認しない。安全ガードを迂回しない。
-- 他の作業の未 commit 変更を破棄・上書きしない。CLI で worktree を作るときは `gwm add <branch>` を使う。
+- 他の作業の未 commit 変更を破棄・上書きしない。
 - harness 設定は配布元の SSOT を変更する。runtime の配布済みファイルを直接編集しない。
 - 「raw で」「そのまま」と指定された出力は逐語で返す。
 
@@ -54,6 +54,6 @@
 
 - 通常の回答・レビューは日本語。raw 出力は原文を維持する。
 - 調査は `Explore`、実装は `fast-worker`、難しい原因分析・設計は `deep-reasoner`、レビューは `reviewer`。利用可能なモデルと effort は runtime の設定で選ぶ。
-- 新規 worktree は `EnterWorktree(name: <branch>)`。`WorktreeCreate` hook が作成する。
+- 新規 worktree は `EnterWorktree(name: <branch>)`。作成方式は runtime の設定に従う。
 - skill の「ユーザー確認機能」は `AskUserQuestion`。承認済みの操作に再確認は不要。
 - 会話はリストを基本にし、比較が必要な場合だけ表を使う。

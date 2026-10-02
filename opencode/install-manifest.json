@@ -28,10 +28,9 @@
   "settingsFormat": "json",
   "settingsKeys": [
     "permission",
-    "default_agent",
     "instructions",
     "skills",
-    "plugin"
+    "mcp.servers"
   ],
   "settingsRemoveKeys": [
     "env"

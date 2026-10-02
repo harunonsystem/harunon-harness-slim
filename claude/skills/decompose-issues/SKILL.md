@@ -1,6 +1,6 @@
 ---
 name: decompose-issues
-description: 大きな機能・エピックをtracer bullet型の縦slice Issueに分解する。Linear（主軸）または GitHub Issues に作成。PRD・Figma・ドキュメントを入力として、単体で検証可能な依存関係付きIssue群を生成。「Issue分解」「タスク分解」「decompose」「Issue切って」「チケット作って」などで起動。
+description: 大きな機能・エピックをtracer bullet型の縦slice Issueに分解する。プロジェクト設定に従い Linear または GitHub Issues に作成。PRD・Figma・ドキュメントを入力として、単体で検証可能な依存関係付きIssue群を生成。「Issue分解」「タスク分解」「decompose」「Issue切って」「チケット作って」などで起動。
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, Agent, AskUserQuestion, TaskCreate, TaskUpdate, TaskList, Skill
@@ -12,7 +12,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, Agent, 
 
 大きな機能・エピックを Issue に分解する。
 
-**運用前提**: issue 管理は **Linear が主軸**。`config.yml` の `tracker` で `linear` / `github` を選択。デフォルトは `linear`。
+`config.yml` の `tracker` で `linear` / `github` を選択する。未設定ならプロジェクトの規約と入力 URL から決め、それでも不明な場合だけユーザーに確認する。設定と入力 URL が異なる場合は作成先を確認し、両方へ作成しない。
 
 ## 設定
 
@@ -22,7 +22,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, Agent, 
 設定ファイル: `decompose-issues/config.yml`（なければ `config.example.yml`）
 
 config.yml の主要な設定:
-- `tracker` — `linear`（デフォルト） or `github`
+- `tracker` — `linear` or `github`（未設定ならプロジェクトの規約と入力 URL を確認）
 - `assignee` — 全Issueのアサイン先（Linear のユーザー名 or GitHub のハンドル）
 - `linear_team` — Linear の team key/id（`tracker: linear` 時）
 - `linear_project` — Linear の project name/id（任意。`tracker: linear` 時）
@@ -34,7 +34,7 @@ config.yml の主要な設定:
 `$ARGUMENTS` に以下のいずれかが含まれる:
 - PRD / 仕様ドキュメントのURL or パス
 - Figma URL（デザイン参照用）
-- Linear issue URL（親 Issue / Epic、主軸）
+- Linear issue URL（親 Issue / Epic、`tracker: linear` 時）
 - GitHub issue URL（親 Issue / Epic、`tracker: github` 時）
 - テキストによる機能説明
 
