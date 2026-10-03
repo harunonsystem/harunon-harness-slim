@@ -18,6 +18,10 @@ description: "AI の利用実態をログから棚卸しして、社内申請・
 
 無いランタイムは飛ばす。全部揃わなくても部分集計で報告は書ける。
 
+## 集計器を選ぶ
+
+複数 runtime または Codex / OpenCode / pi の実測は、利用可能なら `cclens-multi` を先に使う。PATH に無ければ既知の checkout の導入記録から実行ファイルを探す。手順・欠損の扱い・委譲分析は [config-tune](../config-tune/SKILL.md) の Phase 0–1 に従い、ここでは設定を変更しない。以下の runtime 別手順は `cclens-multi` が利用できない場合、またはその出力にない指標が必要な場合だけ使う。
+
 ## Phase 1: Claude Code の実測
 
 このスキルのディレクトリを起点にヘルパーを解決する（cwd のプロジェクトではない）。

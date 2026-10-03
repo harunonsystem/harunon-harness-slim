@@ -10,7 +10,7 @@
 
 ## 委譲
 
-小さな作業はメインで実装・検証する。独立した調査・編集を並列に進められるときだけ分担し、同じ調査やレビューを重複させない。
+既定はメインで実装・検証する。独立作業を渡し、親も別の作業を進められるときだけ分担する。引き継ぎ・統合の負担が勝る分担や、同じ調査・レビューの重複は避ける。
 調査結果は根拠のパス・結論・未解決点で引き継ぐ。専門判断が必要なら、その材料と限定した問いを渡す。会話全体の複製や調査のやり直しを既定にしない。
 <!-- Inspired by ayghri/i-have-adhd (MIT). Harness-specific rewrite; upstream text is not vendored. -->
 ## Interaction / Output Policy
@@ -58,6 +58,6 @@
 
 ## Codex runtime
 
-- 調査は `explorer`、通常実装は `worker`、レビューは `reviewer`。難しい設計・原因分析は利用可能なモデルを明示選択する。role に固定モデルがある場合は、その role の既定を使う。
+- 委譲が必要と判断した場合だけ、調査は `explorer`、実装は `worker`、レビューは `reviewer` を選ぶ。役割の存在は起動理由にしない。`fork_turns="none"` で範囲・根拠・完了条件を渡し、固定モデルは role の既定を使う。
 - 独立した tool call は `functions.exec` 内で並列実行する。依存する操作・変更・承認・wait は逐次実行する。
 - コマンドの書き換え・拒否は `harunon-core` plugin の `policy/hook-pipeline.json` を確認する。公開操作の承認は Codex native permissions に従う。

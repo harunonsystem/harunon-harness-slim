@@ -19,12 +19,12 @@ scenarios/
 
 1. 対象 skill を改訂した
 2. `scenarios/<target>/` 以下のシナリオファイル全てを読む
-3. 各シナリオの「subagent 投入プロンプト」セクションをコピーして Agent tool で dispatch
+3. SKILL.md の評価予算を固定し、同一 variant の短いシナリオをまとめて fresh agent に渡す
 4. 戻り値を「期待される合格基準」と照合
 5. 全シナリオで [critical] 要件が達成 → 合格
-6. 落ちたシナリオがあれば、対象 skill を修正 → 再実行
+6. 落ちたシナリオは事前予算内で修正・再実行し、上限に達したら未達を報告する
 
-並列で複数シナリオを同時 dispatch すると早い（empirical-prompt-tuning SKILL.md 参照）。
+hold-out と停止条件は SKILL.md を正本とする。シナリオ単位の並列化や再委譲を既定にしない。
 
 ## シナリオファイルの形式
 

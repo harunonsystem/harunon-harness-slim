@@ -1,6 +1,6 @@
 ---
 name: config-tune
-description: "cclens と /insights の Claude Code 実測で設定や skill 導線を改善する。harness 環境は packages/core（SSOT）、非 harness は ~/.claude へ反映。「config-tune」「設定の健康診断」で起動。"
+description: "cclens-multi による runtime 横断の実測と Claude の cclens /insights で設定や skill 導線を改善する。harness 環境は packages/core（SSOT）、非 harness は ~/.claude へ反映。「config-tune」「設定の健康診断」で起動。"
 ---
 
 # config-tune
@@ -17,10 +17,17 @@ cclens（定量分析）と Claude ネイティブ `/insights`（定性の修正
 
 ## Phase 0: 環境判定
 
+最初に対象 runtime を確認する。Codex / OpenCode / pi を含む調査は `cclens-multi` を優先する。`command -v cclens-multi` で見つからなければ、既知の checkout の README・導入記録から実行ファイルを探す。PATH にないことだけで未導入と判断せず、確認済みの絶対パスで実行する。見つからないときだけ取得不能を報告し、既存の runtime 別分析器を使う。独自の token 再集計スクリプトを先に作らない。以下の cclens / insights は Claude 対象時に限る。
+
 1. **cclens の有無**: `command -v cclens`。無ければ `brew install lambdalisue/cclens/cclens` を案内する。導入しない場合は insights-only モードで進める（強制しない）。あれば版を確認し、0.2.1 と異なる場合は `cclens <sub> --help` で Collect のサブコマンド契約を再確認してから進める（下記コマンド一覧は 0.2.1 基準）
 2. **harness repo の有無**: `packages/core/lessons/lessons.json` と `scripts/distribute.py` を持つ checkout を特定できるか（cwd がその repo でなくてもパスが分かればよい）。特定できれば **harness mode**、できなければ **standalone mode**
 
 ## Phase 1: Collect
+
+runtime 横断では実行ファイルの `--help` と `agent-context` を確認し、`cclens-multi doctor --json` で入力を更新する。その DB に対して `usage`・`failures`・`stuck` を必要な `--agent`・期間と `--frozen --json` で取得する。利用者のタイムゾーンを含む RFC3339 境界を指定し、取得範囲・欠損・打ち切りを確認する。
+
+委譲の効率は総量だけで判断しない。重複除去済みの `multi_events` と `multi_sessions` を読み取り専用で照会し、親・子孫の消費を目的別に集計する。schema は実物で確認する。通常作業、評価、独立レビュー、自動承認を分け、起動の理由・重複・失敗は元ログの根拠に戻って確かめる。cached input を二重加算せず、raw token を費用や削減可能量と読み替えない。会話の再開・fork と起動失敗により起動数と usage のある子の数が違う場合も残す。
+
 
 cclens がある場合はまず store を更新し、主要レポートを取る:
 
