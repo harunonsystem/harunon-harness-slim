@@ -43,25 +43,30 @@ permission deny は迂回しない。push・PR merge/close の ask は承認後�
 
 ## Routing（必要時にだけ読む）
 
-参照先は runtime の設定ディレクトリにある。Skills は利用環境の skill 一覧から探す。該当する項目だけ読む。
+参照先は runtime 設定内。skill は利用環境の一覧から探し、該当項目だけ読む。
 
 | 作業 | 読む・確認する |
 | --- | --- |
 | 実装・runtime 診断・Git 操作の固有規約 | `rules/core-standards.md` の該当節 |
-| 非自明な実装で手段が指定されている、または実装方針が未確定 | 目的・前提と native / 既存機構を確認する。明示的な再構成・比較依頼、または既存調査後も実質的に異なる解法が複数残る場合は `derive-optimal-solution` skill を読む。合意済み仕様や既存パターンで一意なら読まない |
+| 明示的な技術比較の依頼 | `derive-optimal-solution` skill |
 | テストの追加・変更・監査 | `test-audit` skill |
 | 実装後の簡素化・cleanup | `simplify` skill |
 | 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`。判定は `rules/review-policy.md` |
-| 開発フローの開始・再開・状態確認 | `run-change` skill |
+| 開発・Issue intake | `implement-issue` は要件・worktree 解決のみ。方針が明確なら担当自身で実装・検証し、委譲しない。原因不明は `how`、実質的な設計比較は `architect`、全体 orchestration の明示依頼は `poteto-mode` |
+| task state・公開証跡 | `run-change`。既存 state を再開し、公開前にセルフチェック |
 | skill / agent 指示の変更 | `skill-improvement` skill |
 | Figma からの実装（Claude のみ） | `figma-implement` skill |
 | 図・HTML・チャートの作成 | `rules/visual-design.md` |
 | 外部 OSS への貢献 | `rules/oss-contribution.md` |
-| PR 作成 | `rules/pr-body.md`（repo の `.github/PULL_REQUEST_TEMPLATE.md` があれば併用） |
+| PR 作成 | `rules/pr-body.md` と repo の `.github/PULL_REQUEST_TEMPLATE.md`（あれば） |
+
+この選択は pstack 起動時の自動 routing より優先する。ファイル数・関数境界だけで並列化しない。未検証の runtime 連携は既定にせず、main で比較・検証し制約を報告する。
 
 ブラウザ操作のデフォルトは `agent-browser`（headless。ユーザーの画面にウィンドウを出さない）。ユーザーのログイン済みタブが必要な時だけ、利用可能なら `opencli-browser` skill を参照して OpenCLI を bind-first で使い、明示依頼なしに `open`・新規タブ・`INTERCEPT` を実行せず、OpenCLI が利用できないか bind できるタブがなければ中止して確認する。
 
 ## OpenCode runtime
 
-`@explorer` は調査、`@worker` は実装、`@reviewer` はレビュー。モデル未指定の role は呼び出し元を継承する。
-拒否・コマンドの書き換えは `runtime/policy/hook-pipeline.json` と `permission-overlay.json`、開発フローは `run-change` skill を確認する。
+委譲時は `@explorer` が調査、`@worker` は実装、`@reviewer` はレビュー。モデル未指定の role は呼び出し元を継承する。
+拒否・コマンド置換は `runtime/policy/hook-pipeline.json` と `permission-overlay.json`。開発の入口は共通 Routing に従う。
+
+pstack の委譲連携は未検証で、明示依頼時のみ試す。Claude `Agent` は native `task`、skill は native loader を使う。提供されない通信・モデル指定は装わず、main での比較と panel 実行を区別して報告する。

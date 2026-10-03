@@ -33,39 +33,39 @@
 
 ## Routing（必要時にだけ読む）
 
-参照先は runtime の設定ディレクトリにある。Skills は利用環境の skill 一覧から探す。該当する項目だけ読む。
+参照先は runtime 設定内。skill は利用環境の一覧から探し、該当項目だけ読む。
 
 | 作業 | 読む・確認する |
 | --- | --- |
 | 実装・runtime 診断・Git 操作の固有規約 | `rules/core-standards.md` の該当節 |
-| 非自明な実装で手段が指定されている、または実装方針が未確定 | 目的・前提と native / 既存機構を確認する。明示的な再構成・比較依頼、または既存調査後も実質的に異なる解法が複数残る場合は `derive-optimal-solution` skill を読む。合意済み仕様や既存パターンで一意なら読まない |
+| 明示的な技術比較の依頼 | `derive-optimal-solution` skill |
 | テストの追加・変更・監査 | `test-audit` skill |
 | 実装後の簡素化・cleanup | `simplify` skill |
 | 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`。判定は `rules/review-policy.md` |
-| 開発フローの開始・再開・状態確認 | `run-change` skill |
+| 開発・Issue intake | `implement-issue` は要件・worktree 解決のみ。方針が明確なら担当自身で実装・検証し、委譲しない。原因不明は `how`、実質的な設計比較は `architect`、全体 orchestration の明示依頼は `poteto-mode` |
+| task state・公開証跡 | `run-change`。既存 state を再開し、公開前にセルフチェック |
 | skill / agent 指示の変更 | `skill-improvement` skill |
 | Figma からの実装（Claude のみ） | `figma-implement` skill |
 | 図・HTML・チャートの作成 | `rules/visual-design.md` |
 | 外部 OSS への貢献 | `rules/oss-contribution.md` |
-| PR 作成 | `rules/pr-body.md`（repo の `.github/PULL_REQUEST_TEMPLATE.md` があれば併用） |
+| PR 作成 | `rules/pr-body.md` と repo の `.github/PULL_REQUEST_TEMPLATE.md`（あれば） |
+
+この選択は pstack 起動時の自動 routing より優先する。ファイル数・関数境界だけで並列化しない。未検証の runtime 連携は既定にせず、main で比較・検証し制約を報告する。
 
 ブラウザ操作のデフォルトは `agent-browser`（headless。ユーザーの画面にウィンドウを出さない）。ユーザーのログイン済みタブが必要な時だけ、利用可能なら `opencli-browser` skill を参照して OpenCLI を bind-first で使い、明示依頼なしに `open`・新規タブ・`INTERCEPT` を実行せず、OpenCLI が利用できないか bind できるタブがなければ中止して確認する。
 
 ## Language
 
-- 通常の回答・レビュー結果・レビューコメントは、ユーザーの入力言語にかかわらず日本語で出力する。
-- コード識別子、prop名、ファイル名、エラーメッセージ、コマンド出力など、原文維持が必要な technical token は翻訳しない。
+- 回答・レビュー・コメントは日本語。識別子・ファイル名・エラー・コマンド出力は原文を保つ。
 
-## 実行方針（single-agent-first）
+## pstack execution
 
-- 通常の作業は main セッションが調査・計画・実装・検証まで end-to-end で完結する。役割分割や委譲を前提にしない。
-- 独立した並列 workstream に明確な利益がある場合だけ、その時点で利用可能な runtime-native execution surface を明示的に使う。常駐 team、agent 間 chat、nested delegation は標準経路にしない。
-- 単純な探索・1ファイル修正・逐次依存の作業を別 agent に渡さない。tool call の並列化で足りる場合は main のまま進める。
-- 外部 worker を使った場合も、main が diff・成果物・決定論的チェックを検収してから Core Workflow を進める。
+- main で実装・検証する。pstack extension の委譲は明示依頼時のみ。tool 登録は確認済みだが複数モデル連携は未検証。
+- 子 agent の成果物は main が検証する。並列の書き込みは worktree で分離する。モデルは現在の provider で利用できるものを使い、別 provider へ暗黙に切り替えない。
 
 ## Hooks（自動適用）
 
-pi は `~/.pi/agent/extensions/` で Claude Code hooks を実行する。`confirm-destructive` は破壊的コマンドと書き込み系 MCP を確認し、非対話では拒否する。Markdown テーブルは GFM に修正される。
+`~/.pi/agent/extensions/` が Claude Code hooks を実行する。`confirm-destructive` は破壊的コマンドと書き込み系 MCP を確認し、非対話では拒否する。表は GFM に補正する。
 
 ## Account rotation boundary
 

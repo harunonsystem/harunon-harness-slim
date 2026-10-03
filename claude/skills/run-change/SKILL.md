@@ -1,6 +1,6 @@
 ---
 name: run-change
-description: Start, resume, and advance the shared harunon-harness Core Workflow from any supported coding agent.
+description: Bind verification and publication evidence, or resume an existing Core Workflow.
 compatibility: codex opencode pi omp claude
 ---
 
@@ -8,7 +8,7 @@ compatibility: codex opencode pi omp claude
 
 When `yomiyasu` is unavailable, proofread the wording locally under the same constraints instead of invoking it.
 
-Use the runtime-neutral Core Workflow instead of recreating the development process in the prompt.
+Follow the resident Routing instructions for implementation, directly or through the selected pstack skill. This skill records publication evidence and resumes existing Core Workflow state; it does not orchestrate implementation. For a new task, finish the work and checks, then use `start --publish-only` before publishing. If a task already has active state, resume it and record completed phases without replaying work.
 
 `run-change` owns lifecycle state, policy gates, and evidence binding. It does **not** own worker selection, spawning, dispatch, retries, worktree management, or runtime-specific handoff. Those belong to each runtime's native orchestration layer.
 
@@ -84,7 +84,7 @@ python3 <skill-dir>/scripts/harness.py attach-review \
 
 The kernel refuses a missing artifact, a stale HEAD, an invalid phase, or an unapproved second attachment. Local evidence is explicitly `audit-only`: it prevents accidental PR creation but is not a security boundary. The agent must verify the report's `PASSED` status; the kernel does not interpret its findings. Use `advance accepted` to reach `publish`. Never describe this evidence as an independent review or use it to authorize a merge.
 
-Invoke an independent reviewer only when the user explicitly requests one. In Codex, use the active runtime's reviewer with the configured `review_model`; when the reviewer subagent is available, spawn the `reviewer` agent. Other runtimes must use an available independent review surface. Do not shell out to `codex review` and do not use a plugin process to start another Codex session. Follow `rules/codex-review-policy.md`, save the complete reviewer output, and attach it with the actual provider instead of `self-check`.
+Pstack design critics and internal review panels run within the authorized implementation scope; their findings do not replace the mandatory publication self-check or authorize publishing. Invoke a separate external review service only when the user explicitly requests one. In Codex, use the active runtime's reviewer with the configured `review_model`; when the reviewer subagent is available, spawn the `reviewer` agent. Other runtimes must use an available independent review surface. Do not shell out to `codex review` and do not use a plugin process to start another Codex session. Follow `rules/codex-review-policy.md`, save the complete reviewer output, and attach it with the actual provider instead of `self-check`.
 
 After the findings are presented, fix every P0 / P1 / P2 on the branch and record `findings_fixed` with `advance` (no second review; the PR gate accepts the reviewed commit as an ancestor of HEAD). P3 and out-of-scope findings go to the PR body as 残件. Use `accepted` when there is nothing to fix, `findings_deferred` when the user explicitly defers, and `fix_selected` only when the user asks for a fix loop with a second review.
 

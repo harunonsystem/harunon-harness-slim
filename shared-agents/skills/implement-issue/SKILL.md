@@ -1,13 +1,13 @@
 ---
 name: implement-issue
-description: PRD・Linear task・GitHub issue から要件と worktree を解決し、必要に応じて run-change に引き継いで実装・レビュー・PR 作成まで進める。「issue 実装」「タスク実装」で起動。
+description: PRD・Linear task・GitHub issue から要件と worktree を解決し、実装へ引き継ぐ。「issue 実装」「タスク実装」で起動。
 ---
 
 # implement-issue: Issue実装スキル
 
 `yomiyasu` は利用可能な場合だけ使用する。未導入の場合は、各手順の制約を保ち、その場で表現だけを推敲する。
 
-PRD、Linear task、GitHub issue の URL、またはタスク説明を受け取り、要件と worktree を解決する。コード変更は `run-change` の Core Workflow に引き継いで PR 作成まで進める。
+PRD、Linear task、GitHub issue の URL、またはタスク説明を受け取り、要件と worktree を解決したら、常駐指示の Routing に従って実装へ引き継ぐ。この skill は実装手順を持たず、pstack の手順も複製しない。
 
 issue tracker は入力 URL とプロジェクト設定に従う。この skill は Linear / GitHub Issues を扱い、PR は GitHub に作成する。
 
@@ -30,6 +30,10 @@ config.yml の設定:
 - `lint_fix_cmd` — lint 修正コマンド
 
 `repos` が定義されている場合、Linear task ID（例: `ABC-123`）の prefix（`ABC`）で `repos` を引き、一致したパスを `main_repo` として使う。一致する prefix がなければユーザーに確認する。GitHub issue や PRD など issue ID が取れない入力の場合は `main_repo` を使う（`repos` のみで `main_repo` が無い場合はユーザーに確認する）。
+
+## Phase 0: 既存 task の再開確認
+
+issue 情報を取得する前に、入力から task ID / 対象 repo を解決し、`git worktree list` と対象 worktree の `run-change` status (`python3 <skill-dir>/scripts/harness.py status`) を確認する。会話内の accepted intake 情報と task ID・repo・worktree が一致する場合は、state の有無にかかわらず既存情報を再利用して Phase 3 へ進み、Phase 1〜2 を繰り返さない。active state がある場合は task ID も一致することを確認する。別 task の state は変更せず、その worktree を今回の task に使わない。task / repo / worktree / intake を確認できない新規依頼だけ Phase 1 以降の未解決手順へ進む。
 
 ## ワークフロー
 
@@ -57,9 +61,11 @@ gh issue view <issue-number> --repo <owner/repo>
 
 ### Phase 1.5: 未決事項の確認
 
-既存コード・タスク記述・既存の合意から目的と実装範囲を確認する。手段が未承認の提案か未指定で、既存機構を含む実質的に異なる解法が複数残る場合は `derive-optimal-solution` で比較してから進む。ユーザー固有の判断が残るとき、またはインタビューを依頼されたときだけ `grill-implementation` を使う。`derive-optimal-solution` / `grill-implementation` の結果をユーザーへ提示して判断を待つ場合は、選択肢・制約・推奨を確定した後、呼び出し元で `yomiyasu --domain business` を wording-only の最終推敲として適用する。選択肢の数、制約、推奨の強さ、技術的事実は変えず、改善ポイント等のメタ出力は返さない。判断待ちがなくそのまま Phase 2 へ進む場合は適用しない。方針が決まれば Phase 2 へ進む。
+目的・受入条件・範囲の不足だけを intake で解消する。技術設計と解法選択は実装側に渡し、正しさや範囲を左右するユーザー固有の判断だけ確認する。
 
-### Phase 2: worktree 作成
+### Phase 2: worktree の再利用または作成
+
+作成前に `git worktree list` を確認する。同じ task ID の branch と対象 repo が一致し、worktree の intake 情報を確認できたら再利用する。issue 情報が会話内ですでに解決済みなら再取得しない。別 task の state は保持し、その worktree を変更・再利用しない。該当する既存 worktree が無い場合だけ以下の準備を行う。
 
 1. `repos` が設定されている場合、issue ID の prefix から対象リポジトリを解決し `$main_repo` を確定する（解決ロジックは「設定」節を参照）。
 
@@ -99,13 +105,13 @@ git -C "$main_repo" worktree add -b <branch-name> <worktree-path> <base>
 
 ### Phase 3: 実装への引き継ぎ
 
-worktree に移動したら `run-change` skill を読み、その worktree を cwd にして status を確認する。同じ task の active state は再開し、別 task の active state を上書きしない。state が無いか inactive の場合、変更対象がすべて Markdown 等で `rules/codex-review-policy.md` の review 免除に該当するなら、Core Workflow を開始せず repo の検証・公開規約に従う。実装中に review 対象のファイルが加わったら、review・公開前に `run-change` を開始する。それ以外は Linear ID、GitHub の `<owner/repo>#<number>`、または PRD・直接説明から決めた branch 名で開始する。Phase 1〜2 で確定した issue 情報や worktree を取り直さない。
+worktree が解決済みなら、その task・worktree・受入条件・base・branch・repo の検証コマンドを保持して常駐指示の Routing に従って実装を開始する。方針が明確なら担当自身で進め、Issue 起点という理由だけで `poteto-mode` を呼ばない。同じ task の既存 state があれば再開し、別 task の state は上書きしない。Phase 1〜2 で確定した issue 情報や worktree を取り直さない。
 
-次の情報を実行側の context に渡す：目的、受け入れ条件、task URL / ID、対象 repo、base と branch、repo の検証コマンド、既存の公開承認。設定済みなら `pr_template` と `lint_fix_cmd` も使う。Core Workflow を開始した場合は取得・隔離済みの事実を遷移として記録し、以後の lifecycle、policy gate、review evidence、PR 作成は `run-change` の手順と repo の規約に従う。worker の選択や実装は runtime-native の実行面が担う。
+実装側に渡す情報：目的、受け入れ条件、task URL / ID、対象 repo、worktree、base と branch、repo の検証コマンド、既存の公開承認。設定済みなら `pr_template` と `lint_fix_cmd` も渡す。
 
-**完了条件**: 受け入れ条件に照らした変更と検証結果があり、許可された公開操作を終え、PR を作成した場合は URL を報告している。許可がない操作だけは実行前に確認する。
+**完了条件**: intake で解決したタスク情報と worktree が実装側に渡されている。これは intake の完了であり、元の実装依頼が完了したことにはならない。担当 agent は受入条件と検証を満たすまで続ける。
 
 ## 作業中の入力と公開
 
 - 状態確認の質問には実測を先に答え、その質問だけを理由に新しい編集を始めない。回答後は承認済みの実装を継続する。「直せる?」など具体的な変更依頼は句読点でなく意図で判定し、元の依頼から実質的に範囲が広がる場合だけ確認する。
-- commit、push、PR 作成、merge は操作ごとに既存の依頼・承認を確認する。明示的な PR 作成依頼について同じ確認を繰り返さず、merge の承認には広げない。platform 側の権限確認はそのまま扱う。
+- commit、push、PR 作成、merge の承認範囲は選択した skill と repo の規約に引き継ぐ。merge は明示的な承認がある場合だけ行う。

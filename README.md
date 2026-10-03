@@ -51,7 +51,7 @@ TOML / YAML（`codex/config.toml`・`omp/config.yml`）は、配布先にない�
 
 worktreeはruntimeの標準機能かGitで作成できます。gwmは必須ではありません。共有checkoutの保護や破壊的操作の確認hookは残しています。
 
-外部skillは自動取得しません。`tdd` / `diagnosing-bugs`が未導入でも、rulesにあるテスト先行・根本原因調査の手順で進められます。Issue trackerはプロジェクト設定と入力URLに従います。
+方針が明確な修正は main で実装・検証し、必要な調査・設計比較には pstack の skill を選びます。全体 orchestration は明示依頼時だけ使います。外部skill / native plugin は同梱・自動取得しないため、pstack を使う場合は[pstack の導入手順](https://github.com/michael-denyer/pstack-claude#install)に従って使用する runtime へ先に導入してください。Claude / Codex / Pi は native plugin、OpenCode / OMP は同リポジトリの全共有 skills を使います。Codex hook の trust は `/hooks` で行います。Issue tracker はプロジェクト設定と入力URLに従います。
 
 ## 境界
 

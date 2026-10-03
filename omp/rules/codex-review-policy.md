@@ -20,6 +20,8 @@ push・PR の前に `pre-review-check` を必ず実施する。Markdown のみ�
 
 自己チェックは独立レビューではない。ローカル証跡は `audit-only` であり、PR 公開時の作業漏れ防止に限る。kernel は報告の存在・HEAD・phase を検証するが、本文の合格判定は agent が確認する。merge には引き続き外部の required status check と branch rules が必要。
 
+pstack の `architect` / `interrogate` 等が使う runtime 内の設計批評・レビュー panel は承認済み実装の一部として実行できる。以下の外部レビュー承認・再実行制限は別途起動する外部 review service に適用する。panel の結果だけで必須セルフチェック・公開承認・merge 承認を代替しない。
+
 ### 外部レビューを明示依頼された場合
 
 - 実行は 1 回まで。自動の修正→再レビューループを作らない。再レビューはユーザーの明示指示がある場合だけ行う。

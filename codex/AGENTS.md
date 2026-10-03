@@ -33,21 +33,24 @@
 
 ## Routing（必要時にだけ読む）
 
-参照先は runtime の設定ディレクトリにある。Skills は利用環境の skill 一覧から探す。該当する項目だけ読む。
+参照先は runtime 設定内。skill は利用環境の一覧から探し、該当項目だけ読む。
 
 | 作業 | 読む・確認する |
 | --- | --- |
 | 実装・runtime 診断・Git 操作の固有規約 | `rules/core-standards.md` の該当節 |
-| 非自明な実装で手段が指定されている、または実装方針が未確定 | 目的・前提と native / 既存機構を確認する。明示的な再構成・比較依頼、または既存調査後も実質的に異なる解法が複数残る場合は `derive-optimal-solution` skill を読む。合意済み仕様や既存パターンで一意なら読まない |
+| 明示的な技術比較の依頼 | `derive-optimal-solution` skill |
 | テストの追加・変更・監査 | `test-audit` skill |
 | 実装後の簡素化・cleanup | `simplify` skill |
 | 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`。判定は `rules/review-policy.md` |
-| 開発フローの開始・再開・状態確認 | `run-change` skill |
+| 開発・Issue intake | `implement-issue` は要件・worktree 解決のみ。方針が明確なら担当自身で実装・検証し、委譲しない。原因不明は `how`、実質的な設計比較は `architect`、全体 orchestration の明示依頼は `poteto-mode` |
+| task state・公開証跡 | `run-change`。既存 state を再開し、公開前にセルフチェック |
 | skill / agent 指示の変更 | `skill-improvement` skill |
 | Figma からの実装（Claude のみ） | `figma-implement` skill |
 | 図・HTML・チャートの作成 | `rules/visual-design.md` |
 | 外部 OSS への貢献 | `rules/oss-contribution.md` |
-| PR 作成 | `rules/pr-body.md`（repo の `.github/PULL_REQUEST_TEMPLATE.md` があれば併用） |
+| PR 作成 | `rules/pr-body.md` と repo の `.github/PULL_REQUEST_TEMPLATE.md`（あれば） |
+
+この選択は pstack 起動時の自動 routing より優先する。ファイル数・関数境界だけで並列化しない。未検証の runtime 連携は既定にせず、main で比較・検証し制約を報告する。
 
 ブラウザ操作のデフォルトは `agent-browser`（headless。ユーザーの画面にウィンドウを出さない）。ユーザーのログイン済みタブが必要な時だけ、利用可能なら `opencli-browser` skill を参照して OpenCLI を bind-first で使い、明示依頼なしに `open`・新規タブ・`INTERCEPT` を実行せず、OpenCLI が利用できないか bind できるタブがなければ中止して確認する。
 
@@ -58,6 +61,7 @@
 
 ## Codex runtime
 
-- 委譲が必要と判断した場合だけ、調査は `explorer`、実装は `worker`、レビューは `reviewer` を選ぶ。役割の存在は起動理由にしない。`fork_turns="none"` で範囲・根拠・完了条件を渡し、固定モデルは role の既定を使う。
+- pstack の tool / model は `poteto-mode/references/codex-tools.md` を現在の利用可能な tool に対応させる。
+- 委譲が必要と判断した場合だけ、skill に専用指定がない調査は `explorer`、実装は `worker`、レビューは `reviewer` を選ぶ。役割の存在は起動理由にしない。`fork_turns="none"` で範囲・根拠・完了条件を渡し、固定モデルは role の既定を使う。
 - 独立した tool call は `functions.exec` 内で並列実行する。依存する操作・変更・承認・wait は逐次実行する。
 - コマンドの書き換え・拒否は `harunon-core` plugin の `policy/hook-pipeline.json` を確認する。公開操作の承認は Codex native permissions に従う。
