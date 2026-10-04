@@ -8,7 +8,7 @@ compatibility: codex opencode pi omp claude
 
 When `yomiyasu` is unavailable, proofread the wording locally under the same constraints instead of invoking it.
 
-Follow the resident Routing instructions for implementation, directly or through the selected pstack skill. This skill records publication evidence and resumes existing Core Workflow state; it does not orchestrate implementation. For a new task, finish the work and checks, then use `start --publish-only` before publishing. If a task already has active state, resume it and record completed phases without replaying work.
+Follow the resident Routing instructions for implementation, directly or through the selected pstack skill; keep the runtime's native execution loop. This skill uses the common kernel for required outcomes, verification evidence, and completion/publication gates, and resumes existing Core Workflow state; it does not orchestrate implementation. For a new task, finish the work and checks, then use `start --publish-only` before publishing. If a task already has active state, resume it and record completed phases without replaying work.
 
 `run-change` owns lifecycle state, policy gates, and evidence binding. It does **not** own worker selection, spawning, dispatch, retries, worktree management, or runtime-specific handoff. Those belong to each runtime's native orchestration layer.
 
@@ -25,6 +25,7 @@ Do not edit state files directly. Every mutation uses revision compare-and-swap 
 
 - Source repository: `packages/core/policy/harnessctl.py` and `packages/core/workflows/change.json`.
 - Installed runtime: `policy/harnessctl.py` and `workflows/change.json`, relative to the runtime config directory—not the current project repository.
+- State: `<absolute-git-dir>/harness/v2/state.json`, with receipts alongside it. The legacy `harness/state.json` is not migrated or edited.
 - Agents invoke the kernel through this skill's `scripts/harness.py`; do not run `policy/harnessctl.py` relative to the project root.
 
 ## Resume
@@ -43,7 +44,7 @@ python3 <skill-dir>/scripts/harness.py start <task-id>
 
 When an intake skill such as `implement-issue` has already resolved the task and created the worktree, use the native interface from that worktree. Reuse its task ID, acceptance criteria, and verification commands; record completed intake/isolation as phase transitions without fetching the issue or creating another worktree. Keep the task details in the runtime's context; the kernel stores lifecycle state and evidence, not a second task brief.
 
-For a branch that is already implemented, checked, and committed, enter the publish-only path instead of replaying the change phases:
+For work already performed by a native loop, enter the gate path instead of replaying its planning or implementation. This entry works for uncommitted changes too; it does not publish anything:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py start <task-id> --publish-only
@@ -57,7 +58,7 @@ Read the current `revision` from status and apply exactly one valid event:
 python3 <skill-dir>/scripts/harness.py advance <event> --revision <revision>
 ```
 
-The shared flow is:
+The compatibility lifecycle is below; do not replay it as a mandatory native execution procedure:
 
 ```text
 intake -> clarify? -> isolate -> plan -> implement -> verify
@@ -68,11 +69,35 @@ An invalid transition or stale revision must remain blocked. Re-inspect instead 
 
 ## Verify
 
-Run deterministic project checks first (tests, typecheck, lint, build, or the repository's declared verification commands). They remain the source of truth for `checks_passed`.
+The repository owns `.harness/verification.json`: a non-empty `commands` array of argv arrays referencing its existing mise tasks, package scripts, or verification scripts. Missing, invalid, or empty declarations are unverified; ask the repository owner to establish the mandatory checks instead of substituting optional tests or an agent's success claim. Full declaration and evidence contract: `policy/verification.md` under the runtime config directory.
+
+Read status, then run the mandatory checks through the kernel:
+
+```bash
+python3 <skill-dir>/scripts/harness.py verify --revision <revision>
+```
+
+OpenCode uses `harness_workflow` operation `verify` with `arguments.expectedRevision`. The kernel executes every declared command, records exit codes/logs and the checkout fingerprint, and advances `verify` only on success. Manual `checks_passed` is protected. Additional native checks are useful but cannot replace this evidence.
+
+Use the returned revision; verification records both the attempt and its result. Failure, timeout, interruption, changed inputs, or altered/missing evidence blocks completion/publication. Rerun after any checkout, declaration, or HEAD change, including a commit or review fix.
+
+`start --publish-only` enters `review`. A successful `verify` there (or at `checkpoint`, `decide`, `publish`, `complete`) keeps that phase. In the normal `verify` phase it advances to `checkpoint`; use `advance review_ready --revision <returned-revision>` to enter `review` without committing. Existing `committed` remains a compatibility event, not permission to commit.
+
+## Complete without publication
+
+After the native loop has met the requested outcomes, attach the mandatory self-check below and advance its decision to `publish`. This phase is only gate-ready; no PR is required. With mandatory verification current, read status and record completion:
+
+```bash
+python3 <skill-dir>/scripts/harness.py complete --revision <revision>
+```
+
+In Claude, Codex, omp, and pi, a turn-end hook checks any completion claim against the kernel (`task.report`: phase `complete` with current verification) and sends the turn back once if it fails. If the work is not complete, say so instead of claiming it.
+
+OpenCode uses operation `complete`. This only completes the local task; it grants no permission to commit, push, create a PR, merge, or deploy. Completion is blocked without current kernel verification and the existing local self-check/review gate. A completed task never bypasses publication approval or evidence freshness.
 
 ## Review
 
-Before push or PR creation, run `pre-review-check` over the whole branch diff, not just the last commit. Resolve its critical and major findings and run the required deterministic checks. `BLOCKED` or `INCOMPLETE` is not publication-ready. Save the complete `PASSED` report, including the base/head, findings, check results, and unavailable optional checks, as a temporary artifact.
+Before completion, push or PR creation, run `pre-review-check` over the whole branch diff, not just the last commit. Resolve its critical and major findings and run the required deterministic checks. `BLOCKED` or `INCOMPLETE` is not completion/publication-ready. Save the complete `PASSED` report, including the base/head, findings, check results, and unavailable optional checks, as a temporary artifact.
 
 The default evidence is this self-check, not an independent external review. Attach the actual report explicitly:
 
@@ -96,6 +121,8 @@ python3 <skill-dir>/scripts/harness.py skip-review --revision <revision> --provi
 
 Any other reviewer failure (connection, auth, crash) is not a skip: stop and ask the user.
 
+The skip alone does not satisfy completion/publication. After recording it, attach the already-passed self-check report with `--provider self-check`, then `advance accepted`; the kernel accepts that attachment from the quota-skipped `publish` phase.
+
 A second review is blocked until the user explicitly approves it. Record that approval and its reason before invoking the adapter again:
 
 ```bash
@@ -112,7 +139,7 @@ Before PR creation, authorize the normalized action. In Codex, prefer the GitHub
 python3 <skill-dir>/scripts/harness.py authorize pr.create
 ```
 
-Runtime gates only apply while a task has recorded progress. `STATE_NOT_FOUND` (never started) and `WORKFLOW_INACTIVE` (previous task `complete`, or still at `intake` with revision 0) fall back to legacy runtime gates; they do not waive the mandatory self-check. Before publishing without an active task, use `start --publish-only`, perform the self-check, and attach its report rather than creating legacy bypass flags.
+Missing tasks and stale workflow versions return `TASK_REQUIRED`: use `start --publish-only`, kernel verification, and the passed self-check before publishing. An untouched `intake` task must enter the gates; a completed task still requires current verification and local review evidence. Legacy flags and inactive-task status never substitute for either requirement.
 
 An explicit user request to create the PR is the publication confirmation. Do not ask for the same confirmation again; only surface a platform permission prompt when the runtime itself requires one.
 

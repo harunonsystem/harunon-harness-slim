@@ -23,6 +23,27 @@
 	},
 	"hooks": [
 		{
+			"id": "harness-publication-gate",
+			"file": "harness-publication-gate.sh",
+			"event": "PreToolUse",
+			"stage": "guard",
+			"order": 35,
+			"required": true,
+			"when": {
+				"tools": [
+					"Bash"
+				],
+				"commandEre": "\\bpr\\b"
+			},
+			"runtimes": [
+				"claude",
+				"codex",
+				"opencode",
+				"pi",
+				"omp"
+			]
+		},
+		{
 			"id": "block-grep-in-bash",
 			"file": "block-grep-in-bash.sh",
 			"event": "PreToolUse",

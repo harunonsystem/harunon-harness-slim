@@ -38,7 +38,7 @@
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/block-pr-without-codex-review.sh"
+            "command": "~/.claude/hooks/harness-publication-gate.sh"
           },
           {
             "type": "command",

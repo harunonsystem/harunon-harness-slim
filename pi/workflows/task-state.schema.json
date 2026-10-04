@@ -65,7 +65,9 @@
         "type": "object",
         "required": ["kind", "trust"],
         "properties": {
-          "kind": { "type": "string", "enum": ["local-review", "review-skipped", "worker-report"] },
+          "kind": { "type": "string", "enum": ["local-review", "review-skipped", "worker-report", "verification"] },
+          "passed": { "type": "boolean" },
+          "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
           "trust": { "const": "audit-only" },
           "provider": { "type": "string", "minLength": 1 },
           "subjectSha": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },

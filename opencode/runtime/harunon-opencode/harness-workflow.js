@@ -9,6 +9,8 @@ async function invoke(command, request, cwd) {
   const result = await runProcess("python3", [KERNEL, command], {
     cwd,
     stdin: JSON.stringify({ repo: cwd, ...request }),
+    // The kernel owns each check's timeout. Hooks keep their normal 60s limit.
+    timeoutMs: request.operation === "verify" ? 2_147_483_647 : undefined,
   });
   const output = result.stdout.trim() || result.stderr.trim();
   if (result.code === 0) return output;
@@ -33,6 +35,8 @@ export const HarnessWorkflow = async ({ invokeKernel = invoke } = {}) => ({
       args: {
         operation: tool.schema.enum([
           "inspect",
+          "verify",
+          "complete",
           "start",
           "advance",
           "approve_review",

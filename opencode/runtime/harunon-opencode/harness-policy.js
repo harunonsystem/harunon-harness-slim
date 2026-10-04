@@ -44,19 +44,6 @@ async function runAuthorize(action, cwd, command) {
   };
 }
 
-// 進行中の Core Workflow タスクが無いリポジトリは gate を課さない（Claude hook と同じ段階導入）。
-// 未開始（STATE_NOT_FOUND）だけでなく、complete 済み / 着手前で放置された state
-// （WORKFLOW_INACTIVE）も含める。kernel の task_is_active が判定の SSOT。
-const UNGATED_KERNEL_CODES = new Set(["STATE_NOT_FOUND", "WORKFLOW_INACTIVE"]);
-
-export function isWorkflowInactive(reason) {
-  try {
-    return UNGATED_KERNEL_CODES.has(JSON.parse(reason)?.code);
-  } catch {
-    return false;
-  }
-}
-
 export function createHarnessPolicy(authorize = runAuthorize) {
   // directory は project root を指すため、独立 worktree では別タスクの state を
   // 参照してしまう。worktree を優先し、さらに bash tool の cwd 引数（セッションと
@@ -78,7 +65,7 @@ export function createHarnessPolicy(authorize = runAuthorize) {
         output?.args?.workdir ?? output?.args?.cwd,
       );
       const result = await authorize(action, cwd, command);
-      if (result.code !== 0 && !isWorkflowInactive(result.reason)) {
+      if (result.code !== 0) {
         throw new Error(`Core Workflow policy blocked ${action}: ${result.reason}`);
       }
     },

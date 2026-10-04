@@ -30,6 +30,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("status")
+    verify = commands.add_parser("verify")
+    verify.add_argument("--revision", type=int, required=True)
+    complete = commands.add_parser("complete")
+    complete.add_argument("--revision", type=int, required=True)
     start = commands.add_parser("start")
     start.add_argument("task_id")
     start.add_argument("--publish-only", action="store_true")
@@ -84,6 +88,8 @@ def main() -> int:
         }
     elif operation == "advance":
         arguments = {"event": args.event, "expectedRevision": args.revision}
+    elif operation in ("verify", "complete"):
+        arguments = {"expectedRevision": args.revision}
     elif operation == "approve_review":
         arguments = {"reason": args.reason, "expectedRevision": args.revision}
     elif operation == "attach_review":

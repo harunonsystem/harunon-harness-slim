@@ -61,19 +61,6 @@ export async function runHarnessAuthorize(action, cwd, command, kernel = DEFAULT
   };
 }
 
-// 進行中の Core Workflow タスクが無いリポジトリは gate を課さない（Claude hook と同じ段階導入）。
-// 未開始（STATE_NOT_FOUND）だけでなく、complete 済み / 着手前で放置された state
-// （WORKFLOW_INACTIVE）も含める。kernel の task_is_active が判定の SSOT。
-const UNGATED_KERNEL_CODES = new Set(["STATE_NOT_FOUND", "WORKFLOW_INACTIVE"]);
-
-export function isWorkflowInactive(reason) {
-  try {
-    return UNGATED_KERNEL_CODES.has(JSON.parse(reason)?.code);
-  } catch {
-    return false;
-  }
-}
-
 export function createHarnessPolicyHandler(authorize = runHarnessAuthorize) {
   return async (event, ctx) => {
     const classification = classifyToolCall(event);
@@ -90,7 +77,6 @@ export function createHarnessPolicyHandler(authorize = runHarnessAuthorize) {
     const command = commandFromToolCall(event);
     const result = await authorize(action, cwd, command);
     if (result.code === 0) return undefined;
-    if (isWorkflowInactive(result.reason)) return undefined;
     return {
       block: true,
       reason: `Core Workflow policy blocked ${action}: ${result.reason}`,

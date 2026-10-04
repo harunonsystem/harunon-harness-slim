@@ -15,6 +15,7 @@
     "runtime/claude-hooks/block-japanese-tech-writing.sh",
     "runtime/claude-hooks/block-secrets-in-commit.sh",
     "runtime/claude-hooks/fix_gfm_tables.py",
+    "runtime/claude-hooks/harness-publication-gate.sh",
     "runtime/claude-hooks/lib",
     "runtime/claude-hooks/post-edit-checks.sh",
     "runtime/claude-hooks/rtk-rewrite.sh",

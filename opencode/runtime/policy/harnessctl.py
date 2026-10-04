@@ -19,6 +19,7 @@ from typing import Any
 
 from repo_target import UnresolvableTarget, gh_target_reason, resolve_target
 from schema import validate
+import verification
 
 
 CORE_DIR = Path(__file__).resolve().parents[1]
@@ -145,7 +146,7 @@ def git_is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
 def resolve_state_file(explicit: Path | None, repo: Path) -> Path:
     if explicit is not None:
         return explicit.expanduser().resolve()
-    return Path(git_value(repo, "--absolute-git-dir")) / "harness" / "state.json"
+    return Path(git_value(repo, "--absolute-git-dir")) / "harness" / "v2" / "state.json"
 
 
 def validate_state(state: JsonObject) -> None:
@@ -229,7 +230,7 @@ def write_state(path: Path, state: JsonObject) -> None:
 
 @contextlib.contextmanager
 def state_lock(path: Path):
-    """Serialize compare-and-swap mutations across agent processes."""
+    """Serialize state mutations and authorization across agent processes."""
     path.parent.mkdir(parents=True, exist_ok=True)
     lock_path = path.with_suffix(path.suffix + ".lock")
     with lock_path.open("a+", encoding="utf-8") as lock_file:
@@ -354,15 +355,7 @@ def check_artifact_exists(artifact: str, repo: Path) -> None:
 
 
 def task_is_active(state: JsonObject) -> bool:
-    """Core Workflow の gate と task.start の保護対象になるタスクか。
-
-    state.json は complete 後も削除されないし、task.start 直後（revision 0）は
-    何も記録されていない。この両者を「進行中」と扱うと、同じ checkout からの
-    PR 作成が誰にも解除できない形で永続ブロックされる（2026-08-26 に 7/13 起票の
-    intake 放置タスクと、8/16 に complete した旧タスクの両方で実測。OpenCode は
-    rigor profile による casual スキップを持たないため毎回顕在化した）。
-    progress のあるタスクだけを進行中とみなす。
-    """
+    """Protect progressed tasks from task.start overwrite; never bypass authorization."""
     return state["phase"] != "complete" and state["revision"] > 0
 
 
@@ -378,7 +371,14 @@ def _apply_review_report(
     assignment_index が None なら assignment 側の記帳はしない（assignment を
     使わない従来の review.attach 呼び出し）。
     """
-    if state["phase"] != "review":
+    evidence = request.get("evidence")
+    quota_self_check = (
+        state["phase"] == "publish"
+        and isinstance(evidence, dict)
+        and evidence.get("provider") == "self-check"
+        and any(entry["kind"] == "review-skipped" for entry in state["evidence"])
+    )
+    if state["phase"] != "review" and not quota_self_check:
         raise KernelError("INVALID_REVIEW_PHASE", exit_code=2, phase=state["phase"])
     approval = state.get("rereviewApproval")
     if state["reviewAttempts"] >= 1 and approval is None:
@@ -387,7 +387,6 @@ def _apply_review_report(
             exit_code=2,
             reviewAttempts=state["reviewAttempts"],
         )
-    evidence = request.get("evidence")
     if not isinstance(evidence, dict):
         raise KernelError("INVALID_REVIEW_EVIDENCE")
     expected = {
@@ -547,6 +546,8 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
         return state
 
     known_events = {
+        "verification.run",
+        "task.complete",
         "phase.advance",
         "review.attach",
         "review.approve",
@@ -572,7 +573,25 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
     workflow = ctx.workflow
     assignments = state["assignments"]
 
-    if event_type == "phase.advance":
+    if event_type == "task.complete" or (event_type == "phase.advance" and request.get("event") == "published" and state["phase"] == "publish"):
+        verification.require_current(state["evidence"], repo)
+        decision = authorize(state_file, repo, {"action": "pr.create"}, ctx)
+        if not decision["allowed"]:
+            raise KernelError(decision["code"], exit_code=2, reason="complete the mandatory self-check and decision before finishing")
+    if event_type == "task.complete":
+        state["phase"] = "complete"
+    elif event_type == "verification.run":
+        if state["phase"] not in ("verify", "checkpoint", "review", "decide", "publish", "complete"):
+            raise KernelError("INVALID_VERIFICATION_PHASE", exit_code=2, phase=state["phase"])
+        # Persist an unsuccessful attempt before execution. A killed kernel must
+        # never leave an earlier passing receipt usable after a failed rerun.
+        state["evidence"].append({"kind": "verification", "trust": "audit-only", "passed": False})
+        state["revision"] += 1
+        write_state(state_file, state)
+        state["evidence"][-1] = verification.run(repo, state_file.parent / "verification")
+        if state["evidence"][-1]["passed"] and state["phase"] == "verify":
+            state["phase"] = workflow["states"]["verify"]["checks_passed"]
+    elif event_type == "phase.advance":
         event = request.get("event")
         transitions = workflow["states"].get(state["phase"])
         if not isinstance(transitions, dict):
@@ -584,7 +603,7 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
                 phase=state["phase"],
                 event=event,
             )
-        if event in ("review_attached", "review_skipped"):
+        if event in ("review_attached", "review_skipped", "checks_passed"):
             # evidence 付きイベント（review.attach / review.skip）だけが通せる遷移
             raise KernelError("PROTECTED_TRANSITION", exit_code=2, event=event)
         if event == "implemented" and assignments and assignments[-1]["role"] == "implement":
@@ -709,15 +728,18 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
     action_policy = workflow.get("actions", {}).get(action)
     if not isinstance(action_policy, dict):
         raise KernelError("UNKNOWN_ACTION", exit_code=2, action=action)
-    # 進行中タスクが無い checkout は STATE_NOT_FOUND と同じ扱い（adapter 側で素通し）。
-    # 個別コードにするのは、adapter が「未開始」と「終了済み」を区別してログに残せるようにするため。
-    # 判定は workflow version を bind せずに行う（task.start と同じ理由: 旧 change.json で
-    # 書かれた complete state が VERSION_MISMATCH になると永続ブロックに戻る）。
-    state = read_state(state_file)
+    # Missing/stale completed tasks must re-enter the gate, never fall back to
+    # legacy flags. Current completed tasks still need fresh verification.
+    try:
+        state = read_state(state_file)
+    except KernelError as error:
+        if error.code == "STATE_NOT_FOUND":
+            raise KernelError("TASK_REQUIRED", exit_code=2, reason="start --publish-only and verify before completing or publishing") from error
+        raise
     validate_context(state, repo)
-    if not task_is_active(state):
+    if state.get("schemaVersion") != 2 or (state["phase"] == "complete" and state["workflow"]["version"] != ctx.version):
         raise KernelError(
-            "WORKFLOW_INACTIVE",
+            "TASK_REQUIRED",
             exit_code=2,
             phase=state["phase"],
             revision=state["revision"],
@@ -732,6 +754,10 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
             "code": "WORKFLOW_NOT_READY",
             "phase": state["phase"],
         }
+    verification.require_current(state["evidence"], repo)
+    if action == "task.report":
+        # complete already required the self-check; reporting needs it to stay verified.
+        return {"action": action, "allowed": True, "code": "TASK_COMPLETE_CURRENT"}
     if action == "pr.create":
         command = request.get("command")
         if isinstance(command, str) and command.strip():
@@ -741,21 +767,20 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
                 raise KernelError("REPO_TARGET_UNRESOLVABLE", exit_code=2, reason=reason)
         head = git_value(repo, "HEAD")
         # レビュー証跡は「レビューした commit が HEAD の祖先」なら現在の HEAD を
-        # カバーする（レビュー後の修正 commit は policy 上の想定経路）。同一 commit
-        # は LOCAL_REVIEW_CURRENT、修正 commit が積まれた状態は LOCAL_REVIEW_ANCESTOR、
-        # quota SKIP は LOCAL_REVIEW_SKIPPED と code を分けて監査ログで区別できるようにする。
+        # カバーする（レビュー後の修正 commit は policy 上の想定経路）。
+        # 外部reviewのquota SKIPは自己チェックの証跡を代替しない。
         code = None
         for evidence in state["evidence"]:
-            if evidence["kind"] not in ("local-review", "review-skipped"):
+            if evidence["kind"] != "local-review":
                 continue
             subject = evidence.get("subjectSha")
             if not isinstance(subject, str):
                 continue
             if subject == head:
-                code = "LOCAL_REVIEW_SKIPPED" if evidence["kind"] == "review-skipped" else "LOCAL_REVIEW_CURRENT"
+                code = "LOCAL_REVIEW_CURRENT"
                 break
             if git_is_ancestor(repo, subject, head):
-                code = "LOCAL_REVIEW_SKIPPED" if evidence["kind"] == "review-skipped" else "LOCAL_REVIEW_ANCESTOR"
+                code = "LOCAL_REVIEW_ANCESTOR"
         if code is not None:
             return {
                 "action": action,
@@ -775,6 +800,8 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
 
 SUPPORTED_OPERATIONS = (
     "inspect",
+    "verify",
+    "complete",
     "start",
     "advance",
     "approve_review",
@@ -954,6 +981,9 @@ def compile_operation(
             "event": _operation_string(operation, operation_arguments, "event"),
             "expectedRevision": _operation_revision(operation, operation_arguments),
         }
+    if operation in ("verify", "complete"):
+        _validate_operation_keys(operation, operation_arguments, ("expectedRevision",))
+        return "apply", {"type": "verification.run" if operation == "verify" else "task.complete", "expectedRevision": _operation_revision(operation, operation_arguments)}
     if operation == "approve_review":
         _validate_operation_keys(operation, operation_arguments, ("reason", "expectedRevision"))
         return "apply", {
@@ -1101,13 +1131,18 @@ def main() -> int:
             with state_lock(state_file):
                 state = apply_event(state_file, repo, request, ctx)
                 validate_context(state, repo)
+            if request.get("type") == "verification.run" and not state["evidence"][-1]["passed"]:
+                return emit({"code": "VERIFICATION_FAILED", "state": state}, 2)
             return emit({"state": state})
-        decision = authorize(state_file, repo, request, ctx)
-        return emit(decision, 0 if decision["allowed"] else 2)
+        with state_lock(state_file):
+            decision = authorize(state_file, repo, request, ctx)
+            return emit(decision, 0 if decision["allowed"] else 2)
 
 
     except KernelError as error:
         return emit({"code": error.code, **error.details}, error.exit_code)
+    except verification.VerificationError as error:
+        return emit({"code": "VERIFICATION_REQUIRED", "reason": str(error)}, 2)
     except (KeyError, TypeError, ValueError) as error:
         return emit({"code": "INTERNAL_CONTRACT_VIOLATION", "reason": str(error)}, 3)
 

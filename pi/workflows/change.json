@@ -26,6 +26,7 @@
       "checks_passed": "checkpoint"
     },
     "checkpoint": {
+      "review_ready": "review",
       "committed": "review"
     },
     "review": {
@@ -44,13 +45,17 @@
     "complete": {}
   },
   "actions": {
+    "task.report": {
+      "allowedStates": ["complete"],
+      "requires": ["repository-verification-current"]
+    },
     "pr.create": {
-      "allowedStates": ["publish"],
-      "requires": ["local-review-covers-head"]
+      "allowedStates": ["publish", "complete"],
+      "requires": ["repository-verification-current", "local-review-covers-head"]
     },
     "pr.merge": {
       "allowedStates": ["publish", "complete"],
-      "requires": ["trusted-review-current-head"]
+      "requires": ["repository-verification-current", "trusted-review-current-head"]
     }
   }
 }

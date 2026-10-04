@@ -8,15 +8,15 @@ paths:
 
 ### 標準フロー
 
-push・PR の前に `pre-review-check` を必ず実施する。Markdown のみの変更も対象とし、不要な検査は理由付きで N/A にする。独立した外部レビューはユーザーが明示的に依頼した場合だけ実行する。
+完了報告・push・PR の前に `pre-review-check` を必ず実施する。Markdown のみの変更も対象とし、不要な検査は理由付きで N/A にする。独立した外部レビューはユーザーが明示的に依頼した場合だけ実行する。
 
 1. ブランチ全体の diff と受入条件を確認し、必要なテスト・lint・build を実行する。
 2. critical / major を修正して再検証する。`BLOCKED` / `INCOMPLETE` のまま公開しない。minor・scope 外の残件は PR 本文に明記する。
 3. 完全な `PASSED` 報告を実ファイルに保存する。base/head、Finding、検証結果、未実施の任意チェックと理由を含める。
-4. `run-change` の `attach-review --provider self-check` で現 HEAD の報告を記録し、`advance accepted` 後に `authorize pr.create` を通す。
+4. `run-change` のkernel `verify`で必須検証を記録し、`attach-review --provider self-check`で現HEADの報告を記録する。`advance accepted`後、完了だけなら`complete`、PR作成なら`authorize pr.create`を通す。変更・commit後は必須検証を再実行する。
 5. commit・push・PR はユーザーの承認範囲で行う。明示された公開依頼を再確認しない。
 
-進行中の Core Workflow がなければ、実装・検証・commit 済みのブランチで `start <task-id> --publish-only` を使う。legacy gate flag の作成や bypass でセルフチェックを代替しない。
+進行中のCore Workflowがなければ、native作業済みのworktreeで`start <task-id> --publish-only`を使う。未commitでもよく、この入口はcommitや公開を許可しない。legacy gate flagの作成やbypassでセルフチェックを代替しない。
 
 自己チェックは独立レビューではない。ローカル証跡は `audit-only` であり、PR 公開時の作業漏れ防止に限る。kernel は報告の存在・HEAD・phase を検証するが、本文の合格判定は agent が確認する。merge には引き続き外部の required status check と branch rules が必要。
 
@@ -34,9 +34,9 @@ pstack の `architect` / `interrogate` 等が使う runtime 内の設計批評�
 
 ### 既存 gate との関係
 
-`block-pr-without-codex-review.sh` は active な Core Workflow の PR 公開判定を kernel に委譲する。自己チェックの証跡も `local-review` として扱い、現 HEAD またはその祖先の記録を受け付ける。この証跡では merge は承認されない。今回の公開後に別履歴を作った場合は stale として拒否される。
+v2の`harness-publication-gate.sh`とnative adapterは公開判定をkernelに委譲する。タスク未開始・完了済みでも検証を迂回しない。自己チェックは`local-review`として現HEADまたは祖先の記録を受け付けるが、必須検証は常に現在のcheckoutに一致させる。この証跡ではmergeは承認されない。
 
-旧 runtime の review-router は Markdown・生成物・通常コード・大きな diff を分類し、workflow 外では legacy flag を参照する。この互換経路が allow しても標準フローのセルフチェックは免除されない。`block-commit-without-difit.sh` の大きな diff 向け gate も維持する。
+旧runtimeの`block-pr-without-codex-review.sh`とreview-routerはlegacy経路として残るが、v2公開gateの代替ではない。旧経路がallowしても必須検証・セルフチェックは免除されない。`block-commit-without-difit.sh`の大きなdiff向けgateも維持する。
 
 `block-repeated-codex-review.sh` は外部レビューの 2 回目以降を防ぐ。active workflow の再実行はユーザー承認後の `approve-review`、legacy 経路の done flag 削除もユーザーの明示指示が必要。flag は repo + branch ごとに記録され、レビューした HEAD が現履歴の祖先でなければ stale になる。
 
