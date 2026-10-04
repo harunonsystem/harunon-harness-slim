@@ -41,7 +41,7 @@ BLOCKED で人間の product decision を求める場合だけ、判断材料・
 - OpenAPI / GraphQL / protobuf 等の contract
 - DB schema / migration
 - feature flag と rollout の既存パターン
-- ADR / CONTEXT / product docs
+- ADR / GLOSSARY / product docs
 - 関連 Issue / PR / test
 
 推測で「v2 が必要」「flag が必要」と決めない。既存の seam、互換性制約、deploy/release の実態を先に確認する。
