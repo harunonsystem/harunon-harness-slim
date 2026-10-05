@@ -211,7 +211,7 @@ EOF
 ## ガードレール
 
 - `tracker` 設定に従う: `linear` の場合は Linear MCP の `save_issue`、`github` の場合は `gh issue create --repo` を使用する。**両方に同じ Issue を二重作成しない**
-- Phase 3 でユーザー確認を取らずに Issue 作成しない
+- Phase 3 で作成対象一覧が既存の明示承認に含まれることを確認する。含まれない場合はユーザー確認を取り、承認前に Issue 作成しない
 - 1 Issue = 1 PR の原則を破らない（PR は GitHub）
 - schema / BE / FE だけの水平Issueを作りたい場合は、縦sliceにできない理由を明示してユーザーに確認する
 - `$layers` マッピングにないレイヤーが必要な場合はユーザーに確認する

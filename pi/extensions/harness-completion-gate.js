@@ -27,9 +27,11 @@ export function createCompletionGate(run) {
         run,
       );
       if (reason === undefined) return undefined;
+      const continueOnce = !sentBack;
       sentBack = true;
       return {
-        continue: true,
+        // Infrastructure errors still stay visible, but never restart the model indefinitely.
+        continue: continueOnce,
         entries: [{ type: "custom_message", customType: "harness-completion-gate", content: reason, display: true }],
       };
     },

@@ -35,7 +35,7 @@ config.yml の設定:
 
 ## Phase 0: 既存 task の再開確認
 
-issue 情報を取得する前に、入力から task ID / 対象 repo を解決し、`git worktree list` と対象 worktree の `run-change` status (`python3 <skill-dir>/scripts/harness.py status`) を確認する。会話内の accepted intake 情報と task ID・repo・worktree が一致する場合は、state の有無にかかわらず既存情報を再利用して Phase 3 へ進み、Phase 1〜2 を繰り返さない。active state がある場合は task ID も一致することを確認する。別 task の state は変更せず、その worktree を今回の task に使わない。task / repo / worktree / intake を確認できない新規依頼だけ Phase 1 以降の未解決手順へ進む。
+issue 情報を取得する前に、入力から task ID / 対象 repo を解決し、`git worktree list` と対象 worktree の `run-change` status (`python3 <run-change-skill-dir>/scripts/harness.py status`。`<run-change-skill-dir>` は同じ配布 skills ディレクトリ内の `run-change/` を指す) を確認する。会話内の accepted intake 情報と task ID・repo・worktree が一致する場合は、state の有無にかかわらず既存情報を再利用して Phase 3 へ進み、Phase 1〜2 を繰り返さない。active state がある場合は task ID も一致することを確認する。別 task の state は変更せず、その worktree を今回の task に使わない。task / repo / worktree / intake を確認できない新規依頼だけ Phase 1 以降の未解決手順へ進む。
 
 ## ワークフロー
 
@@ -73,8 +73,8 @@ gh issue view <issue-number> --repo <owner/repo>
 
 2. メインリポジトリで最新の main を取得し、共有 checkout が clean か確認する：
 ```bash
-git -C $main_repo fetch origin --prune
-git -C $main_repo status --short   # 出力があれば他セッションの作業。触らずユーザーに報告する
+git -C "$main_repo" fetch origin --prune
+git -C "$main_repo" status --short   # 出力があれば他セッションの作業。触らずユーザーに報告する
 ```
 
 2.5. base を確定して表示する（**コードを書く前の必須出力**）：

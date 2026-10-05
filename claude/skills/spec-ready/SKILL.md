@@ -45,7 +45,7 @@ BLOCKED で人間の product decision を求める場合だけ、判断材料・
 - ADR / GLOSSARY / product docs
 - 関連 Issue / PR / test
 
-推測で「v2 が必要」「flag が必要」と決めない。既存の seam、互換性制約、deploy/release の実態を先に確認する。
+推測で「v2 が必要」「flag が必要」と決めない。既存の seam、互換性制約、deploy/release の実態を先に確認する。新しい自作基盤が案にあるときだけ、既存設定・公式連携で足りるかと、残る不足要件を確認する。解法が複数残る場合の比較・必要性の検証は `derive-optimal-solution` に従い、同じ調査や様式を複製しない。
 
 ### 2. Spec synthesis
 

@@ -78,24 +78,26 @@ def first_prompt(path):
     """セッション最初の人間の発話と timestamp。無ければ (None, None)。"""
     with open(path, errors="replace") as fh:
         for line in fh:
-            if '"type":"user"' not in line:
-                continue
             try:
                 d = json.loads(line)
             except ValueError:
                 continue
-            if d.get("type") != "user" or d.get("isSidechain"):
+            if not isinstance(d, dict) or d.get("type") != "user" or d.get("isSidechain"):
                 continue
-            content = d.get("message", {}).get("content")
+            message = d.get("message")
+            if not isinstance(message, dict):
+                continue
+            content = message.get("content")
             if isinstance(content, list):
                 content = "".join(
-                    p.get("text", "") for p in content if isinstance(p, dict)
+                    p["text"] for p in content
+                    if isinstance(p, dict) and isinstance(p.get("text"), str)
                 )
             if not isinstance(content, str):
                 continue
             text = content.strip()
             # システム注入・コマンド出力・再開時のメタ発話は人の指示ではない
-            if not text or text[0] == "<" or text.startswith(("Caveat", "[Request")):
+            if not text or text.startswith(("<local-command-", "<command-", "<system-reminder>", "<task-notification>")) or text.startswith(("Caveat", "[Request")):
                 continue
             return text.replace("\n", " ")[:200], d.get("timestamp", "")
     return None, None

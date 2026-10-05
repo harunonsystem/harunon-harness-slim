@@ -243,7 +243,10 @@ codex_review_target_is_empty() {
 #   node "$COMPANION" review ... / node codex-companion.mjs review ...
 _codex_review_command_matches() {
   local cmd="$1"
-  echo "$cmd" | grep -qE '(codex-companion\.mjs[[:space:]]+review|[[:space:]]node[[:space:]]+("[^"]+"|[^[:space:]]+)[[:space:]]+review)'
+  # Literal assignment is supported; unresolved command substitution is not
+  # evidence of which executable actually ran. Discover the path separately.
+  printf '%s' "$cmd" | python3 "$_REVIEW_GATE_LIB_DIR/../../policy/review_command.py" "${@:2}"
+
 }
 
 # CMD 文字列から対象 repo を解決し、そのディレクトリへ cd する。

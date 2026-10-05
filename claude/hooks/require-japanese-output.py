@@ -5,6 +5,8 @@
 英字の割合が THRESHOLD 以上なら decision: block で止めて書き直しを指示する。
 書き直し中(stop_hook_active)は止めない(無限ループ防止)。読めない入力は素通りする(fail-open)。
 """
+from __future__ import annotations
+
 import json
 import re
 import sys

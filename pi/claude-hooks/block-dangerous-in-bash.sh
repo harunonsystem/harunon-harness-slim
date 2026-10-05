@@ -250,6 +250,7 @@ for my $t (split /\s+/, $1) {
         my ($name) = $t =~ /^([^=]+)/;
         $skip = 1 if $takes_value{$name} && $t !~ /=/;
         exit 0 if $t eq "--force" || $t eq "--force-if-includes";
+        exit 0 if $name eq "--all" || $name eq "--mirror" || $name eq "--tags";
         exit 0 if $t =~ /^-[A-Za-z]*f[A-Za-z]*$/;
         next;
     }
@@ -411,6 +412,17 @@ if ($s =~ /\bgh[ \t]+pr[ \t]+(?:merge|close)[ \t]+(?:--?[^ \t]+[ \t]+)*(?:\S*\/p
   if ! review_gate_resolve_target_repo "$COMMAND"; then
     echo "${message}。承認の対象 repo を確定できません（${REVIEW_GATE_UNRESOLVABLE_REASON}）" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-pr-merge-close" "${COMMAND:-}" || true
+    exit 2
+  fi
+  # Approval is keyed by the local repo, branch and HEAD, not a remote URL.
+  # Selectors cannot inherit a local approval merely by sharing the PR number.
+  local target_reason
+  if ! target_reason=$(printf '%s' "$COMMAND" | python3 "$HOOK_DIR/../policy/repo_target.py" gh-target --current-branch "$(git rev-parse --abbrev-ref HEAD)" 2>&1); then
+    echo "${message}。${target_reason}" >&2
+    exit 2
+  fi
+  if [[ "$NORMALIZED" == *"://"* ]]; then
+    echo "${message}。PR URL はローカル repo の承認と対応付けられません。対象 repo 内で番号を指定してください" >&2
     exit 2
   fi
   flag=$(pr_approved_flag)
@@ -602,20 +614,8 @@ custom_git_no_verify() {
   # 空白が保持されないため、コミットメッセージの中身を誤って引数として拾わない）。
   # perl の起動は commit を含むコマンドだけに限る（下の perl 正規表現が要求する
   # 語の部分集合なので判定結果は変わらない。Bash 呼び出し毎の fork を 1 つ減らす）。
-  if ere_matches "$NORMALIZED" '(git|rtk[[:space:]]+git)[[:space:]]+commit' && \
-     printf '%s' "$NORMALIZED" | perl -0777 -ne '
-my $s = $_;
-my $blocked = 0;
-while ($s =~ /(?:git|rtk[ \t]+git)[ \t]+commit\b((?:[ \t]+[^ \t\n;&|]+)*)/g) {
-    my $args = defined $1 ? $1 : "";
-    for my $tok (split /[ \t]+/, $args) {
-        next unless length $tok;
-        if ($tok eq "--no-verify" || $tok =~ /^-[A-Za-z]*n[A-Za-z]*$/) { $blocked = 1; last; }
-    }
-    last if $blocked;
-}
-exit($blocked ? 0 : 1);
-'; then
+  if ere_matches "$NORMALIZED" "${ORIGIN}(git|rtk git)[[:space:]]+commit${WORD_END}" &&
+     ! printf '%s' "$COMMAND" | python3 "$HOOK_DIR/../policy/commit_args.py" no-verify >/dev/null; then
     echo "$message" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-no-verify" "${COMMAND:-}" || true
     exit 2

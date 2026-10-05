@@ -54,6 +54,8 @@ For a new standalone skill, use the bundled initializer when appropriate:
 python3 scripts/init_skill.py <skill-name> --path <destination>
 ```
 
+Before invoking the initializer, require a single skill name matching `^[a-z0-9]+(?:-[a-z0-9]+)*$`; reject separators, `..`, absolute paths and shell metacharacters. Confirm the resolved destination remains a child of the chosen root. The bundled initializer does not enforce this boundary itself.
+
 Resolve the script path from this skill directory. Inspect the generated files, keep resources that the task needs, and remove scaffolding with the user's existing authorization.
 For an existing skill, edit its files directly rather than rerunning the initializer.
 For a repository with its own layout and distribution scripts, copy the closest local implementation instead.
@@ -81,7 +83,7 @@ Only when the user needs an archive, run:
 python3 scripts/package_skill.py <skill-directory> [output-directory]
 ```
 
-The packager validates frontmatter and writes a ZIP-compatible `.skill` file. Inspect the archive before sharing it; packaging does not verify the workflow or grant publication approval.
+Before packaging, reject symlinks in the skill resources and choose an output directory outside the skill root so the archive cannot include itself. The packager validates frontmatter and writes a ZIP-compatible `.skill` file. Inspect the archive before sharing it; packaging does not verify the workflow or grant publication approval.
 
 Done means the skill routes the intended requests without stealing its nearest negative case, only loads resources needed for the active path, exposes a reachable completion boundary, passes available repository validation, and reports any unverified behavior.
 Report the changed behavior, validation and remaining limitations. Retain license and attribution files.

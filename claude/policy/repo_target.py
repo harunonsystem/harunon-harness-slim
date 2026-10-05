@@ -322,14 +322,17 @@ def resolve_target(base: Path, command: str) -> Path:
     return resolved
 
 
-# --- gh pr create の -R/--repo/GH_REPO=/--head 検査 ---
-# 値の形（owner/repo か URL）を要求するのは、--body の Markdown 本文散文での
-# 誤検知を避けるため（トークン化で quote 内の本文は 1 トークンに畳まれる）。
-_GH_REPO_VALUE_RE = re.compile(r"^([\w.-]+/[\w.-]+|https?://\S+)$")
+# --- gh PR repo/head selector inspection; option values remain data. ---
+_GH_VALUE_OPTIONS = {
+    '--repo', '-R', '--head', '-H', '--base', '-B', '--title', '-t', '--body', '-b',
+    '--body-file', '-F', '--assignee', '-a', '--reviewer', '-r', '--label', '-l',
+    '--milestone', '-m', '--project', '-p', '--template', '--recover', '--subject',
+    '--author-email', '--match-head-commit',
+}
 _GH_REPO_OPTIONS = ("--repo", "-R")
 
 _GH_REPO_REASON = (
-    "--repo/-R での別 repo への PR 作成はレビュー証跡と対応付けられません。"
+    "--repo/-R で指定した PR 対象 repo はローカルの承認・レビュー証跡と対応付けられません。"
     "対象 repo に cd してから実行してください"
 )
 _GH_HEAD_REASON = "--head で別ブランチの PR を作る形は、承認済み HEAD と対象が一致しません"
@@ -338,12 +341,25 @@ _GH_HEAD_REASON = "--head で別ブランチの PR を作る形は、承認済�
 def _option_values(tokens: list[str], names: tuple[str, ...]) -> list[str]:
     """`--opt value` / `--opt=value` 両形の値を出現順に返す。"""
     values: list[str] = []
-    for index, token in enumerate(tokens):
-        for name in names:
-            if token == name and index + 1 < len(tokens):
-                values.append(tokens[index + 1])
-            elif token.startswith(f"{name}="):
-                values.append(token.split("=", 1)[1])
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        index += 1
+        if token == '--':
+            break
+        name = token.split('=', 1)[0]
+        if name in _GH_VALUE_OPTIONS:
+            value = token.split('=', 1)[1] if '=' in token else tokens[index] if index < len(tokens) else ''
+            if name in names:
+                values.append(value)
+            if '=' not in token:
+                index += 1
+            continue
+        for short in _GH_VALUE_OPTIONS:
+            if len(short) == 2 and token.startswith(short) and len(token) > 2:
+                if short in names:
+                    values.append(token[2:].removeprefix('='))
+                break
     return values
 
 
@@ -358,12 +374,12 @@ def gh_target_reason(command: str, current_branch: str) -> str | None:
     except UnresolvableTarget as error:
         return error.reason
 
-    if any(_GH_REPO_VALUE_RE.match(value) for value in _option_values(tokens, _GH_REPO_OPTIONS)):
+    if _option_values(tokens, _GH_REPO_OPTIONS):
         return _GH_REPO_REASON
     if _env_prefix_names(tokens, ("GH_REPO",)):
         return _GH_REPO_REASON
 
-    for head_value in _option_values(tokens, ("--head",)):
+    for head_value in _option_values(tokens, ("--head", "-H")):
         # owner:branch 形はフォークの branch を指すため、値が一致していても常に deny。
         if ":" in head_value or head_value != current_branch:
             return _GH_HEAD_REASON

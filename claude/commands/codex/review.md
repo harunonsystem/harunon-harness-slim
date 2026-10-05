@@ -36,16 +36,19 @@ Argument handling:
 - If the user needs custom review instructions or more adversarial framing, they should use `/codex:adversarial-review`.
 
 Path resolution:
+- Discover the path in a separate tool call and pass the resulting absolute path directly in the review command. Unresolved command substitution cannot establish review evidence.
+- Run the installed companion as the final command, without conditional branches, pipelines, background shell operators, or following commands. Use the tool's native background execution; combined shell exit status cannot establish that the review succeeded.
 - Resolve the latest installed codex-companion script path dynamically so this override survives plugin version bumps:
 ```bash
 COMPANION=$(ls -t "$HOME"/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs 2>/dev/null | head -1)
+printf '%s\n' "$COMPANION"
 ```
 
 Background flow (default):
 - Launch the review with `Bash` in the background:
 ```typescript
 Bash({
-  command: `COMPANION=$(ls -t "$HOME"/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs 2>/dev/null | head -1) && node "$COMPANION" review $ARGUMENTS`,
+  command: `node "<上で確認したCOMPANIONの絶対パス>" review $ARGUMENTS`,
   description: "Codex review",
   run_in_background: true
 })
@@ -56,7 +59,7 @@ Bash({
 Foreground flow (`--wait` passed):
 - Run:
 ```bash
-COMPANION=$(ls -t "$HOME"/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs 2>/dev/null | head -1) && node "$COMPANION" review $ARGUMENTS
+node "<上で確認したCOMPANIONの絶対パス>" review $ARGUMENTS
 ```
 - Return the command stdout verbatim, exactly as-is.
 - Do not paraphrase, summarize, or add commentary before or after it.

@@ -32,8 +32,7 @@
 			"when": {
 				"tools": [
 					"Bash"
-				],
-				"commandEre": "\\bpr\\b"
+				]
 			},
 			"runtimes": [
 				"claude",
@@ -114,8 +113,7 @@
 			"when": {
 				"tools": [
 					"Bash"
-				],
-				"commandEre": "\\bcommit\\b"
+				]
 			},
 			"runtimes": [
 				"claude",
@@ -136,8 +134,7 @@
 			"when": {
 				"tools": [
 					"Bash"
-				],
-				"commandEre": "\\bcommit\\b"
+				]
 			},
 			"runtimes": [
 				"claude",

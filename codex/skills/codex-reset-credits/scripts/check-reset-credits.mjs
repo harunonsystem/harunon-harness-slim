@@ -11,7 +11,7 @@ function readAuth() {
   try {
     return JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
   } catch (error) {
-    throw new Error(`failed to read ${AUTH_PATH}: ${error.message}`);
+    throw new Error(`failed to read ${AUTH_PATH}: unable to read or parse auth`);
   }
 }
 
@@ -55,20 +55,6 @@ function getAccountId(auth) {
   );
 }
 
-function isSecretKey(key) {
-  return /token|secret|auth|cookie|session|credential|password|jwt|bearer/i.test(key);
-}
-
-function sanitize(value) {
-  if (Array.isArray(value)) return value.map(sanitize);
-  if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([key]) => !isSecretKey(key))
-      .map(([key, nestedValue]) => [key, sanitize(nestedValue)]),
-  );
-}
-
 function getCredits(data) {
   if (Array.isArray(data)) return data;
   for (const key of ["credits", "reset_credits", "resetCredits", "items", "data"]) {
@@ -79,7 +65,7 @@ function getCredits(data) {
 
 function getCount(data, credits) {
   for (const key of ["count", "available_count", "availableCount", "remaining", "remaining_count", "remainingCount"]) {
-    if (typeof data?.[key] === "number") return data[key];
+    if (Number.isSafeInteger(data?.[key]) && data[key] >= 0) return data[key];
   }
   return credits.length;
 }
@@ -97,7 +83,7 @@ function getExpiresAt(credit) {
 function formatLocalDate(raw) {
   if (!raw) return "(missing)";
   const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return `(invalid: ${raw})`;
+  if (Number.isNaN(date.getTime())) return "(invalid date)";
   return date.toLocaleString(undefined, {
     year: "numeric",
     month: "2-digit",
@@ -125,13 +111,19 @@ async function main() {
     headers["chatgpt-account-id"] = accountId;
   }
 
-  const response = await fetch(ENDPOINT, { headers });
+  let response;
+  try {
+    response = await fetch(ENDPOINT, { headers, signal: AbortSignal.timeout(15_000) });
+  } catch {
+    throw new Error("reset-credit request failed or timed out");
+  }
   const text = await response.text();
   if (!response.ok) {
-    throw new Error(`endpoint returned HTTP ${response.status}: ${text.slice(0, 500)}`);
+    throw new Error(`endpoint returned HTTP ${response.status}`);
   }
 
-  const data = JSON.parse(text);
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error("reset-credit response is not valid JSON"); }
   const credits = getCredits(data);
   const count = getCount(data, credits);
 
@@ -142,16 +134,13 @@ async function main() {
   if (credits.length > 0) {
     for (const [index, credit] of credits.entries()) {
       const expiresAt = getExpiresAt(credit);
-      console.log(`${index + 1}. expires_at: ${formatLocalDate(expiresAt)} (${expiresAt || "missing raw"})`);
+      console.log(`${index + 1}. expires_at: ${formatLocalDate(expiresAt)}`);
     }
     return;
   }
 
   console.log("credits: []");
-  if (data && typeof data === "object") {
-    console.log("sanitized_response:");
-    console.log(JSON.stringify(sanitize(data), null, 2));
-  }
+  console.log("response_details: omitted (unrecognized fields may contain credentials)");
 }
 
 main().catch((error) => {

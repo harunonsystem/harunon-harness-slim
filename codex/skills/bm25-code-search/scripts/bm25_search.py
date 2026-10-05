@@ -71,8 +71,7 @@ def _is_secret_path(path: Path) -> bool:
     name = path.name.lower()
     return (
         name in SECRET_NAMES
-        or name == ".env"
-        or name.startswith(".env.")
+        or name.startswith(".env")
         or path.suffix.lower() in SECRET_SUFFIXES
     )
 

@@ -27,9 +27,16 @@ CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 # env 代入プレフィックス（GH_REPO=owner/repo gh pr create 等）を経由しても
 # 起点直後に隣接させて検出できるよう、先頭の NAME=value 列を許容する
 # （P0-C: GH_REPO= を見落とすとこの hook 自体が発火せず gh 検査が素通りする）。
-if ! echo "$CMD" | grep -qE '(^|&&|;|\|)\s*([A-Za-z_][A-Za-z0-9_]*=\S*\s+)*(gh|rtk gh)\s+pr\s+create'; then
-  exit 0
-fi
+# Use the same quote-aware command boundaries as the other security guards.
+# shellcheck source=lib/command-normalize.sh
+source "$HOOK_DIR/lib/command-normalize.sh"
+match_rc=0
+command_origin_matches "$CMD" '(gh|rtk[[:space:]]+gh)[[:space:]]+pr[[:space:]]+create([^A-Za-z0-9_-]|$)' || match_rc=$?
+case $match_rc in
+  0) ;;
+  1) exit 0 ;;
+  *) echo "PR 作成コマンドを判定できません（安全側に倒してブロックします）" >&2; exit 2 ;;
+esac
 
 # hook は Claude Code の CWD で実行されるため、CMD 内の --cwd / cd 先に移動して正しい git context を解決する。
 # 解決不能なら deny する（rigor profile 判定より前に倒す。casual repo に cd するだけで

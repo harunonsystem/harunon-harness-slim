@@ -28,7 +28,7 @@
  * 同じ table を読む第 2 実装。JS に寄せられないため table を共有点にする。
  * SSOT: harunon-harness packages/core/hook-runner/
  */
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
@@ -39,6 +39,19 @@ export const DEFAULT_HOOKS_DIR = join(HERE, "..", "claude-hooks");
 export const DEFAULT_TABLE_PATH = join(HERE, "..", "policy", "hook-pipeline.json");
 export const DEFAULT_TIMEOUT_MS = 60_000;
 export const DEFAULT_MAX_OUTPUT_BYTES = 1_048_576;
+
+/** Reuse the shell guards' quote-aware lexer. This only renders text; it never executes input. */
+export function normalizeShellCommand(command) {
+  const deployed = join(DEFAULT_HOOKS_DIR, "lib", "command-normalize.sh");
+  const source = existsSync(deployed) ? deployed : join(HERE, "..", "hooks", "lib", "command-normalize.sh");
+  const result = spawnSync("/bin/bash", ["-c", 'source "$1" && normalize_command "$(cat)"', "normalize", source], {
+    input: command, env: { ...process.env, NORMALIZE_KEEP_SUDO: "1" }, encoding: "utf8", timeout: 5_000, maxBuffer: DEFAULT_MAX_OUTPUT_BYTES,
+  });
+  if (result.error || result.status !== 0 || (command && !result.stdout)) {
+    throw new Error("shell command normalization unavailable");
+  }
+  return result.stdout;
+}
 
 /**
  * hook-pipeline.json を読む。読めなければ throw（fail loud）。

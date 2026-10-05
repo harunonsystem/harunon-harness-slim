@@ -15,6 +15,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { normalizeShellCommand } from "../hook-runner/hook-runner.js";
 import { normalizeToolCall } from "../hook-runner/runtime-mapping.js";
 import type {
 	BridgeContext,
@@ -23,6 +24,7 @@ import type {
 } from "./claude-hooks-bridge.ts";
 
 interface Rule {
+	id: string;
 	pattern: RegExp;
 	reason: string;
 }
@@ -78,6 +80,7 @@ function loadRules(): Rule[] {
 		}
 		const prefix = originPrefix(rule.match?.origin ?? "default", originJs);
 		rules.push({
+			id: rule.id,
 			pattern: new RegExp(prefix + js, rule.match?.jsFlags ?? ""),
 			reason: rule.message,
 		});
@@ -93,10 +96,75 @@ function loadRules(): Rule[] {
 
 const RULES: Rule[] = loadRules();
 
+function shellUnits(command: string): { text: string; stdin: string }[] {
+	// Keep quoted separators in their argument; never execute the source text.
+	const units: { text: string; stdin: string }[] = [];
+	let start = 0;
+	let quote = "";
+	let stdin = "";
+	let groupDepth = 0;
+	let stdoutEaten = false;
+	for (let index = 0; index < command.length; index++) {
+		const char = command[index];
+		if (char === "\\" && quote !== "'") { index++; continue; }
+		if (quote) {
+			if (char === quote) quote = "";
+			continue;
+		}
+		if (char === "'" || char === '"' || char === "`") { quote = char; continue; }
+		// A grouped producer must reach the downstream SQL client as a whole.
+		// Keep opaque grouped syntax conservative instead of dropping its input.
+		if (char === "(" || char === "{") { groupDepth++; continue; }
+		if (char === ")" || char === "}") { groupDepth = Math.max(0, groupDepth - 1); continue; }
+		// `&` glued to a redirect is not a separator: `2>&1` / `0<&1` duplicate fds and
+		// `&>` / `&>>` redirect both streams. Splitting there loses the producer.
+		if (char === "&") {
+			if (command[index + 1] === ">") { if (groupDepth === 0) stdoutEaten = true; continue; }
+			if (command[index - 1] === ">" || command[index - 1] === "<") continue;
+		}
+		// `>` / `1>` / `>&` send stdout away from the pipe; `2>` / `2>&1` do not.
+		// Fds above 9 are rare; scan the whole digit run before `>`.
+		if (char === ">" && groupDepth === 0) {
+			const prev = command[index - 1];
+			if (prev !== "&" && prev !== ">") {
+				let back = index - 1;
+				while (back >= 0 && command[back] >= "0" && command[back] <= "9") back--;
+				if (back === index - 1 || Number(command.slice(back + 1, index)) === 1) stdoutEaten = true;
+			}
+			continue;
+		}
+		if (groupDepth === 0 && ";&|\n".includes(char)) {
+			const text = command.slice(start, index);
+			units.push({ text, stdin });
+			// A producer's data is executable SQL for a downstream database client.
+			// Conditional || is not a pipe; following commands never supply input.
+			stdin = char === "|" && command[index + 1] !== "|" && !stdoutEaten ? `${stdin}\n${text}` : "";
+			if (char === "|" && (command[index + 1] === "|" || command[index + 1] === "&")) index++;
+			stdoutEaten = false;
+			start = index + 1;
+		}
+	}
+	units.push({ text: command.slice(start), stdin });
+	return units.filter((unit) => unit.text.trim());
+}
+
 export function destructiveReason(command: string): string | undefined {
+	let normalized: string;
+	try { normalized = normalizeShellCommand(command); }
+	catch { return "コマンドの安全判定に必要な正規化が利用できません"; }
 	for (const rule of RULES) {
-		if (rule.pattern.test(command)) {
+		// SQL text is data to the shell but executable to a database client.
+		if (rule.pattern.test(normalized)) {
 			return rule.reason;
+		}
+		if (rule.id === "sql-drop") {
+			for (const unit of shellUnits(command)) {
+				let rendered: string;
+				try { rendered = normalizeShellCommand(unit.text); }
+				catch { return "コマンドの安全判定に必要な正規化が利用できません"; }
+				const sqlClient = /(?:^|[;&|\n])\s*(?:[^\s;|&]*\/)?(?:psql|mysql|sqlite3)(?=\s|$)/.test(rendered);
+				if (sqlClient && rule.pattern.test(`${unit.stdin}\n${unit.text}`)) return rule.reason;
+			}
 		}
 	}
 	return undefined;

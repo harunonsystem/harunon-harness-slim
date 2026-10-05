@@ -4,7 +4,7 @@ description: セキュリティ REJECT 基準の sink 詳細表。review-policy.
 
 ## セキュリティ sink 詳細（レビュー時参照）
 
-変更 diff に以下の sink が**外部入力と結合し得る**形で現れたら REJECT。安全な代替に置換するか、安全である根拠を**該当行の直前コメント**に明記させる。
+以下は調査対象の候補である。変更 diff の入力 source・sink・権限境界・既存の検証を辿り、具体的な入力で不正実行・越権・情報流出が起きる根拠を確認した場合は REJECT。根拠 path/line、期待/実際、反例を添える。sink の存在や直前コメントの欠如だけで確定しない。安全な代替や境界検証を要求し、コメントは実装の安全性の代用にしない。
 
 ### コード注入 / コマンド実行
 
@@ -49,6 +49,6 @@ description: セキュリティ REJECT 基準の sink 詳細表。review-policy.
 | source→sink トレース | 外部入力が上記 sink へ未検証・未エスケープで到達 |
 | 機密の observability 流出 | PII / 認証情報が log・trace・例外メッセージへ |
 | IDOR / 認可バイパス | リソース取得がリクエスト元の所有権・権限を未検証 |
-| SSRF | ユーザー制御 URL の外向き HTTP。allowlist 無し |
-| Path traversal | ユーザー制御パスの open/read/write。`../`/symlink 未除去 |
+| SSRF | ユーザー制御 URL が許可されない内部宛先・認証先へ到達し得る。redirect / DNS 解決 / 実行権限を確認（意図した任意公開 URL 取得だけでは確定しない） |
+| Path traversal | 許可 root / 権限境界を越えるユーザー制御パスの open/read/write。正規化・symlink 解決後の containment と、元々許可された任意パス操作を区別する |
 | CI/CD 信頼境界 | `pull_request_target` 等を branches フィルタ無しで追加 + secrets 読取 |

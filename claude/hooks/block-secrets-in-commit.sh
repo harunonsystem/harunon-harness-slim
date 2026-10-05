@@ -9,11 +9,6 @@ set -euo pipefail
 
 INPUT=$(cat)
 
-# Fast path: skip if command doesn't contain "commit"
-case "$INPUT" in
-  *commit*) ;;
-  *) exit 0 ;;
-esac
 
 # 壊れた JSON でも fail-open（jq のパース失敗で hook がクラッシュしないよう空にフォールバック）
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null || echo "")
@@ -75,21 +70,13 @@ case $add_rc in
     ;;
 esac
 
-all_rc=0
-command_origin_matches "$CMD" '(git|rtk[[:space:]]+git)[[:space:]]+commit[^;&|]*[[:space:]](-[[:alnum:]]*a[[:alnum:]]*|--all)([^A-Za-z0-9_-]|$)' || all_rc=$?
-case $all_rc in
-  0)
-    echo "git commit -a は working tree の変更を commit 時に stage するため、" >&2
-    echo "  PreToolUse 時点の index を見るシークレット検査が対象を取りこぼします。" >&2
-    echo "  git add で明示的に stage してから commit してください。" >&2
-    exit 2
-    ;;
-  1) ;;
-  *)
-    echo "commit 前の -a 判定に失敗しました（安全側に倒してブロックします）" >&2
-    exit 2
-    ;;
-esac
+# Inspect actual argv: messages such as "-a" are data, while pathspecs,
+# --only and --include change what Git stages at commit time.
+if ! printf '%s' "$CMD" | python3 "$HOOK_DIR/../policy/commit_args.py" index >/dev/null; then
+  echo "commit 時の stage / pathspec または解決できない引数は検査できません。" >&2
+  echo "  git add で明示的に stage し、pathspec 無しの commit を別々のコマンドで実行してください。" >&2
+  exit 2
+fi
 
 # review-gate.sh が policy/repo_target.py で CMD を token 化して解決する。quote / global
 # option / env prefix を独自 Perl で再解釈しない。解決不能時は cwd へ戻さず deny する。

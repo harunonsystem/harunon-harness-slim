@@ -17,7 +17,7 @@ source "$HOOK_DIR/lib/rigor-profile.sh"
 INPUT=$(cat)
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
-if ! _codex_review_command_matches "$CMD"; then
+if ! _codex_review_command_matches "$CMD" --completed; then
   exit 0
 fi
 

@@ -308,12 +308,16 @@ for (1 .. 4) {
 my $origin = qr/(\A|[;&|\n]|&&|\|\|)/;
 # env/sudo の値付き wrapper option は語だけ落とすと値がコマンド名に残るため、
 # option と値を一組で除去する（例: `env -u NAME git commit`）。
+my $value_wrapper = $ENV{NORMALIZE_KEEP_SUDO} ? qr/env/ : qr/(?:env|sudo)/;
 for (1 .. 4) {
-    $s =~ s/$origin([ \t]*)(?:env|sudo)[ \t]+(?:-u|--unset)(?:[ \t]+|=)[^ \t;&|]+[ \t]*/$1$2/g;
+    $s =~ s/$origin([ \t]*)$value_wrapper[ \t]+(?:-u|--unset)(?:[ \t]+|=)[^ \t;&|]+[ \t]*/$1$2/g;
 }
+my $wrapper = $ENV{NORMALIZE_KEEP_SUDO}
+    ? qr/(?:then|do|else|elif|!|command|exec|env|time|nohup)/
+    : qr/(?:then|do|else|elif|!|command|exec|env|time|nohup|sudo)/;
 for (1 .. 4) {
     $s =~ s/$origin([ \t]*)(?:[A-Za-z_][A-Za-z0-9_]*=\S*[ \t]+)+/$1$2/g;
-    $s =~ s/$origin([ \t]*)(?:then|do|else|elif|!|command|exec|env|time|nohup|sudo)[ \t]+/$1$2/g;
+    $s =~ s/$origin([ \t]*)$wrapper[ \t]+/$1$2/g;
 }
 $s = strip_git_global_options($s);
 print $s;
