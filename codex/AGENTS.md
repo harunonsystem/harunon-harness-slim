@@ -43,7 +43,7 @@
 | テストの追加・変更・監査 | `test-audit` skill |
 | 実装後の簡素化・cleanup | `simplify` skill |
 | 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`。判定は `rules/review-policy.md` |
-| 開発・Issue intake | `implement-issue` は要件・worktree 解決のみ。方針が明確なら担当自身で実装・検証し、委譲しない。原因不明は `how`、実質的な設計比較は `architect`、全体 orchestration の明示依頼は `poteto-mode` |
+| 開発・Issue・spec 整理 | `implement-issue` は着手判定と worktree 解決。spec 整理・tracker 操作の前に `rules/issue-tracker.md`。明確なら自身で実装・検証し委譲しない。原因不明は `how`、設計比較は `architect`、orchestration の明示依頼は `poteto-mode` |
 | task state・公開証跡 | `run-change`。既存 state を再開し、公開前にセルフチェック |
 | skill / agent 指示の変更 | `skill-improvement` skill |
 | Figma からの実装（Claude のみ） | `figma-implement` skill |

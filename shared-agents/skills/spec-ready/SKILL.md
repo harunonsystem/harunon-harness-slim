@@ -126,7 +126,7 @@ release:
 
 原則:
 
-- 1 Issue = 1 PR を目安にする
+- 1 Issue = 1 本の振る舞いにする。複数 repo にまたがるなら、同じ Issue のまま repo ごとに PR を出す（`rules/issue-tracker.md`）
 - fresh context の agent が単独で理解・実装・検証できる
 - main に単独 merge 可能
 - tracer-bullet の vertical slice を優先する
@@ -152,12 +152,12 @@ release:
 
 - 同じ slice が既に存在するなら再利用し、必要な spec / relation だけ更新する
 - 新規 slice だけを依存順に作成する
-- 途中で tracker 更新に失敗した場合は、それまでに作成・更新した Issue ID を親 Issue に記録して終了する
+- 途中で tracker 更新に失敗した場合は、それまでに作成・更新した Issue ID を親 Issue へのコメントに記録して終了する
 - 再実行時はその記録と tracker の現状から再開し、作成済み slice を再作成しない
 
-tracker、relation、label、project の扱いは repo の既存規約に従う。triage label vocabulary が context に無ければ `setup-matt-pocock-skills` で解決する。作成した子 Issue は既存の実装可能状態を表す triage label（現在の Matt 系 vocabulary では `ready-for-agent`）に揃える。存在しない `spec-ready` / `needs-product-decision` label を勝手に新設しない。
+tracker への書き込みは `rules/issue-tracker.md` に従う。作れるのは sub-issue・blocked by リンク・コメントだけで、ラベル・状態・親 Issue の本文は変えない。
 
-親 Issue には以下が追える状態を残す。
+親 Issue へのコメントに以下を残す。
 
 - 確定した spec の要点
 - architecture classification
@@ -165,11 +165,9 @@ tracker、relation、label、project の扱いは repo の既存規約に従う�
 - 作成・再利用した子 Issue と依存関係
 - 部分的な publish で止まった場合は、完了済み Issue ID と未作成 slice
 
-既存 tracker に Spec Ready 相当の state / label がある場合だけ、それを適用する。
-
 ## BLOCKED 条件
 
-以下だけは人間へ上げる。BLOCKED にする前に、親 Issue へ調査済みの事実、未決の product decision、判断に必要な選択肢、作成済み子 Issue があればその ID を記録する。後続セッションはその記録から再開する。
+以下だけは人間へ上げる。BLOCKED にする前に、親 Issue へのコメントに調査済みの事実、未決の product decision、判断に必要な選択肢、作成済み子 Issue があればその ID を記録する。後続セッションはその記録から再開する。
 
 - A/B どちらの product behavior が正しいか資料から決まらない
 - backward compatibility を捨ててよいか product / external contract 上決まらない

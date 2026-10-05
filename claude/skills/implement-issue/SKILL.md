@@ -1,6 +1,6 @@
 ---
 name: implement-issue
-description: PRD・Linear task・GitHub issue から要件と worktree を解決し、実装へ引き継ぐ。「issue 実装」「タスク実装」で起動。
+description: PRD・Linear task・GitHub issue から要件と worktree を解決し、実装へ引き継ぐ。spec が足りない task は実装せず、spec を整える入口へ回す。「issue 実装」「タスク実装」で起動。
 user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, Agent, AskUserQuestion, Skill
 ---
@@ -61,15 +61,23 @@ gh issue view <issue-number> --repo <owner/repo>
 - 実装要件
 - 受け入れ条件
 
-### Phase 1.5: 未決事項の確認
+### Phase 1.5: 着手判定
 
-目的・受入条件・範囲の不足だけを intake で解消する。技術設計と解法選択は実装側に渡し、正しさや範囲を左右するユーザー固有の判断だけ確認する。
+この skill は、そのまま実装に入れる task だけを扱う。入力の種類（sub-issue・親 Issue・PRD・直接説明・調査レポート）ではなく、中身で判定する。
+
+- **着手できる**: 目的、受入条件、範囲外が入力・会話・repo から確定でき、Blocked by が全部完了している。技術設計と解法選択は実装側で決めるので、判定に含めない
+- **blocker が未完了**: 未完了の Issue を示して止まる
+- **spec が足りない**: 受入条件または範囲を確定できない、product の判断が決まっていない、1 本の振る舞いに収まらない。範囲外が明記されていなくても、1 本の振る舞いや修正対象から範囲が決まるなら足りている。worktree を作らず、不足を示して spec を整える入口へ回して止まる。その場で product の判断を聞き始めない
+  - 人と詰める: `grill-with-docs` → `to-spec` → `to-tickets`
+  - agent が repo・契約に当てて整える: `spec-ready`
+
+判定のためにも、止まるときにも tracker へ書き込まない。tracker の扱いは `rules/issue-tracker.md` に従う。
 
 ### Phase 2: worktree の再利用または作成
 
 作成前に `git worktree list` を確認する。同じ task ID の branch と対象 repo が一致し、worktree の intake 情報を確認できたら再利用する。issue 情報が会話内ですでに解決済みなら再取得しない。別 task の state は保持し、その worktree を変更・再利用しない。該当する既存 worktree が無い場合だけ以下の準備を行う。
 
-1. `repos` が設定されている場合、issue ID の prefix から対象リポジトリを解決し `$main_repo` を確定する（解決ロジックは「設定」節を参照）。
+1. `repos` が設定されている場合、issue ID の prefix から対象リポジトリを解決し `$main_repo` を確定する（解決ロジックは「設定」節を参照）。task が複数 repo に触れる場合は、触る repo を Issue 本文・会話・repo の契約から特定し、それぞれのパスを確定する。設定や `git` の情報から解決できない repo だけユーザーに確認する。以降の 2〜6 は repo ごとに行い、既存 worktree・state の確認も repo ごとに行う。
 
 2. メインリポジトリで最新の main を取得し、共有 checkout が clean か確認する：
 ```bash
@@ -110,6 +118,8 @@ git -C "$main_repo" worktree add -b <branch-name> <worktree-path> <base>
 worktree が解決済みなら、その task・worktree・受入条件・base・branch・repo の検証コマンドを保持して常駐指示の Routing に従って実装を開始する。方針が明確なら担当自身で進め、Issue 起点という理由だけで `poteto-mode` を呼ばない。同じ task の既存 state があれば再開し、別 task の state は上書きしない。Phase 1〜2 で確定した issue 情報や worktree を取り直さない。
 
 実装側に渡す情報：目的、受け入れ条件、task URL / ID、対象 repo、worktree、base と branch、repo の検証コマンド、既存の公開承認。設定済みなら `pr_template` と `lint_fix_cmd` も渡す。
+
+1 つの task が複数 repo に触れる場合は、task を分けずに、Phase 2 で用意した repo ごとの worktree を全部渡し、repo ごとに PR を出す。PR を出す順は `rules/issue-tracker.md` に従う。
 
 **完了条件**: intake で解決したタスク情報と worktree が実装側に渡されている。これは intake の完了であり、元の実装依頼が完了したことにはならない。担当 agent は受入条件と検証を満たすまで続ける。
 
