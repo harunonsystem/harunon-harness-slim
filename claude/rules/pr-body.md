@@ -77,6 +77,7 @@ PR本文が英語のみの場合はこの工程を省略してよい。`yomiyasu
 - Summary / Design / What changed のように同じ説明を二重化しない。
 - commit log や変更ファイル一覧を本文へ転記しない。
 - 「何を実装したか」より「何が変わるか」を優先する。
+- repo に `GLOSSARY.md` があれば、その用語で書く。
 - reviewer がdiffを読む順序に意味がある大きめのPRだけ、短い `Review path` を追加してよい。
 - issue / Linear task がある場合は Why の末尾かtemplate所定欄にリンクする。
 - P3 / scope外 finding は Notes の「残件」に finding 単位で書く。
