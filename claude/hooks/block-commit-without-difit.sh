@@ -42,7 +42,7 @@ if ! review_gate_resolve_target_repo "$CMD"; then
     "hookSpecificOutput": {
       "hookEventName": "PreToolUse",
       "permissionDecision": "deny",
-      "permissionDecisionReason": ("BLOCKED: commit 対象 repo を確定できません（" + $reason + "）。対象 repo に cd してから実行してください。")
+      "permissionDecisionReason": ("BLOCKED: commit 対象 repo を確定できません（" + $reason + "）。`git -C <リテラル絶対パス>` を 1 回だけ付けた単独の commit で実行してください（変数・他コマンドとのチェイン不可）。")
     }
   }'
   exit 0

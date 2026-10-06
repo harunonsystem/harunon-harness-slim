@@ -47,7 +47,7 @@ if ! review_gate_resolve_target_repo "$CMD"; then
     "hookSpecificOutput": {
       "hookEventName": "PreToolUse",
       "permissionDecision": "deny",
-      "permissionDecisionReason": ("BLOCKED: PR 作成対象 repo を確定できません（" + $reason + "）。対象 repo に cd してから実行してください。")
+      "permissionDecisionReason": ("BLOCKED: PR 作成対象 repo を確定できません（" + $reason + "）。`( cd <リテラル絶対パス> && gh pr create ... )` の subshell 形で実行してください（変数不可。先頭の cd は別 hook が拒否します）。")
     }
   }'
   exit 0

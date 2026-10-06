@@ -36,7 +36,7 @@ if ! review_gate_resolve_target_repo "$CMD"; then
     "hookSpecificOutput": {
       "hookEventName": "PreToolUse",
       "permissionDecision": "deny",
-      "permissionDecisionReason": ("BLOCK: レビュー対象 repo を確定できません（" + $reason + "）。対象 repo に cd してから実行してください。")
+      "permissionDecisionReason": ("BLOCK: レビュー対象 repo を確定できません（" + $reason + "）。対象 repo をリテラル絶対パスで 1 か所だけ指定してください（`--cwd <path>` か `( cd <path> && ... )`。変数不可）。")
     }
   }'
   exit 0

@@ -333,7 +333,7 @@ _GH_REPO_OPTIONS = ("--repo", "-R")
 
 _GH_REPO_REASON = (
     "--repo/-R で指定した PR 対象 repo はローカルの承認・レビュー証跡と対応付けられません。"
-    "対象 repo に cd してから実行してください"
+    "--repo を外し、`( cd <リテラル絶対パス> && gh pr create ... )` の subshell 形で実行してください"
 )
 _GH_HEAD_REASON = "--head で別ブランチの PR を作る形は、承認済み HEAD と対象が一致しません"
 
