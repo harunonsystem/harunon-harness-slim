@@ -1,89 +1,115 @@
-/**
- * hookRunner — Claude Code の PreToolUse hook（packages/core/hooks/*.sh）を
- * Claude 以外の runtime（pi / omp / opencode）で無改修実行する共有 module。
- *
- * interface は 1 本: createHookRunner({ runtime }).preToolUse(toolName, toolInput, cwd)
- * が decision（allow / deny / ask）と最終 tool_input を返す。以下はすべてこの module の
- * 内側にあり、runtime adapter（pi-extensions / omp-extensions / opencode-plugins）は
- * 知らなくてよい:
- *   - どの hook をどの順で流すか: policy/hook-pipeline.json（SSOT table）を実行時に読む
- *     （runtimes / when.tools / when.commandEre / order）。adapter が hook 一覧を持たない
- *   - wire protocol: stdin JSON {hook_event_name, tool_name, tool_input, cwd}、
- *     exit 2 = deny（stderr が理由）、stdout JSON の hookSpecificOutput.permissionDecision
- *     deny / ask、updatedInput は後続 hook へ連鎖
- *   - fail-closed 規律: table の required: true（deny 能力を持つ security-critical hook）は
- *     「ファイル欠落 / exit 0・2 以外 / stdout が非空なのに JSON でない」を deny に倒す。
- *     advisory hook（required 省略）は warning を集めて続行する
- *   - spawn の作法: /bin/bash、HARNESS_RUNTIME、PATH に /bin・/usr/bin を保証、
- *     60 秒で SIGKILL、stdin の EPIPE 無視、spawn 失敗（cwd 不在等）は hook 失敗扱い
- *
- * 配布レイアウトの契約: この file は各 runtime の configDir 配下で
- *   <root>/hook-runner/hook-runner.js
- *   <root>/claude-hooks/*.sh            ← DEFAULT_HOOKS_DIR
- *   <root>/policy/hook-pipeline.json    ← DEFAULT_TABLE_PATH
- * に並ぶ（pi / omp は configDir 直下、opencode は runtime/ 配下。相対関係は同じ）。
- * hook 自身も $HOOK_DIR/../policy/ と $HOOK_DIR/lib/ を相対参照する。
- *
- * codex は Python（packages/runtimes/codex/harunon-core/scripts/codex_hook.py）が
- * 同じ table を読む第 2 実装。JS に寄せられないため table を共有点にする。
- * SSOT: harunon-harness packages/core/hook-runner/
- */
+// Generated from packages/hook-engine/src/hook-runner.ts. Do not edit.
+
+// src/hook-runner.ts
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-export const DEFAULT_HOOKS_DIR = join(HERE, "..", "claude-hooks");
-export const DEFAULT_TABLE_PATH = join(HERE, "..", "policy", "hook-pipeline.json");
-export const DEFAULT_TIMEOUT_MS = 60_000;
-export const DEFAULT_MAX_OUTPUT_BYTES = 1_048_576;
-
-/** Reuse the shell guards' quote-aware lexer. This only renders text; it never executes input. */
-export function normalizeShellCommand(command) {
+var HERE = dirname(fileURLToPath(import.meta.url));
+var DEFAULT_HOOKS_DIR = join(HERE, "..", "claude-hooks");
+var DEFAULT_TABLE_PATH = join(HERE, "..", "policy", "hook-pipeline.json");
+var DEFAULT_TIMEOUT_MS = 6e4;
+var DEFAULT_MAX_OUTPUT_BYTES = 1048576;
+function message(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function expect(value, guard, path, type) {
+  if (!guard(value)) throw new Error(`${path}: expected ${type}`);
+  return value;
+}
+var isString = (value) => typeof value === "string";
+var isBoolean = (value) => typeof value === "boolean";
+var isFiniteNumber = (value) => typeof value === "number" && Number.isFinite(value);
+var isStringArray = (value) => Array.isArray(value) && value.every(isString);
+var isHookFile = (value) => isString(value) && /^[\w.-]+\.sh$/.test(value);
+var isPermission = (value) => value === "allow" || value === "deny" || value === "ask";
+function optional(record, key, guard, path, type) {
+  return record[key] === void 0 ? {} : { [key]: expect(record[key], guard, `${path}.${key}`, type) };
+}
+function parseHook(value, path) {
+  const hook = expect(value, isRecord, path, "object");
+  const when = hook.when === void 0 ? void 0 : expect(hook.when, isRecord, `${path}.when`, "object");
+  return {
+    id: expect(hook.id, isString, `${path}.id`, "string"),
+    file: expect(hook.file, isHookFile, `${path}.file`, "*.sh file name"),
+    order: expect(hook.order, isFiniteNumber, `${path}.order`, "finite number"),
+    stage: expect(hook.stage, isString, `${path}.stage`, "string"),
+    runtimes: expect(hook.runtimes, isStringArray, `${path}.runtimes`, "string[]"),
+    ...optional(hook, "event", isString, path, "string"),
+    ...optional(hook, "required", isBoolean, path, "boolean"),
+    ...when && { when: {
+      ...optional(when, "tools", isStringArray, `${path}.when`, "string[]"),
+      ...optional(when, "commandEre", isString, `${path}.when`, "string")
+    } }
+  };
+}
+function parsePipeline(value) {
+  const table = expect(value, isRecord, "$", "object");
+  if (table.version !== 1) throw new Error("$.version: expected 1");
+  const runtimes = expect(table.runtimes, isRecord, "$.runtimes", "object");
+  const hooks = expect(table.hooks, Array.isArray, "$.hooks", "array");
+  return {
+    version: 1,
+    stages: expect(table.stages, isStringArray, "$.stages", "string[]"),
+    runtimes: Object.fromEntries(Object.entries(runtimes).map(([name, runtime]) => {
+      const path = `$.runtimes.${name}`;
+      const { executionModel } = expect(runtime, isRecord, path, "object");
+      return [name, { executionModel: expect(executionModel, isString, `${path}.executionModel`, "string") }];
+    })),
+    hooks: hooks.map((hook, index) => parseHook(hook, `$.hooks[${index}]`))
+  };
+}
+function parseHookOutput(value) {
+  const output = expect(value, isRecord, "$", "object");
+  if (output.hookSpecificOutput === void 0) return void 0;
+  const specific = expect(output.hookSpecificOutput, isRecord, "$.hookSpecificOutput", "object");
+  const path = "$.hookSpecificOutput";
+  return {
+    ...optional(specific, "permissionDecision", isPermission, path, "allow | deny | ask"),
+    ...optional(specific, "permissionDecisionReason", isString, path, "string"),
+    ...optional(specific, "updatedInput", isRecord, path, "object")
+  };
+}
+function normalizeShellCommand(command) {
   const deployed = join(DEFAULT_HOOKS_DIR, "lib", "command-normalize.sh");
   const source = existsSync(deployed) ? deployed : join(HERE, "..", "hooks", "lib", "command-normalize.sh");
   const result = spawnSync("/bin/bash", ["-c", 'source "$1" && normalize_command "$(cat)"', "normalize", source], {
-    input: command, env: { ...process.env, NORMALIZE_KEEP_SUDO: "1" }, encoding: "utf8", timeout: 5_000, maxBuffer: DEFAULT_MAX_OUTPUT_BYTES,
+    input: command,
+    env: { ...process.env, NORMALIZE_KEEP_SUDO: "1" },
+    encoding: "utf8",
+    timeout: 5e3,
+    maxBuffer: DEFAULT_MAX_OUTPUT_BYTES
   });
-  if (result.error || result.status !== 0 || (command && !result.stdout)) {
+  if (result.error || result.status !== 0 || command && !result.stdout) {
     throw new Error("shell command normalization unavailable");
   }
   return result.stdout;
 }
-
-/**
- * hook-pipeline.json を読む。読めなければ throw（fail loud）。
- * 判定基準が静かに欠けて security-critical hook が fail-open するより、
- * adapter のロードごと失敗させる方が安全（confirm-destructive.ts と同じ方針）。
- */
-export function loadPipeline(tablePath = DEFAULT_TABLE_PATH) {
+function loadPipeline(tablePath = DEFAULT_TABLE_PATH) {
   try {
-    return JSON.parse(readFileSync(tablePath, "utf8"));
+    const raw = JSON.parse(readFileSync(tablePath, "utf8"));
+    const table = parsePipeline(raw);
+    for (const hook of table.hooks) {
+      if (hook.when?.commandEre) new RegExp(hook.when.commandEre);
+    }
+    return table;
   } catch (error) {
-    throw new Error(`hook-runner: hook-pipeline.json を読み込めません（${tablePath}）: ${error.message}`);
+    throw new Error(`hook-runner: hook-pipeline.json \u3092\u8AAD\u307F\u8FBC\u3081\u307E\u305B\u3093\uFF08${tablePath}\uFF09: ${message(error)}`);
   }
 }
-
-/** runtime に配線され、Claude ツール名 toolName に掛かる PreToolUse hook を order 昇順で返す。 */
-export function selectHooks(table, runtime, toolName) {
-  return table.hooks
-    .filter(
-      (hook) =>
-        hook.runtimes.includes(runtime) &&
-        (hook.event ?? "PreToolUse") === "PreToolUse" &&
-        (hook.when?.tools ?? []).includes(toolName),
-    )
-    .sort((a, b) => a.order - b.order);
+function selectHooks(table, runtime, toolName) {
+  return table.hooks.filter(
+    (hook) => hook.runtimes.includes(runtime) && (hook.event ?? "PreToolUse") === "PreToolUse" && (hook.when?.tools ?? []).includes(toolName)
+  ).sort((a, b) => a.order - b.order);
 }
-
 function commandMatches(hook, input) {
   const ere = hook.when?.commandEre;
-  if (!ere) return true;
-  return new RegExp(ere).test(typeof input.command === "string" ? input.command : "");
+  return !ere || new RegExp(ere).test(typeof input.command === "string" ? input.command : "");
 }
-
 function hookEnv(runtime) {
   const entries = (process.env.PATH ?? "").split(":").filter(Boolean);
   for (const entry of ["/bin", "/usr/bin"]) {
@@ -91,255 +117,195 @@ function hookEnv(runtime) {
   }
   return { ...process.env, PATH: entries.join(":"), HARNESS_RUNTIME: runtime };
 }
-
-/**
- * 子プロセスを 1 つ走らせ {code, stdout, stderr} を返す。reject しない:
- * spawn 自体の失敗（cwd 不在の ENOENT 等）は code 1 + stderr に載せて hook 失敗と同じ経路に流す
- * （listener が無いと unhandled 'error' で拡張ホストごと落ちる）。
- * timeout / 出力上限では子プロセスグループと pipe を閉じ、子孫が pipe を継承しても
- * close 待ちでハングしない。
- */
 function killProcessTree(child) {
   if (!child.pid) return;
   try {
     if (process.platform === "win32") child.kill("SIGKILL");
     else process.kill(-child.pid, "SIGKILL");
   } catch (error) {
-    if (error?.code === "ESRCH") return;
+    if (error instanceof Error && "code" in error && error.code === "ESRCH") return;
     try {
       child.kill("SIGKILL");
     } catch {
-      // process already exited
     }
   }
 }
-
-export function runProcess(
-  file,
-  args,
-  {
-    cwd,
-    env,
-    stdin,
-    timeoutMs = DEFAULT_TIMEOUT_MS,
-    maxOutputBytes = DEFAULT_MAX_OUTPUT_BYTES,
-  } = {},
-) {
+function runProcess(file, args, {
+  cwd,
+  env,
+  stdin,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  maxOutputBytes = DEFAULT_MAX_OUTPUT_BYTES,
+  signal
+} = {}) {
   return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve({ code: 1, stdout: "", stderr: "hook interrupted" });
+      return;
+    }
     let child;
     try {
       child = spawn(file, args, {
         cwd,
         env,
         detached: process.platform !== "win32",
-        stdio: [stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+        stdio: [stdin === void 0 ? "ignore" : "pipe", "pipe", "pipe"]
       });
     } catch (error) {
-      resolve({ code: 1, stdout: "", stderr: `spawn failed (cwd=${cwd}): ${error.message}` });
+      resolve({ code: 1, stdout: "", stderr: `spawn failed (cwd=${cwd}): ${message(error)}` });
       return;
     }
-
-    const outputLimit =
-      Number.isFinite(maxOutputBytes) && maxOutputBytes >= 0
-        ? Math.floor(maxOutputBytes)
-        : DEFAULT_MAX_OUTPUT_BYTES;
+    const outputLimit = Number.isFinite(maxOutputBytes) && maxOutputBytes >= 0 ? Math.floor(maxOutputBytes) : DEFAULT_MAX_OUTPUT_BYTES;
     const stdoutDecoder = new StringDecoder("utf8");
     const stderrDecoder = new StringDecoder("utf8");
     let stdout = "";
     let stderr = "";
     let capturedBytes = 0;
     let settled = false;
-    let timer;
-
     const finish = (code, diagnostic = "", discardStdout = false) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
       stdout += stdoutDecoder.end();
       stderr += stderrDecoder.end();
       if (diagnostic) {
         if (stderr && !stderr.endsWith("\n")) stderr += "\n";
         stderr += diagnostic;
       }
-      if (discardStdout) stdout = "";
       child.stdout?.destroy();
       child.stderr?.destroy();
       child.stdin?.destroy();
-      resolve({ code, stdout, stderr });
+      resolve({ code, stdout: discardStdout ? "" : stdout, stderr });
     };
-
     const abort = (diagnostic) => {
       killProcessTree(child);
       finish(1, diagnostic, true);
     };
-
+    const onAbort = () => abort("hook interrupted");
+    const timer = setTimeout(() => abort(`hook timed out after ${timeoutMs}ms`), timeoutMs);
+    signal?.addEventListener("abort", onAbort, { once: true });
     const capture = (stream, chunk) => {
       if (settled) return;
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       const remaining = outputLimit - capturedBytes;
-      const accepted = remaining > 0 ? buffer.subarray(0, remaining) : buffer.subarray(0, 0);
+      const accepted = chunk.subarray(0, Math.max(remaining, 0));
       capturedBytes += accepted.length;
       if (stream === "stdout") stdout += stdoutDecoder.write(accepted);
       else stderr += stderrDecoder.write(accepted);
-      if (accepted.length < buffer.length) {
-        abort(`hook output exceeded ${outputLimit} bytes`);
-      }
+      if (accepted.length < chunk.length) abort(`hook output exceeded ${outputLimit} bytes`);
     };
-
     child.stdout?.on("data", (chunk) => capture("stdout", chunk));
     child.stderr?.on("data", (chunk) => capture("stderr", chunk));
     child.on("close", (code) => finish(code));
-    child.on("error", (error) => {
-      finish(1, `spawn failed (cwd=${cwd}): ${error.message}`, true);
-    });
-    timer = setTimeout(
-      () => abort(`hook timed out after ${timeoutMs}ms`),
-      timeoutMs,
-    );
-    if (stdin !== undefined && child.stdin) {
-      // hook が stdin を読み切らず終了すると EPIPE になる（deny 系 hook で頻出）。
-      // 判定は exit code / stdout で受け取るため、stdin の書き込みエラーは無視してよい。
-      child.stdin.on("error", () => {});
+    child.on("error", (error) => finish(1, `spawn failed (cwd=${cwd}): ${message(error)}`, true));
+    if (stdin !== void 0 && child.stdin) {
+      child.stdin.on("error", () => {
+      });
       child.stdin.end(stdin);
     }
   });
 }
-
-function isObject(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+function deny(reason, finalInput, warnings) {
+  return { decision: "deny", reason, finalInput, warnings };
 }
-
-function protocolError(payload) {
-  if (!isObject(payload)) return "hook output must be a JSON object";
-  if (!Object.hasOwn(payload, "hookSpecificOutput")) return undefined;
-
-  const output = payload.hookSpecificOutput;
-  if (!isObject(output)) return "hookSpecificOutput must be an object";
-
-  if (Object.hasOwn(output, "permissionDecision")) {
-    const decision = output.permissionDecision;
-    if (!["allow", "deny", "ask"].includes(decision)) {
-      return "permissionDecision must be allow, deny, or ask";
+async function evaluate(table, runtime, hooksDir, timeoutMs, toolName, toolInput, cwd, signal) {
+  if (!isRecord(toolInput)) return deny("tool input is invalid", {}, []);
+  let input = { ...toolInput };
+  const selected = selectHooks(table, runtime, toolName);
+  const warnings = [];
+  const askReasons = [];
+  const missing = selected.filter((hook) => hook.required && !existsSync(join(hooksDir, hook.file)));
+  if (missing.length > 0) {
+    return deny(
+      `required security hook missing: ${missing.map((hook) => hook.file).join(", ")} (${hooksDir}) \u2014 scripts/install.sh ${runtime}\uFF08slim\uFF09\u307E\u305F\u306F\u914D\u5E03\u5143 repo \u3067 scripts/bootstrap.sh --targets ${runtime} \u3092\u5B9F\u884C\u3057\u3066 hooks \u3092\u518D\u914D\u5E03\u3057\u3066\u304F\u3060\u3055\u3044`,
+      input,
+      warnings
+    );
+  }
+  for (const hook of selected) {
+    const path = join(hooksDir, hook.file);
+    if (!existsSync(path) || !commandMatches(hook, input)) continue;
+    const result = await runProcess("/bin/bash", [path], {
+      cwd,
+      env: hookEnv(runtime),
+      timeoutMs,
+      ...signal && { signal },
+      stdin: JSON.stringify({ hook_event_name: "PreToolUse", tool_name: toolName, tool_input: input, cwd })
+    });
+    if (signal?.aborted) return deny("hook execution interrupted", input, warnings);
+    if (result.code === 2) return deny(result.stderr.trim(), input, warnings);
+    if (result.code !== 0) {
+      const error = `hook failed (exit ${result.code}): ${hook.file}: ${result.stderr.trim()}`;
+      if (hook.required) return deny(`required security ${error}`, input, warnings);
+      warnings.push(error);
+      continue;
     }
+    const stdout = result.stdout.trim();
+    if (!stdout) continue;
+    let parsed;
+    try {
+      parsed = JSON.parse(stdout);
+    } catch {
+      const error = `hook stdout is not JSON: ${hook.file}`;
+      if (hook.required) return deny(`required security ${error}`, input, warnings);
+      warnings.push(error);
+      continue;
+    }
+    let output;
+    try {
+      output = parseHookOutput(parsed);
+    } catch {
+      const reason2 = `hook output is invalid: ${hook.file}`;
+      if (hook.required) return deny(`required security ${reason2}`, input, warnings);
+      warnings.push(reason2);
+      continue;
+    }
+    if (!output) continue;
+    const reason = output.permissionDecisionReason ?? "";
+    if (output.permissionDecision === "deny") return deny(reason, input, warnings);
+    if (output.permissionDecision === "ask") askReasons.push(reason);
+    if (output.updatedInput) input = { ...input, ...output.updatedInput };
   }
-  if (Object.hasOwn(output, "permissionDecisionReason") && typeof output.permissionDecisionReason !== "string") {
-    return "permissionDecisionReason must be a string";
-  }
-  if (Object.hasOwn(output, "updatedInput")) {
-    if (!isObject(output.updatedInput)) return "updatedInput must be an object";
-  }
-  return undefined;
+  return askReasons.length > 0 ? { decision: "ask", reason: askReasons.join("\n"), finalInput: input, warnings } : { decision: "allow", reason: "", finalInput: input, warnings };
 }
-
-/**
- * @param {{ runtime: string, hooksDir?: string, tablePath?: string, timeoutMs?: number }} options
- *   runtime: HARNESS_RUNTIME と table の runtimes 照合に使う名前（pi / omp / opencode）
- */
-export function createHookRunner({
+function createHookRunner({
   runtime,
   hooksDir = DEFAULT_HOOKS_DIR,
   tablePath = DEFAULT_TABLE_PATH,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
+  timeoutMs = DEFAULT_TIMEOUT_MS
 }) {
-  const table = loadPipeline(tablePath);
-
-  const deny = (reason, finalInput, warnings) => ({ decision: "deny", reason, finalInput, warnings });
-
+  let pipeline;
+  let loadError = "";
+  try {
+    pipeline = loadPipeline(tablePath);
+  } catch (error) {
+    loadError = message(error);
+  }
   return {
     runtime,
     hooksDir,
-    /** toolName に掛かる hook の file 名（order 順）。adapter / テストの観測用。 */
     hooks(toolName) {
-      return selectHooks(table, runtime, toolName).map((hook) => hook.file);
+      return pipeline ? selectHooks(pipeline, runtime, toolName).map((hook) => hook.file) : [];
     },
-    /**
-     * @returns {Promise<{decision: "allow"|"deny"|"ask", reason: string, finalInput: object, warnings: string[]}>}
-     */
-    async preToolUse(toolName, toolInput, cwd) {
-      const selected = selectHooks(table, runtime, toolName);
-      let input = { ...toolInput };
-      const warnings = [];
-      const askReasons = [];
-
-      // required hook の実体欠落は、コマンド内容に関係なく deny する（配布漏れで guard が
-      // 丸ごと無効化される穴を黙って通さない）。
-      const missing = selected.filter((hook) => hook.required && !existsSync(join(hooksDir, hook.file)));
-      if (missing.length > 0) {
-        return deny(
-          `required security hook missing: ${missing.map((h) => h.file).join(", ")} (${hooksDir}) — ` +
-            `scripts/install.sh ${runtime}（slim）または配布元 repo で scripts/bootstrap.sh --targets ${runtime} を実行して hooks を再配布してください`,
-          input,
-          warnings,
-        );
+    async preToolUse(toolName, toolInput, cwd, { signal } = {}) {
+      if (!pipeline) return deny(`hook pipeline unavailable: ${loadError}`, {}, []);
+      if (signal?.aborted) return deny("hook execution interrupted", {}, []);
+      try {
+        return await evaluate(pipeline, runtime, hooksDir, timeoutMs, toolName, toolInput, cwd, signal);
+      } catch (error) {
+        return deny(`hook execution failed: ${message(error)}`, {}, []);
       }
-
-      for (const hook of selected) {
-        const path = join(hooksDir, hook.file);
-        if (!existsSync(path)) continue; // advisory hook の欠落は従来通り skip
-        if (!commandMatches(hook, input)) continue;
-        const required = hook.required === true;
-        const stdin = JSON.stringify({
-          hook_event_name: "PreToolUse",
-          tool_name: toolName,
-          tool_input: input,
-          cwd,
-        });
-        const result = await runProcess("/bin/bash", [path], {
-          cwd,
-          env: hookEnv(runtime),
-          stdin,
-          timeoutMs,
-        });
-
-        if (result.code === 2) {
-          return deny(result.stderr.trim(), input, warnings);
-        }
-        if (result.code !== 0) {
-          const message = `hook failed (exit ${result.code}): ${hook.file}: ${result.stderr.trim()}`;
-          if (required) return deny(`required security ${message}`, input, warnings);
-          warnings.push(message);
-          continue;
-        }
-        const stdout = result.stdout.trim();
-        if (!stdout) continue;
-        let parsed;
-        try {
-          parsed = JSON.parse(stdout);
-        } catch {
-          if (required) {
-            return deny(`required security hook stdout is not JSON: ${hook.file}`, input, warnings);
-          }
-          warnings.push(`hook stdout is not JSON: ${hook.file}`);
-          continue;
-        }
-        const invalid = protocolError(parsed);
-        if (invalid) {
-          const message = `hook output is invalid: ${hook.file}: ${invalid}`;
-          if (required) return deny(`required security ${message}`, input, warnings);
-          warnings.push(message);
-          continue;
-        }
-        const output = parsed.hookSpecificOutput;
-        if (!output) continue;
-        const reason =
-          typeof output.permissionDecisionReason === "string"
-            ? output.permissionDecisionReason
-            : "";
-        if (output.permissionDecision === "deny") {
-          return deny(reason, input, warnings);
-        }
-        if (output.permissionDecision === "ask") {
-          askReasons.push(reason);
-        }
-        if (output.updatedInput) {
-          input = { ...input, ...output.updatedInput };
-        }
-      }
-
-      if (askReasons.length > 0) {
-        return { decision: "ask", reason: askReasons.join("\n"), finalInput: input, warnings };
-      }
-      return { decision: "allow", reason: "", finalInput: input, warnings };
-    },
+    }
   };
 }
+export {
+  DEFAULT_HOOKS_DIR,
+  DEFAULT_MAX_OUTPUT_BYTES,
+  DEFAULT_TABLE_PATH,
+  DEFAULT_TIMEOUT_MS,
+  createHookRunner,
+  loadPipeline,
+  normalizeShellCommand,
+  runProcess,
+  selectHooks
+};
