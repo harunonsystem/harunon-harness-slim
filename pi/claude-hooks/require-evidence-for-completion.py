@@ -8,7 +8,9 @@ core-standards の「done / テスト通った / CI green は同じ turn でそ�
 - このターンで tool を 1 度も実行していない(前の turn の結果や推測に基づく宣言)
 - このターンで最後に実行したテストコマンドの出力が失敗を示している
 
-- git checkout 内で、v2 kernel の task.report が許可されない(complete 前・検証が古い・kernel 不達)
+- git checkout 内で、v2 kernel の task.report が許可されない(complete 前・検証が古い・kernel 不達)。
+  ただし task が無く、未 commit 変更も origin の既定ブランチに無い commit も無ければ照合しない
+  (pull・merge・配布だけのターンには完了を記録する変更が無い)
 
 書き直し中(stop_hook_active)は止めない(無限ループ防止)ので、差し戻しはターンごとに 1 回まで。
 読めない入力は素通りする(fail-open)が、kernel の照合失敗は止める(fail-closed)。
@@ -28,6 +30,7 @@ KERNEL = Path(__file__).resolve().parent.parent / "policy" / "harnessctl.py"
 CODE_FENCE = re.compile(r"```.*?```", re.S)
 INLINE_CODE = re.compile(r"`[^`\n]*`")
 BLOCKQUOTE = re.compile(r"^>.*$", re.M)
+QUOTE = re.compile(r"「[^」\n]*」")
 # タスク完了の申告だけを kernel の完了状態と照合する。テスト・CI の結果報告は
 # 完了申告ではないので、同一ターンの実行有無と失敗検知だけを見る。
 COMPLETION_CLAIM = re.compile(r"完了しました|完了です|対応済みです")
@@ -150,7 +153,7 @@ def read_turn(transcript_path: str) -> tuple[str, int, bool | None, bool | None]
 
 
 def claims(text: str) -> list[str]:
-    for pattern in (CODE_FENCE, INLINE_CODE, BLOCKQUOTE):
+    for pattern in (CODE_FENCE, INLINE_CODE, BLOCKQUOTE, QUOTE):
         text = pattern.sub(" ", text)
     found = set()
     for match in CLAIM.finditer(text):
@@ -162,6 +165,16 @@ def claims(text: str) -> list[str]:
             continue
         found.add(match.group(0))
     return sorted(found)
+
+
+def has_local_work(cwd: str) -> bool:
+    """未 commit 変更か、origin の既定ブランチに無い commit があるか。判定できなければ有りとみなす。"""
+    git = ["git", "-C", cwd]
+    status = subprocess.run([*git, "status", "--porcelain"], capture_output=True, text=True)
+    if status.returncode != 0 or status.stdout.strip():
+        return True
+    merged = subprocess.run([*git, "merge-base", "--is-ancestor", "HEAD", "refs/remotes/origin/HEAD"], capture_output=True)
+    return merged.returncode != 0
 
 
 def kernel_reason(quoted: str, cwd: str) -> str | None:
@@ -177,6 +190,8 @@ def kernel_reason(quoted: str, cwd: str) -> str | None:
         )
         detail = (result.stdout or result.stderr).strip()
         if result.returncode == 0:
+            return None
+        if '"TASK_REQUIRED"' in detail and not has_local_work(cwd):
             return None
     except (OSError, subprocess.TimeoutExpired) as error:
         detail = str(error)
