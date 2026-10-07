@@ -32,7 +32,7 @@ repo固有 template がない場合は次の順序を使う。
 
 ## 最終推敲
 
-日本語のPR本文は、構成と事実関係を確定した後、PR作成ツールへ本文を渡す直前に Agent Skill `yomiyasu` を明示的に適用し、domain は `business` を選ぶ。ここでの `yomiyasu` は shell command を実行する意味ではなく、Rulesync で配布された skill を読み込んで本文を推敲する工程を指す。
+日本語のPR本文は、構成と事実関係を確定した後、PR作成ツールへ本文を渡す直前に Agent Skill `yomiyasu` を明示的に適用し、domain は `business` を選ぶ。ここでの `yomiyasu` は shell command を実行する意味ではなく、harness が配布した skill を読み込んで本文を推敲する工程を指す。
 
 `yomiyasu` は構成や事実を作る工程ではなく、確定済みの本文からAI特有の言い回し、不自然な比喩、過剰な装飾、冗長さを除く最終推敲として使う。技術的制約、数値、Evidence、Merge risk、未実行項目、残件は削除・追加・断定変更しない。変換後にこれらが元のdraftと一致していることを確認してから、その出力を `gh pr create` または GitHub app の pull-request tool へ渡す。
 
