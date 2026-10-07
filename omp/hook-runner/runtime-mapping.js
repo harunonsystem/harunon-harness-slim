@@ -22,17 +22,31 @@ const RUNTIME_TOOLS = {
   opencode: {
     bash: "Bash",
   },
+  // Codex の tool 名は大文字小文字が揺れるので adapter が小文字化して渡す。
+  // apply_patch は file_path を持たず patch envelope を運ぶため Write に寄せる。
+  codex: {
+    bash: "Bash",
+    enterworktree: "EnterWorktree",
+    write: "Write",
+    write_file: "Write",
+    apply_patch: "Write",
+    edit: "Edit",
+    edit_file: "Edit",
+  },
 };
+
+// path → file_path / cmd → command の改名が要るのはこの runtime の tool だけ
+const RENAMING_RUNTIMES = new Set(["pi", "omp"]);
 
 const PATH_FIELD_TOOLS = new Set(["edit", "write", "read"]);
 const COMMAND_FIELD_TOOLS = new Set(["exec_command"]);
 
 function toClaudeInput(runtime, toolName, input) {
-  if (runtime !== "opencode" && PATH_FIELD_TOOLS.has(toolName) && typeof input.path === "string") {
+  if (RENAMING_RUNTIMES.has(runtime) && PATH_FIELD_TOOLS.has(toolName) && typeof input.path === "string") {
     const { path, ...rest } = input;
     return { ...rest, file_path: path };
   }
-  if (runtime !== "opencode" && COMMAND_FIELD_TOOLS.has(toolName) && typeof input.cmd === "string") {
+  if (RENAMING_RUNTIMES.has(runtime) && COMMAND_FIELD_TOOLS.has(toolName) && typeof input.cmd === "string") {
     const { cmd, ...rest } = input;
     return { ...rest, command: cmd };
   }

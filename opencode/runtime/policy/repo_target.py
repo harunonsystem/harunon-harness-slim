@@ -334,7 +334,9 @@ _GH_REPO_OPTIONS = ("--repo", "-R")
 
 _GH_REPO_REASON = (
     "--repo/-R で指定した PR 対象 repo はローカルの承認・レビュー証跡と対応付けられません。"
-    "--repo/-R を外し、対象 repo を作業ディレクトリにして同じ操作を実行してください"
+    # PR 作成だけでなく merge / close の承認ガードからも返るので、操作を特定しない形で案内する
+    "--repo/-R を外し、同じ gh pr コマンドを `( cd <リテラル絶対パス> && gh pr <元の操作> ... )` の"
+    "subshell 形で実行してください"
 )
 _GH_ENV_REASON = (
     "GH_REPO で指定した PR 対象 repo はローカルの承認・レビュー証跡と対応付けられません。"

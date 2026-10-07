@@ -65,4 +65,4 @@
 - pstack の tool / model は `poteto-mode/references/codex-tools.md` を現在の利用可能な tool に対応させる。
 - 委譲が必要と判断した場合だけ、skill に専用指定がない調査は `explorer`、実装は `worker`、レビューは `reviewer` を選ぶ。役割の存在は起動理由にしない。`fork_turns="none"` で範囲・根拠・完了条件を渡し、固定モデルは role の既定を使う。
 - 独立した tool call は `functions.exec` 内で並列実行する。依存する操作・変更・承認・wait は逐次実行する。
-- コマンドの書き換え・拒否は `harunon-core` plugin の `policy/hook-pipeline.json` を確認する。公開操作の承認は Codex native permissions に従う。
+- コマンドの書き換え・拒否は `harunon-core` plugin の `policy/hook-pipeline.json` を確認する。公開操作の承認は Codex native permissions に従い、PR 作成・merge（gh / GitHub MCP）は publication gate も通る。

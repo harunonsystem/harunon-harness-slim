@@ -1,12 +1,8 @@
-import { fileURLToPath } from "node:url";
-import { runProcess } from "../hook-runner/hook-runner.js";
-import {
-  AMBIGUOUS_PR_ACTION,
-  classifyPrCommand,
-} from "../policy/pr-action.js";
+import { AMBIGUOUS_PR_ACTION } from "../policy/pr-action.js";
+import { authorize, classifyToolCall, gateToolCall } from "../policy/publication-gate.js";
 import { resolveToolCwd, sessionBaseCwd } from "./tool-cwd.js";
 
-const KERNEL = fileURLToPath(new URL("../policy/harnessctl.py", import.meta.url));
+const SHELL_TOOLS = new Set(["bash", "exec_command", "interactive_shell"]);
 
 function commandFromTool(output) {
   const args = output?.args;
@@ -15,59 +11,34 @@ function commandFromTool(output) {
   return undefined;
 }
 
-function classifyTool(input, output) {
-  const tool = input?.tool ?? input?.name ?? input?.toolName ?? "";
-  if (/github.*create.*pull.*request/i.test(tool)) return "pr.create";
-  if (/github.*merge.*pull.*request/i.test(tool)) return "pr.merge";
-  if (tool !== "bash" && tool !== "exec_command" && tool !== "interactive_shell") {
-    return undefined;
-  }
-  return classifyPrCommand(commandFromTool(output));
+const toolNameOf = (input) => input?.tool ?? input?.name ?? input?.toolName ?? "";
+
+// shell 以外の tool の引数に入った command 文字列は実行されないので分類しない
+function shellCommand(input, output) {
+  return SHELL_TOOLS.has(toolNameOf(input)) ? commandFromTool(output) : undefined;
 }
 
 export function actionFromTool(input, output) {
-  const action = classifyTool(input, output);
+  const action = classifyToolCall(toolNameOf(input), shellCommand(input, output));
   return action === AMBIGUOUS_PR_ACTION ? undefined : action;
 }
 
-async function runAuthorize(action, cwd, command) {
-  const result = await runProcess("python3", [KERNEL, "authorize"], {
-    cwd,
-    stdin: JSON.stringify({ repo: cwd, action, command }),
-  });
-  return {
-    code: result.code,
-    reason:
-      result.stdout.trim() ||
-      result.stderr.trim() ||
-      `harnessctl exited ${result.code}`,
-  };
-}
-
-export function createHarnessPolicy(authorize = runAuthorize) {
+export function createHarnessPolicy(run = authorize) {
   // directory は project root を指すため、独立 worktree では別タスクの state を
   // 参照してしまう。worktree を優先し、さらに bash tool の cwd 引数（セッションと
   // 別の worktree でコマンドを実行する形）があればそれを base にする
   // （harness-workflow.js と同じ解決。tool-cwd.js が SSOT）。
   return async ({ directory, worktree }) => ({
     "tool.execute.before": async (input, output) => {
-      const classification = classifyTool(input, output);
-      if (classification === AMBIGUOUS_PR_ACTION) {
-        throw new Error(
-          "Core Workflow policy blocked ambiguous PR actions: command contains multiple PR actions",
-        );
-      }
-      if (classification === undefined) return;
-      const action = classification;
-      const command = commandFromTool(output);
       const cwd = resolveToolCwd(
         sessionBaseCwd({ directory, worktree }),
         output?.args?.workdir ?? output?.args?.cwd,
       );
-      const result = await authorize(action, cwd, command);
-      if (result.code !== 0) {
-        throw new Error(`Core Workflow policy blocked ${action}: ${result.reason}`);
-      }
+      const verdict = await gateToolCall(
+        { toolName: toolNameOf(input), command: shellCommand(input, output), cwd },
+        run,
+      );
+      if (verdict && !verdict.allowed) throw new Error(verdict.reason);
     },
   });
 }
