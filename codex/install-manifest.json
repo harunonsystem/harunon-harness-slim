@@ -16,12 +16,19 @@
   "settingsKeys": [
     "approval_policy",
     "default_permissions",
-    "sandbox_mode",
-    "mcp_servers"
+    "permissions.harunon.extends",
+    "mcp_servers.sentry",
+    "mcp_servers.linear-server",
+    "mcp_servers.figma",
+    "mcp_servers.notion"
   ],
   "settingsRemoveKeys": [
     "model_catalog_json",
-    "network_access"
+    "network_access",
+    "sandbox_mode",
+    "sandbox_workspace_write",
+    "agents.max_threads",
+    "mcp_servers.jev"
   ],
   "ledger": ".harunon-slim.installed.json"
 }

@@ -33,8 +33,7 @@
   "settingsFile": "config.yml",
   "settingsFormat": "yaml",
   "settingsKeys": [
-    "bash.patterns",
-    "skills"
+    "bash.patterns"
   ],
   "settingsRemoveKeys": [
     "permissions"

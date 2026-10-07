@@ -68,6 +68,6 @@ permission deny は迂回しない。push・PR merge/close の ask は承認後�
 ## OpenCode runtime
 
 委譲時は `@explorer` が調査、`@worker` は実装、`@reviewer` はレビュー。モデル未指定の role は呼び出し元を継承する。
-拒否・コマンド置換は `runtime/policy/hook-pipeline.json` と `permission-overlay.json`。開発の入口は共通 Routing に従う。
+拒否・コマンド置換は `runtime/policy/hook-pipeline.json` と `opencode.json` の `permission`。開発の入口は共通 Routing に従う。
 
 pstack の委譲連携は未検証で、明示依頼時のみ試す。Claude `Agent` は native `task`、skill は native loader を使う。提供されない通信・モデル指定は装わず、main での比較と panel 実行を区別して報告する。

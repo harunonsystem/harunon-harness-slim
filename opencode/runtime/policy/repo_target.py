@@ -19,6 +19,7 @@ CLI は bash から stdin 経由で CMD を渡す（argv 長・quote 事故を�
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shlex
 import sys
@@ -333,7 +334,12 @@ _GH_REPO_OPTIONS = ("--repo", "-R")
 
 _GH_REPO_REASON = (
     "--repo/-R で指定した PR 対象 repo はローカルの承認・レビュー証跡と対応付けられません。"
-    "--repo を外し、`( cd <リテラル絶対パス> && gh pr create ... )` の subshell 形で実行してください"
+    "--repo/-R を外し、対象 repo を作業ディレクトリにして同じ操作を実行してください"
+)
+_GH_ENV_REASON = (
+    "GH_REPO で指定した PR 対象 repo はローカルの承認・レビュー証跡と対応付けられません。"
+    "コマンドの GH_REPO= 代入を除去し、継承した環境変数は実行元で unset GH_REPO により解除してください。"
+    "--repo/-R も併用していれば外し、対象 repo を作業ディレクトリにして同じ操作を実行してください"
 )
 _GH_HEAD_REASON = "--head で別ブランチの PR を作る形は、承認済み HEAD と対象が一致しません"
 
@@ -374,9 +380,9 @@ def gh_target_reason(command: str, current_branch: str) -> str | None:
     except UnresolvableTarget as error:
         return error.reason
 
+    if _env_prefix_names(tokens, ("GH_REPO",)) or os.environ.get("GH_REPO"):
+        return _GH_ENV_REASON
     if _option_values(tokens, _GH_REPO_OPTIONS):
-        return _GH_REPO_REASON
-    if _env_prefix_names(tokens, ("GH_REPO",)):
         return _GH_REPO_REASON
 
     for head_value in _option_values(tokens, ("--head", "-H")):

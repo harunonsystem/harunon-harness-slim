@@ -1,4 +1,5 @@
 ---
+name: gha
 description: Analyze GitHub Actions failures and identify root causes
 argument-hint: <url>
 ---

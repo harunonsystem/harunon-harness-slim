@@ -1,6 +1,7 @@
 ---
 name: sentry-fix
 description: "Sentry の本番エラー URLからテレメトリと該当 commit のローカル build を照合し、監査・Linear起票・起票なし修正を選べる。「sentry fix」「本番エラー対応」で起動。"
+disable-model-invocation: true
 ---
 
 # sentry-fix

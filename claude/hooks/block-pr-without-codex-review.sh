@@ -65,7 +65,7 @@ if ! GH_TARGET_REASON=$(printf '%s' "$CMD" | python3 "$HOOK_DIR/../policy/repo_t
     "hookSpecificOutput": {
       "hookEventName": "PreToolUse",
       "permissionDecision": "deny",
-      "permissionDecisionReason": ("BLOCKED: " + $reason)
+      "permissionDecisionReason": ("BLOCKED: " + $reason + "（PR 作成なら `( cd <リテラル絶対パス> && gh pr create ... )` の subshell 形）")
     }
   }'
   exit 0

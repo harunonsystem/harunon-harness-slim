@@ -28,6 +28,16 @@
         ]
       }
     ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/claude-worktree-remove.sh"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
@@ -146,15 +156,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[[ \"$FILE_PATH\" =~ \\.(json|jsonc)$ ]] && tmp=$(mktemp) && jq --tab '.' \"$FILE_PATH\" > \"$tmp\" && mv \"$tmp\" \"$FILE_PATH\" || true"
-          },
-          {
-            "type": "command",
-            "command": "[[ \"$FILE_PATH\" =~ \\.md$ ]] && python3 ~/.claude/hooks/fix_gfm_tables.py \"$FILE_PATH\" || true"
-          },
-          {
-            "type": "command",
-            "command": "[[ \"$FILE_PATH\" =~ \\.sh$ ]] && command -v shellcheck >/dev/null && shellcheck -S warning \"$FILE_PATH\" || true"
+            "command": "~/.claude/hooks/post-edit-checks.sh"
           },
           {
             "type": "command",

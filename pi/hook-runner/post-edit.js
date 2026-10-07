@@ -1,7 +1,7 @@
 /**
  * write / edit 直後のファイル品質チェック（Claude Code の PostToolUse 相当）の共有 module。
  * 判定本体は claude-hooks/post-edit-checks.sh（runtime 中立 shell。.md → GFM 自動修正 /
- * .sh → shellcheck / .json,.jsonc → jq）で、ここは「どの拡張子なら shell を呼ぶか」と
+ * .sh → shellcheck / .json → jq、JSONC は構文検査の対象外）で、ここは「どの拡張子なら shell を呼ぶか」と
  * 「spawn して stdout を findings として返す」だけを持つ。
  *
  * 指摘はモデルが自己修正するための追記なので advisory: script 欠落・spawn 失敗・timeout は

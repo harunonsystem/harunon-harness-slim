@@ -156,29 +156,22 @@
     "websearch": "allow"
   },
   "instructions": [],
-  "skills": {
-    "paths": [
-      "~/.agents/skills"
-    ]
-  },
   "mcp": {
-    "servers": {
-      "sentry": {
-        "type": "remote",
-        "url": "https://mcp.sentry.dev/mcp"
-      },
-      "linear-server": {
-        "type": "remote",
-        "url": "https://mcp.linear.app/mcp"
-      },
-      "figma": {
-        "type": "remote",
-        "url": "https://mcp.figma.com/mcp"
-      },
-      "notion": {
-        "type": "remote",
-        "url": "https://mcp.notion.com/mcp"
-      }
+    "sentry": {
+      "type": "remote",
+      "url": "https://mcp.sentry.dev/mcp"
+    },
+    "linear-server": {
+      "type": "remote",
+      "url": "https://mcp.linear.app/mcp"
+    },
+    "figma": {
+      "type": "remote",
+      "url": "https://mcp.figma.com/mcp"
+    },
+    "notion": {
+      "type": "remote",
+      "url": "https://mcp.notion.com/mcp"
     }
   }
 }

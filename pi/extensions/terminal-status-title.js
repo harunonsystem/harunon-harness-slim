@@ -52,13 +52,10 @@ export default function terminalStatusTitle(pi) {
 		writeTitle(ctx);
 	};
 
-	const resetForSession = (_event, ctx) => {
+	// startup / reload / new / resume / fork はすべて session_start（event.reason で区別）で届く。
+	pi.on("session_start", (_event, ctx) => {
 		setStatus("idle", ctx);
-	};
-
-	pi.on("session_start", resetForSession);
-	pi.on("session_switch", resetForSession);
-	pi.on("session_fork", resetForSession);
+	});
 
 	// Renaming/metadata changes stay in the same session, so preserve the current
 	// working/done state and only refresh the visible label.
