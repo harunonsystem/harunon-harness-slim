@@ -116,6 +116,23 @@ def resolve_repo(request: JsonObject) -> Path:
     return Path(result.stdout.strip())
 
 
+def gates_adopted(repo: Path) -> bool:
+    """作業ツリー・HEAD・origin 既定ブランチのどれかに検証宣言があれば採用済み。
+
+    ローカルで宣言を消しても gate は外れない。origin/HEAD は clone 方法によっては
+    無いので、既定ブランチの慣習名 main / master も見る。
+    """
+    if (repo / verification.CONTRACT_PATH).is_file():
+        return True
+    return any(
+        subprocess.run(
+            ["git", "-C", str(repo), "cat-file", "-e", f"{ref}:{verification.CONTRACT_PATH}"],
+            capture_output=True,
+        ).returncode == 0
+        for ref in ("HEAD", "refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/remotes/origin/master")
+    )
+
+
 def git_value(repo: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", *args],
@@ -728,6 +745,9 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
     action_policy = workflow.get("actions", {}).get(action)
     if not isinstance(action_policy, dict):
         raise KernelError("UNKNOWN_ACTION", exit_code=2, action=action)
+    # 検証宣言を置いた repo だけが gate を採用する。宣言の無い repo にファイル作成を強いない。
+    if not gates_adopted(repo):
+        return {"action": action, "allowed": True, "code": "NOT_ADOPTED"}
     # Missing/stale completed tasks must re-enter the gate, never fall back to
     # legacy flags. Current completed tasks still need fresh verification.
     try:

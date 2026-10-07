@@ -69,7 +69,7 @@ An invalid transition or stale revision must remain blocked. Re-inspect instead 
 
 ## Verify
 
-The repository owns `.harness/verification.json`: a non-empty `commands` array of argv arrays referencing its existing mise tasks, package scripts, or verification scripts. Missing, invalid, or empty declarations are unverified; ask the repository owner to establish the mandatory checks instead of substituting optional tests or an agent's success claim. Full declaration and evidence contract: `policy/verification.md` under the runtime config directory.
+The repository owns `.harness/verification.json`: a non-empty `commands` array of argv arrays referencing its existing mise tasks, package scripts, or verification scripts. A repository without the file in its working tree, `HEAD`, or origin default branch has not adopted the gates: completion and publication are not gated there, so do not create the file in other projects. Invalid or empty declarations are unverified; ask the repository owner to establish the mandatory checks instead of substituting optional tests or an agent's success claim. Full declaration and evidence contract: `policy/verification.md` under the runtime config directory.
 
 Read status, then run the mandatory checks through the kernel:
 
@@ -139,7 +139,7 @@ Before PR creation, authorize the normalized action. In Codex, prefer the GitHub
 python3 <skill-dir>/scripts/harness.py authorize pr.create
 ```
 
-Missing tasks and stale workflow versions return `TASK_REQUIRED`: use `start --publish-only`, kernel verification, and the passed self-check before publishing. An untouched `intake` task must enter the gates; a completed task still requires current verification and local review evidence. Legacy flags and inactive-task status never substitute for either requirement.
+In a repository that has adopted the gates, missing tasks and stale workflow versions return `TASK_REQUIRED`: use `start --publish-only`, kernel verification, and the passed self-check before publishing. An untouched `intake` task must enter the gates; a completed task still requires current verification and local review evidence. Legacy flags and inactive-task status never substitute for either requirement.
 
 An explicit user request to create the PR is the publication confirmation. Do not ask for the same confirmation again; only surface a platform permission prompt when the runtime itself requires one.
 
