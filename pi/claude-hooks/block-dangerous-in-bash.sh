@@ -474,7 +474,7 @@ custom_git_commit_chain() {
     [ "$_lines" -gt 1 ] && _chained=1
   fi
   if [ "$_chained" = 1 ]; then
-    echo "git commit を他のコマンドとチェインしないでください。単独で実行してください" >&2
+    echo "git commit を他のコマンドとチェインしないでください。単独で実行してください（PreToolUse hook は add の前に走るため、同じ呼び出しで stage すると staged 検査が対象を取りこぼします。先に git add を単独で実行し、次の呼び出しで git commit だけを実行してください）" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-commit-chain" "${COMMAND:-}" || true
     exit 2
   fi

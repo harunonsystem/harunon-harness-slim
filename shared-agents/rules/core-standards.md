@@ -97,6 +97,7 @@ paths:
 - 既存を探さず新規 repo / パッケージ / ツールを作成: 同種の既存を検索して報告してから作る
 - 1 台のマシンの利用実績から「未使用」と断定して削除・無効化を提案: 「未使用」判定は根拠（telemetry・grep・git log）と信頼度（HIGH / MEDIUM / LOW）を項目ごとに明示する。単一マシンの telemetry だけなら自動的に LOW で、提案に留めて実行しない
 - 一括削除・prune を一覧提示なしに実行: 対象の全ファイル一覧と件数を出し、承認を得てから消す
+- 承認済み操作の内訳（commit の分割案・ブランチ名・順序）を聞き直す: 承認を取り直すのは操作の種類が変わるとき（commit の許可で push する、push の許可で PR を作る、削除に踏み込む）だけ。同じ操作の粒度・命名は推奨案で実行して結果を報告する
 
 Codex レビューの扱いは `rules/codex-review-policy.md` SSOT（1回だけ実行、独断再実行・bypass 独断使用禁止）。
 
@@ -118,7 +119,7 @@ block された場合の責務:
 
 push 承認フラグ（`approve-push.sh`）は承認した HEAD に紐づき、**HEAD が remote に到達した時点か 30 分（`PUSH_APPROVAL_TTL_SECONDS`）で失効**する。guard 通過時には消費しないので、後続の pre-push hook（unittest / validator / mise の python 依存）が落ちても同じ承認で再 push できる。フラグは `~/.claude/review-gate/` に書くため sandbox 解除は不要。承認は cwd の repo + branch 単位なので、worktree で push するなら worktree 内（`git -C <worktree>` の対象）で承認する。`gh pr merge` / `close` も同型で、`approve-pr.sh <PR番号> "理由"` の承認（番号紐づき・TTL 30 分）と一致する番号を明示した単独コマンドだけが通る（番号省略形は deny）。長い自律ランは最後の push で止まりやすいため、着手前に `harness-doctor.sh`（前提ツール・未管理スキル・ドリフト）を通してから始める。
 
-commit message は heredoc で渡さず、`git commit -F <file>` か `-m` の複数指定で渡す。guard は quote 内の文字列（`git commit -m "... git push ..."`）を無視する一方、heredoc 本体はコマンドとして照合するため（`bash <<EOF` 経由の実行を通さない意図的な仕様）、本文に `git push` / `--no-verify` を書くと自分の commit が block される。
+commit message は subject と必要な body だけで構成し、`Generated with ...` / `Co-Authored-By: ...` の trailer は runtime の既定テンプレートに含まれていても付けない。commit message は heredoc で渡さず、`git commit -F <file>` か `-m` の複数指定で渡す。guard は quote 内の文字列（`git commit -m "... git push ..."`）を無視する一方、heredoc 本体はコマンドとして照合するため（`bash <<EOF` 経由の実行を通さない意図的な仕様）、本文に `git push` / `--no-verify` を書くと自分の commit が block される。
 
 git add / git commit / git push は 1 コマンドずつ実行し、`git add <path> && git commit` や `git commit && git push` のようにチェインしない。PreToolUse hook は add の実行前に走るため、同じ呼び出しの中で stage すると block-secrets-in-commit の staged 検査が対象を取りこぼして deny される。commit の単独実行は danger-rules の git-commit-chain / git-commit-and-push-same-command も要求する。
 
@@ -160,6 +161,7 @@ issue / PR はプロジェクトで設定された tracker とホスティング
 - 完了報告の末尾に検証結果を列挙する（typecheck・test・lint・validator・CI のうち該当するもの）。1 検査 1 行で、検査名・実行したコマンド・末尾出力の数行・判定（PASS / FAIL / BLOCKED）を並べる。表にすると応答をコピペした先で崩れるので使わない
 - sandbox・credit・permission・hook で検証が実行できなかった項目は **BLOCKED**（PASS でも FAIL でもない第三の状態）として書き、要約文でも「未検証あり」と言う。1 行でも BLOCKED / FAIL があれば「完了」とは書かない
 - issue / PR の状態や「マージ済みか」は、Linear や PR 本文の説明ではなく `gh pr view` / `git log` / `git branch --contains` の出力で確定する
+- `pre-review-check` / `ponytail-review` / `simplify` 等の skill を起動せずに「PASSED」「指摘なし」と書かない。自分で観点を見たことは skill の実行ではない（同じセッションで直前に起動していても、次の PR では改めて起動する）
 
 バグ修正の完了判定は「元の症状を再現する手順を、修正後に再実行して消えた」ことで行う。「PR をマージすれば直るはず」「この変更で直るはず」は検証ではない。再現手段が無い場合はその旨を明言して完了宣言しない。
 
@@ -170,6 +172,8 @@ issue / PR はプロジェクトで設定された tracker とホスティング
 設定・ツーリングのバグは、パッチを当てる前に**その値を所有する層**（SSOT）を特定する。生成物・配布物・pin された artifact（配布済み config、model catalog の JSON 等）を直接直しても再生成で消える。ソース側を直して配布を再実行する。
 
 ユーザーが一度言ったことは最初に決定した仕様として扱う。
+
+重複解消・deepening の完了条件は削除ベースで置く（実装が 1 つ消えた、呼び出し元からの private 参照が 0 になった）。validator や fixture を足して重複そのものを残す修正は完了ではなく、同じ領域が次のレビューで再び指摘される。
 
 ### トークン消費を無駄にしない姿勢
 
@@ -186,7 +190,7 @@ Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode
 | 項目 | 基準 |
 | --- | --- |
 | 優先順位 | 新機能より既存の差分修正・バグ修正を先にやる |
-| commit 単位 | 問題発見 → 全体を `rg` で検索 → 同種を全て修正 → まとめて commit。論理的に独立した変更は 1 commit に寄せず分割する（分割案を提示して確認） |
+| commit 単位 | 問題発見 → 全体を `rg` で検索 → 同種を全て修正 → まとめて commit。論理的に独立した変更は 1 commit に寄せず分割する（commit 未承認なら分割案と操作の承認を確認。承認済みなら適切に分割して結果を報告） |
 
 ### 指示の忠実な実行とスコープ管理
 

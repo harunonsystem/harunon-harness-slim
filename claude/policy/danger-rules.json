@@ -112,7 +112,7 @@
       "action": "block",
       "impl": "custom",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "git commit を他のコマンドとチェインしないでください。単独で実行してください",
+      "message": "git commit を他のコマンドとチェインしないでください。単独で実行してください（PreToolUse hook は add の前に走るため、同じ呼び出しで stage すると staged 検査が対象を取りこぼします。先に git add を単独で実行し、次の呼び出しで git commit だけを実行してください）",
       "prose": [
         { "file": "packages/core/rules/core-standards.md", "token": "git add <path> && git commit" }
       ],
