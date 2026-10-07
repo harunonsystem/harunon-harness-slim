@@ -128,7 +128,13 @@ git add / git commit / git push は 1 コマンドずつ実行し、`git add <pa
 
 - `git stash` / `git stash drop | clear` / `git checkout -- <path>` / `git checkout .` / `git restore <path>` / `git reset --hard` は、その checkout にある**他セッションの未 commit 変更も巻き込む**。worktree の外では実行しない。worktree 内でもユーザー指示による破棄か確認する（共有 checkout では `git-discard-in-shared-checkout` が block、worktree 内では `git-stash` / `git-checkout-discard` が warn する）
 - worktree 作成前に `git status --short` で共有 checkout が clean か確認する。dirty なら誰の変更か分からないので触らず、ユーザーに報告する
-- **stacked PR の base は着手前に確定して表示する**: 既存 PR の上に積むときは `gh pr view <n> --json headRefName,headRefOid` で head を取り、`git fetch origin --prune` 後にその SHA と `git log --oneline -3 <base>` を出して「この上に積む」と明示してからブランチを切る。stacking では base の指定を省略しない
+- **stacked PR の base は着手前に確定して表示する**: 既存 PR の上に積むときは `gh pr view <n> --json headRefName,headRefOid,baseRefName` で head と merge 先を取り、`git fetch origin --prune` 後にその SHA と `git log --oneline -3 <base>` を出して「この上に積む」と明示してからブランチを切る。親 PR 番号・base branch・子の切り出し点となる親 head SHA を保持する。後で親の変更を子へ取り込んだら、その境界 SHA も更新する。stacking では base の指定を省略しない
+
+stacked PR の `gh pr create` と rebase の直前には、次を確認する。
+
+1. `git ls-remote --exit-code --heads origin "refs/heads/<base>"` と `gh pr view <親PR番号> --json state,mergedAt,baseRefName,mergeCommit` で、base の存在と親の merge 状態・実際の merge 先を確認する。ls-remote の終了コード 2 だけを branch 不在と扱い、通信・認証などの失敗から retarget を決めない。親が未 merge なのに base が無い場合も止めて状況を確認する
+2. 親が merge 済みなら、base branch が残っていても実際の merge 先を fetch して新しい base にする。保持した境界 SHA が `git merge-base --is-ancestor <境界SHA> origin/<親のmerge先>` で祖先と確認できる通常の merge なら、その base へ rebase できる。squash / rebase merge などで元の親コミットが祖先にならない場合は、`git rebase --onto origin/<親のmerge先> <境界SHA> <子ブランチ>` で子のコミットだけを移す。境界 SHA が分からない場合は推測して rebase しない
+3. `git log origin/<親のmerge先>..HEAD` と `git diff origin/<親のmerge先>...HEAD` で子の変更だけが残ることを確認してから、既存の子 PR は base を変更し、未作成なら新しい base を指定して作成する。base の retarget だけや通常の rebase で squash 済みの親コミットを取り除けたと判断しない
 
 ### main 直 commit の回収手順
 

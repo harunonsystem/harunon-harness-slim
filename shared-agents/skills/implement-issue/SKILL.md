@@ -85,7 +85,7 @@ git -C "$main_repo" status --short   # 出力があれば他セッションの�
 
 2.5. base を確定して表示する（**コードを書く前の必須出力**）：
    - 通常: `origin/main`
-   - 既存 PR の上に積む（stacked PR）: `gh pr view <n> --json headRefName,headRefOid` で head を取り、その branch を base にする。base の指定を省略しない
+   - 既存 PR の上に積む（stacked PR）: `gh pr view <n> --json headRefName,headRefOid,baseRefName` で head と merge 先を取り、その branch を base にする。親 PR 番号・base branch・子の切り出し点となる親 head SHA を保持する。base の指定を省略しない
    - どちらの場合も base の branch 名・SHA・`git log --oneline -3 <base>` をユーザーに提示し、「この上に積む」と明示してから次へ進む（origin/main から切って stale diff を出した失敗が複数ある）
 
 3. ブランチ名をタスクから決定する：
@@ -115,7 +115,7 @@ git -C "$main_repo" worktree add -b <branch-name> <worktree-path> <base>
 
 worktree が解決済みなら、その task・worktree・受入条件・base・branch・repo の検証コマンドを保持して常駐指示の Routing に従って実装を開始する。方針が明確なら担当自身で進め、Issue 起点という理由だけで `poteto-mode` を呼ばない。同じ task の既存 state があれば再開し、別 task の state は上書きしない。Phase 1〜2 で確定した issue 情報や worktree を取り直さない。
 
-実装側に渡す情報：目的、受け入れ条件、task URL / ID、対象 repo、worktree、base と branch、repo の検証コマンド、既存の公開承認。設定済みなら `pr_template` と `lint_fix_cmd` も渡す。
+実装側に渡す情報：目的、受け入れ条件、task URL / ID、対象 repo、worktree、base と branch、repo の検証コマンド、既存の公開承認。stacked PR では親 PR 番号と保持した親 head SHA も渡し、親の変更を子へ取り込んだら境界 SHA を更新する。設定済みなら `pr_template` と `lint_fix_cmd` も渡す。
 
 1 つの task が複数 repo に触れる場合は、task を分けずに、Phase 2 で用意した repo ごとの worktree を全部渡し、repo ごとに PR を出す。PR を出す順は `rules/issue-tracker.md` に従う。
 
@@ -125,3 +125,4 @@ worktree が解決済みなら、その task・worktree・受入条件・base・
 
 - 状態確認の質問には実測を先に答え、その質問だけを理由に新しい編集を始めない。回答後は承認済みの実装を継続する。「直せる?」など具体的な変更依頼は句読点でなく意図で判定し、元の依頼から実質的に範囲が広がる場合だけ確認する。
 - commit、push、PR 作成、merge の承認範囲は選択した skill と repo の規約に引き継ぐ。merge は明示的な承認がある場合だけ行う。
+- stacked PR の PR 作成・rebase 直前には [core-standards の stacked PR 手順](../../rules/core-standards.md#共有-checkout-と-worktree並行セッションの作業を壊さない) に従い、remote base の存在と親の merge 状態を再確認する。親が merge 済みなら、保持した境界 SHA で親コミットを除外し、子だけの差分を確認して merge 先へ retarget する。
