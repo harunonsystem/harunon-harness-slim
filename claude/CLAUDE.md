@@ -5,7 +5,6 @@
 - 依頼のスコープを守る。状態確認・診断だけの質問では編集しない。「直せる?」など変更の依頼や承認済みの作業は進める。
 - 破壊的操作・commit・push・PR 作成・merge・deploy はユーザーの承認範囲で実行する。明示依頼を再確認しない。安全ガードを迂回しない。
 - 他の作業の未 commit 変更を破棄・上書きしない。
-- 完了前に`run-change`で必須検証・自己チェック。
 - harness 設定は配布元の SSOT を変更する。runtime の配布済みファイルを直接編集しない。
 - 「raw で」「そのまま」と指定された出力は逐語で返す。
 
@@ -44,7 +43,7 @@
 | 実装後の簡素化・cleanup | `simplify` skill |
 | 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`。判定は `rules/review-policy.md` |
 | 開発・Issue・spec 整理 | `implement-issue` は着手判定と worktree 解決。spec 整理・tracker 操作の前に `rules/issue-tracker.md`。明確なら自身で実装・検証し委譲しない。原因不明は `how`、設計比較は `architect`、orchestration の明示依頼は `poteto-mode` |
-| task state・公開証跡 | `run-change`。既存 state を再開し、公開前にセルフチェック |
+| 公開証跡（`.harness/verification.json` がある repo のみ） | `run-change`。無い repo では使わない |
 | skill / agent 指示の変更 | `skill-improvement` skill |
 | Figma からの実装（Claude のみ） | `figma-implement` skill |
 | 図・HTML・チャートの作成 | `rules/visual-design.md` |
