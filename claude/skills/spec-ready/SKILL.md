@@ -16,7 +16,7 @@ PdM / product-level の大きい Issue を、実装 agent が迷わず着手で�
 
 ## 完了条件
 
-READY にできるのは、以下がすべて満たされたときだけ。
+READY にできるのは、以下がすべて満たされた実装 slice だけ。親 Issue は全 slice が READY なら READY、それ以外は BLOCKED とする。親に未解決の slice があっても、依存しない slice の READY 判断と作成まで止めない。
 
 - 目的、観測可能な outcome、受け入れ条件、out of scope が明確
 - 既存 behavior との互換性を判定済み
@@ -47,6 +47,8 @@ BLOCKED で人間の product decision を求める場合だけ、判断材料・
 
 推測で「v2 が必要」「flag が必要」と決めない。既存の seam、互換性制約、deploy/release の実態を先に確認する。新しい自作基盤が案にあるときだけ、既存設定・公式連携で足りるかと、残る不足要件を確認する。解法が複数残る場合の比較・必要性の検証は `derive-optimal-solution` に従い、同じ調査や様式を複製しない。
 
+子 Issue を増やす前に、親に紐付いていない関連 Issue / PR も含め、担当・進捗・実装済みの範囲を確かめる。空の backlog Issue だけを見て未着手と判断しない。
+
 ### 2. Spec synthesis
 
 親 Issue は product outcome の単位として維持する。実装レイヤーの羅列に書き換えない。
@@ -60,6 +62,7 @@ BLOCKED で人間の product decision を求める場合だけ、判断材料・
 - unresolved decisions
 
 既存資料から一意に決まる内容はそのまま採用する。実質的に異なる解法が複数残る場合だけ `derive-optimal-solution` を使う。
+既存動作を保つ構造整理と、望ましくない旧動作の修正・新 contract への切替は受け入れ条件を分ける。後者の契約や依存が未確定でも、前者が単独で検証・merge できるなら先に READY にできる。
 
 ### 3. Architecture classification
 
@@ -147,12 +150,13 @@ release:
 
 ### 6. Publish without routine approval
 
-分割案が上の条件を満たし、未解決の product decision がなければ、通常の粒度確認を挟まず configured issue tracker に子 Issue を作成する。
+READY slice が上の条件を満たし、その slice に未解決の product decision がなければ、通常の粒度確認を挟まず configured issue tracker に子 Issue を作成する。
 
-公開は idempotent に行う。作成前に親 Issue に既に関連付けられた子 Issue と依存関係を取得し、各 slice の outcome / acceptance criteria / parent relation を照合する。
+公開は idempotent に行う。作成直前に親 Issue の既存子 Issue・依存関係と Grounding で見た関連 Issue / PR を再確認し、各 slice の outcome / acceptance criteria / parent relation と実装状況を照合する。
 
-- 同じ slice が既に存在するなら再利用し、必要な spec / relation だけ更新する
+- 同じ slice の子 Issue が既に存在するなら再利用し、必要な spec / relation だけ更新する。親の外に既存の担当 Issue / PR がある場合は重複作成せず、親へのコメントで参照する
 - 新規 slice だけを依存順に作成する
+- 契約や依存が未解決の slice は READY とせず、独立した READY slice の公開まで一律に止めない
 - 途中で tracker 更新に失敗した場合は、それまでに作成・更新した Issue ID を親 Issue へのコメントに記録して終了する
 - 再実行時はその記録と tracker の現状から再開し、作成済み slice を再作成しない
 
@@ -161,14 +165,13 @@ tracker への書き込みは `rules/issue-tracker.md` に従う。作れるの�
 親 Issue へのコメントに以下を残す。
 
 - 確定した spec の要点
-- architecture classification
-- release boundary
+- slice ごとの architecture classification（behavior / migration）と release boundary。未解決の slice は分かっている方針と未確定の契約も記す
 - 作成・再利用した子 Issue と依存関係
 - 部分的な publish で止まった場合は、完了済み Issue ID と未作成 slice
 
 ## BLOCKED 条件
 
-以下だけは人間へ上げる。BLOCKED にする前に、親 Issue へのコメントに調査済みの事実、未決の product decision、判断に必要な選択肢、作成済み子 Issue があればその ID を記録する。後続セッションはその記録から再開する。
+契約・依存の未解決で READY にできない slice は、分かっている範囲の方針（behavior / migration / release boundary）と確認すべき事実、次の担当・行動を記録する。以下の判断だけは人間へ上げる。BLOCKED にする前に、親 Issue へのコメントに調査済みの事実、未決事項、判断に必要な選択肢（人間の判断が必要な場合）、作成済み子 Issue があればその ID を記録する。後続セッションはその記録から再開する。
 
 - A/B どちらの product behavior が正しいか資料から決まらない
 - backward compatibility を捨ててよいか product / external contract 上決まらない
@@ -185,14 +188,13 @@ tracker への書き込みは `rules/issue-tracker.md` に従う。作れるの�
 ## Spec Ready
 Status: READY | BLOCKED
 
-Behavior strategy: compatible | parallel-v2
-Migration strategy: none | expand-migrate-contract
-Release boundary: ...
 Parent: ...
-Children:
-- ISSUE-123 ...
-- ISSUE-124 ...
+Slices:
+# <Issue ID or slice 名>: READY | pending — <behavior strategy> / <migration strategy> / <release boundary>
+# pending の slice には末尾へ依存・未確定の契約を添える
+- ISSUE-123: READY — compatible / none / <release boundary>
+- <slice 名>: pending — parallel-v2 / expand-migrate-contract / <release boundary 方針> — <依存・未確定の契約>
 
-Product decision needed:
-- ... # BLOCKED の場合のみ
+Product decision needed: ... # 必要な場合のみ
+Next action: ... # BLOCKED の場合のみ
 ```
