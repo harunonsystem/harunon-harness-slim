@@ -2,7 +2,7 @@
 
 ## 対象
 
-`implement-issue`、`grill-implementation`、`figma-implement`、`decompose-issues`、`improve`、`uiux-workflow`、`derive-optimal-solution`。
+`implement-issue`、`grill-implementation`、`figma-implement`、`improve`、`uiux-workflow`、`derive-optimal-solution`。
 
 ## ユーザー入力
 
@@ -11,7 +11,6 @@
 A implement-issue + grill-implementation: ユーザー「既存API契約どおり age_min/age_max の入力を追加して。配置・UIは隣の価格フィルタと同じ、テストも同じ形式で。実装して」。repo調査で同型の実装と検証コマンドが見つかり、プロダクト判断は未決でない。4ファイル程度。初動を出す。
 B grill-implementation: ユーザー「年齢フィルタを追加したい」。repoにUIとAPIの既存契約があるが、年齢不明の利用者を結果に含めるかは決まっていない。初動と最初の質問を出す。
 C improve: ユーザー「この30行のparserだけquickで監査、実装しない」。変更対象と直接callerは1つずつ、テスト実行は副作用なし。何を読み、何を成果物にし、委譲するか。
-D decompose-issues: ユーザー「この確定済みPRDをIssue案に分解。外部作成はまだしない」。既存の1repoに3つの縦sliceで収まる。要件・MVP・順番は合意済み。調査と確認と委譲をどう進めるか。
 E uiux-workflow: ユーザー「既存ボタンの文言を確定済みの日本語に直して」。コンポーネント構造やスタイルは変わらない。どの専門skill/ブラウザ検証が要るか。
 F uiux-workflow: ユーザー「チェックアウト画面全体をアクセシビリティとレスポンシブまでレビュー。修正はまだしない」。静的ソースと起動済みheadless検証環境あり、必要skillあり。何を実行し何を報告するか。
 G derive-optimal-solution: ユーザー「ジョブキューをDBで持つか外部サービスにするか比較して」。規模と制約は既知。比較結果に何を含めるか。並列化の要否をどう決めるか。
@@ -25,8 +24,8 @@ L は追加の reference 境界チェック: Codex上で、承認済みplanのex
 
 ## 要件チェックリスト
 
-1. [critical] A・D・H は既存の合意で進み、形式的なインタビューや再承認を追加しない。B は年齢不明の扱いをユーザーに確認する。
-2. [critical] C・D は不要な委譲を起動しない。J は独立範囲を分担可能と判断し、全文履歴ではなく担当範囲・根拠・必要な参照先を渡す。
+1. [critical] A・H は既存の合意で進み、形式的なインタビューや再承認を追加しない。B は年齢不明の扱いをユーザーに確認する。
+2. [critical] C は不要な委譲を起動しない。J は独立範囲を分担可能と判断し、全文履歴ではなく担当範囲・根拠・必要な参照先を渡す。
 3. [critical] E は全 UI review suite を強制しない。F は要求された accessibility / responsive を静的・実画面の証拠で確認し、編集はしない。
 4. [critical] I のユーザーが明示した最終確認は守る。K は状態質問に答えて承認済み作業を継続し、merge の承認へ拡張しない。
 5. L は利用できない Claude provider を要求せず、読める plan は参照先で渡す。
