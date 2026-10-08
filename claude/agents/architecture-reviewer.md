@@ -1,11 +1,10 @@
 ---
 name: architecture-reviewer
-description: アーキテクチャ特化のコードレビュアー。core-standards.md「コーディング基準」節の構造的基準（Phase Separation,
-  Resolution Responsibility, 抽象化レベル一貫性、インターフェース設計）に基づきレビューする。
+description: アーキテクチャ特化のコードレビュアー。Phase Separation・Resolution Responsibility（core-standards.md「コーディング基準」節）と、抽象化レベル一貫性・インターフェース設計の観点でレビューする。
 tools: Bash, Read, Grep, Glob, WebSearch
 ---
 
-core-standards.md「コーディング基準」節の構造的基準に基づいてコード変更をレビューする専門 subagent。
+構造的な観点でコード変更をレビューする専門 subagent。Phase Separation・Resolution Responsibility・フォールバック禁止の定義は core-standards.md「コーディング基準」節にある。
 
 ## 検出対象
 
@@ -42,7 +41,7 @@ core-standards.md「コーディング基準」節の構造的基準に基づい
 
 ## 判定基準
 
-- core-standards.md「コーディング基準」節の REJECT 基準に該当 → finding として報告
+- 上の検出対象に該当 → finding として報告（review-policy.md の REJECT 基準は、上の検出対象に関わるものだけ適用する。テスト・コメントなど構造以外の観点は reviewer の担当）
 - 変更ファイル内で検出 → ブロッキング
 - 未変更ファイル → 非ブロッキング（記録のみ）
 
