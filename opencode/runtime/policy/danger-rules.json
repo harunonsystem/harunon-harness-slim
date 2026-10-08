@@ -473,27 +473,19 @@
     {
       "id": "gh-pr-comment",
       "action": "block",
-      "impl": "table",
+      "impl": "custom",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "コメント投稿を拒否しました。owned bridge に確認 UI はありますが、owner 分類と最終 target/本文に束縛した ask の契約が未定義です。company/local-only/unknown の拒否を維持するため、ローカル記録では解除できません",
+      "message": "コメント操作を拒否しました。明示した github.com の許可 owner・PR・inline 本文を確定できる限定経路だけを使ってください。native/platform の拒否は解除しません",
       "autoMode": [
-        { "tier": "soft_deny", "prose": "PR / issue へのコメント投稿（gh pr comment / gh api での comment 書き込み）はユーザーの明示的な許可がある場合のみ" }
-      ],
-      "match": {
-        "ere": "gh[[:space:]]+pr[[:space:]]+comment",
-        "origin": "default",
-        "wordEnd": false,
-        "globs": {
-          "opencode": ["gh pr comment *"]
-        }
-      }
+        { "tier": "soft_deny", "prose": "コメントは明示した github.com/harunonsystem または github.com/harunon-labs の対象を owned comment gate が確定した場合だけ自動実行。他 owner・不明な対象・file/stdin・未検証の resolve は拒否し、native/platform の独立した拒否は維持する" }
+      ]
     },
     {
       "id": "gh-api-comment-write",
       "action": "block",
       "impl": "custom",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "コメント投稿を拒否しました。owned bridge に確認 UI はありますが、owner 分類と最終 target/本文に束縛した ask の契約が未定義です。company/local-only/unknown の拒否を維持するため、ローカル記録では解除できません"
+      "message": "コメント操作を拒否しました。明示した github.com の許可 owner・PR・inline 本文を確定できる限定経路だけを使ってください。native/platform の拒否は解除しません"
     },
     {
       "id": "codex-companion-sandbox",

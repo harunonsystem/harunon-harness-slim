@@ -8,7 +8,7 @@ argument-hint: "[PR番号 | staged | commit-hash | branch | branch-name]"
 
 PRまたはローカル変更を読み取りでレビューする。まず対象を確定し、Step 2で必要な観点と担当を選ぶ。
 
-**PR コメント投稿禁止**: このスキルはレポートを会話内に出力するのみ。`gh api` 等で PR にコメントを投稿しない。PR コメントが必要な場合は投稿前に個別にユーザー確認を取る。
+**コメントの公開先**: `github.com/harunonsystem` と `github.com/harunon-labs` は、`rules/review-policy.md` の owned comment gate で明示した repo/PR/本文を確定できる場合だけ自動投稿できる。他 owner・不明な対象・別 connector は従来の DENY/ASK を維持する。会話内のレポートを既定にし、native/platform の拒否後に別経路で再試行しない。
 
 ## 使用方法
 

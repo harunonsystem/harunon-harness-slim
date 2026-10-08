@@ -181,3 +181,19 @@ OK: 「src/auth/service.ts:45 — validateUser() が3箇所で重複。共有関
 3. REJECT する場合でも「別のアプローチを検討すべき」という視点を含める
 
 「もう一度直して」を繰り返すのではなく、立ち止まって別の道を示す。
+
+### GitHub コメント・返信・resolve の操作先
+
+自動実行の操作先は `comment-owners.json` の `github.com/harunonsystem` と
+`github.com/harunon-labs` だけ。許可 owner の repo の visibility は条件にしない。
+明示した repo/PR/本文、reply/resolve の thread を
+managed `policy/comment-owner-policy.md` の owned gate で確定する。他 owner、
+許可 namespace 外の company/project-private、local-only、不明な対象、file/stdin、別 connector は既存の DENY/ASK を維持する。
+native/platform の独立した拒否後は別 command shape や connector で再試行しない。
+
+resolve 前に実際の finding/thread 全文と GitHub 上の現行 PR head の修正を読み、対応する
+検証と finding ID を review/fix 証跡に記録する。検証対象 head と公開 head が一致しない
+場合は停止する。実際に修正を確認した finding だけを resolve し、outdated、返信済み、
+file 差分、receipt/hash だけで修正済みと判断しない。owner/PR/thread/head/operation の
+照合は helper の責務、意味的な修正確認は review/workflow の責務である。
+自己レビューと kernel の audit-only 証跡は独立レビューや native consent の証明ではない。

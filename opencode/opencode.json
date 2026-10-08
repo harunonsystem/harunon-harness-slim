@@ -132,7 +132,6 @@
       "mise install *pi-coding-agent*": "deny",
       "mise up *pi-coding-agent*": "deny",
       "mise upgrade *pi-coding-agent*": "deny",
-      "gh pr comment *": "deny",
       "netlify deploy*": "deny",
       "netlify build*": "deny",
       "netlify api*": "deny",

@@ -24,6 +24,12 @@ if [ -z "$CMD" ]; then
   exit 0
 fi
 
+# The comment guard owns the only rewrite for these calls. Native Claude runs
+# hooks in parallel; competing rewrites would lose the frozen execution gate.
+if printf '%s' "$CMD" | grep -qE '^[[:space:]]*gh[[:space:]]+(api([[:space:]]|$)|pr[[:space:]]+(comment|review)([[:space:]]|$))'; then
+  exit 0
+fi
+
 # heredoc: `rtk hook claude` は制御文字を含む JSON のパースに失敗してエラーを
 # stdout に出す。書き換える価値も無いので手前で降りる。
 case "$CMD" in
