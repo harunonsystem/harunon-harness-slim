@@ -63,15 +63,18 @@ difit_done_flag() {
   echo "${CODEX_REVIEW_FLAG_DIR}/.difit-done-$(codex_review_key)"
 }
 
-# push 承認フラグファイルのパスを echo する（KEY は codex_review_key を流用）。
+# 同一 filesystem 上の移動では維持し、clone/worktree 間では共有しない。
 push_approved_flag() {
-  echo "${CODEX_REVIEW_FLAG_DIR}/.push-approved-$(codex_review_key)"
+  local key
+  key=$(python3 "$_REPO_TARGET_CLI" approval-key) || return 1
+  echo "${CODEX_REVIEW_FLAG_DIR}/.push-approved-${key}"
 }
 
-# gh pr merge / close 承認フラグファイルのパスを echo する（KEY は codex_review_key を流用。
-# 中身は承認した PR 番号）。
+# PR 承認も push と同じ checkout identity を使い、移動と複製を区別する。
 pr_approved_flag() {
-  echo "${CODEX_REVIEW_FLAG_DIR}/.pr-approved-$(codex_review_key)"
+  local key
+  key=$(python3 "$_REPO_TARGET_CLI" approval-key) || return 1
+  echo "${CODEX_REVIEW_FLAG_DIR}/.pr-approved-${key}"
 }
 
 # gate フラグに現在の HEAD を書き込み、bypass ログに記録する。

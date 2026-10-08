@@ -475,7 +475,7 @@
       "action": "block",
       "impl": "table",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "PR へのコメント投稿はユーザーの明示的な許可を得てから実行してください",
+      "message": "コメント投稿を拒否しました。owned bridge に確認 UI はありますが、owner 分類と最終 target/本文に束縛した ask の契約が未定義です。company/local-only/unknown の拒否を維持するため、ローカル記録では解除できません",
       "autoMode": [
         { "tier": "soft_deny", "prose": "PR / issue へのコメント投稿（gh pr comment / gh api での comment 書き込み）はユーザーの明示的な許可がある場合のみ" }
       ],
@@ -493,7 +493,7 @@
       "action": "block",
       "impl": "custom",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "PR へのコメント投稿はユーザーの明示的な許可を得てから実行してください"
+      "message": "コメント投稿を拒否しました。owned bridge に確認 UI はありますが、owner 分類と最終 target/本文に束縛した ask の契約が未定義です。company/local-only/unknown の拒否を維持するため、ローカル記録では解除できません"
     },
     {
       "id": "codex-companion-sandbox",

@@ -22,8 +22,18 @@ record_denial() {
   local hook="${1:-}"
   local reason="${2:-}"
   local detail="${3:-}"
+  local permission='null' command_hash
 
   command -v jq >/dev/null 2>&1 || return 0
+
+  case "$reason" in
+    gh-pr-comment|gh-api-comment-write)
+      # This hashes the full command, not a body file or proof of user consent.
+      command_hash=$(printf '%s' "$detail" | python3 -c 'import hashlib, sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())') || return 0
+      permission=$(jq -nc --arg rule "$reason" --arg cwd "$PWD" --arg hash "$command_hash" \
+        '{source: "harness-policy", nativePermission: "unobserved", scope: {rule: $rule, cwd: $cwd, commandSha256: $hash}}') || return 0
+      ;;
+  esac
 
   local log_path="${HARNESS_DENIAL_LOG:-$HOME/.claude/logs/hook-denials.jsonl}"
   local log_dir
@@ -45,7 +55,8 @@ record_denial() {
     --arg runtime "${HARNESS_RUNTIME:-}" \
     --arg cwd "$PWD" \
     --arg detail "$detail" \
-    '{ts: $ts, hook: $hook, reason: $reason, runtime: $runtime, cwd: $cwd, detail: $detail}' \
+    --argjson permission "$permission" \
+    '{ts: $ts, hook: $hook, reason: $reason, runtime: $runtime, cwd: $cwd, detail: $detail} + (if $permission == null then {} else {permission: $permission} end)' \
     2>/dev/null)" || return 0
 
   [ -n "$line" ] || return 0

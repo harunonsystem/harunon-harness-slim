@@ -19,11 +19,16 @@ CLI は bash から stdin 経由で CMD を渡す（argv 長・quote 事故を�
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import re
 import shlex
+import subprocess
 import sys
+import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 class UnresolvableTarget(Exception):
@@ -333,15 +338,14 @@ _GH_VALUE_OPTIONS = {
 _GH_REPO_OPTIONS = ("--repo", "-R")
 
 _GH_REPO_REASON = (
-    "--repo/-R で指定した PR 対象 repo はローカルの承認・レビュー証跡と対応付けられません。"
-    # PR 作成だけでなく merge / close の承認ガードからも返るので、操作を特定しない形で案内する
-    "--repo/-R を外し、同じ gh pr コマンドを `( cd <リテラル絶対パス> && gh pr <元の操作> ... )` の"
-    "subshell 形で実行してください"
+    "--repo/-R の対象がローカル repo と一致しないか、一意に解決できません。"
+    "対象 repo の checkout を作業ディレクトリにする subshell 形で同じ gh pr 操作を実行し、"
+    "selector はその repo と一致させてください"
 )
 _GH_ENV_REASON = (
-    "GH_REPO で指定した PR 対象 repo はローカルの承認・レビュー証跡と対応付けられません。"
-    "コマンドの GH_REPO= 代入を除去し、継承した環境変数は実行元で unset GH_REPO により解除してください。"
-    "--repo/-R も併用していれば外し、対象 repo を作業ディレクトリにして同じ操作を実行してください"
+    "GH_REPO の対象がローカル repo と一致しないか、一意に解決できません。"
+    "GH_REPO= の代入と --repo/-R をその repo と一致させるか、不一致の代入を除去し実行元で unset GH_REPO してください。"
+    "対象 repo の checkout を作業ディレクトリにして同じ操作を実行してください"
 )
 _GH_HEAD_REASON = "--head で別ブランチの PR を作る形は、承認済み HEAD と対象が一致しません"
 
@@ -371,7 +375,7 @@ def _option_values(tokens: list[str], names: tuple[str, ...]) -> list[str]:
     return values
 
 
-def gh_target_reason(command: str, current_branch: str) -> str | None:
+def gh_target_reason(command: str, current_branch: str, repo: Path | None = None) -> str | None:
     """gh pr create が cwd repo の current branch 以外を対象にしていないか判定する。
 
     解決不能（= 別 repo / 別ブランチを対象にしうる）なら理由文字列、
@@ -382,10 +386,28 @@ def gh_target_reason(command: str, current_branch: str) -> str | None:
     except UnresolvableTarget as error:
         return error.reason
 
-    if _env_prefix_names(tokens, ("GH_REPO",)) or os.environ.get("GH_REPO"):
-        return _GH_ENV_REASON
-    if _option_values(tokens, _GH_REPO_OPTIONS):
-        return _GH_REPO_REASON
+    selectors = _option_values(tokens, _GH_REPO_OPTIONS)
+    env_selectors = [token.split("=", 1)[1] for index, token in enumerate(tokens)
+                     if token.startswith("GH_REPO=") and _is_env_prefix_position(tokens, index)]
+    if os.environ.get("GH_REPO"):
+        env_selectors.append(os.environ["GH_REPO"])
+    hosts = [token.split("=", 1)[1] for index, token in enumerate(tokens)
+             if token.startswith("GH_HOST=") and _is_env_prefix_position(tokens, index)]
+    if os.environ.get("GH_HOST"):
+        hosts.append(os.environ["GH_HOST"])
+    try:
+        expected = repository_identity(repo or Path.cwd())
+        if hosts and any(host.lower() != expected.split("/", 1)[0] for host in hosts):
+            return "GH_HOST の対象 host とローカル repo が一致しません"
+        host = hosts[-1] if hosts else "github.com"
+        values = [host + "/" + value if re.fullmatch(r"[\w.-]+/[\w.-]+", value) else value
+                  for value in selectors + env_selectors]
+        if any(canonical_repository(value, selector=True) != expected for value in values):
+            return _GH_ENV_REASON if env_selectors else _GH_REPO_REASON
+    except UnresolvableTarget as error:
+        if selectors or env_selectors or hosts:
+            return _GH_ENV_REASON if env_selectors else _GH_REPO_REASON
+        return "gh の暗黙の対象 repo を確定できません: " + error.reason
 
     for head_value in _option_values(tokens, ("--head", "-H")):
         # owner:branch 形はフォークの branch を指すため、値が一致していても常に deny。
@@ -393,6 +415,207 @@ def gh_target_reason(command: str, current_branch: str) -> str | None:
             return _GH_HEAD_REASON
 
     return None
+
+
+def _git(repo: Path, *args: str) -> str:
+    result = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, timeout=10, check=False)
+    if result.returncode:
+        raise UnresolvableTarget(f"git による対象解決に失敗しました: {' '.join(args)}")
+    return result.stdout.strip()
+
+
+def _config(repo: Path, key: str) -> str:
+    result = subprocess.run(["git", "-C", str(repo), "config", "--get-all", key], capture_output=True, text=True, timeout=10, check=False)
+    if result.returncode not in (0, 1):
+        raise UnresolvableTarget(f"git config を解決できません: {key}")
+    return result.stdout.strip()
+
+
+def canonical_repository(value: str, *, selector: bool = False) -> str:
+    """Transport spellings share host/owner/repo; local paths stay filesystem identities."""
+    if selector and re.fullmatch(r"[\w.-]+/[\w.-]+", value):
+        value = "https://github.com/" + value
+    if "://" not in value and re.fullmatch(r"(?:[^@/:]+@)?[\w.-]+:.+", value):
+        value = "ssh://" + value.replace(":", "/", 1)
+    parsed = urlsplit(value)
+    if parsed.scheme:
+        if parsed.scheme not in ("https", "http", "ssh", "git") or not parsed.hostname or parsed.query or parsed.fragment:
+            raise UnresolvableTarget("送信先 URL の形式を安全に解決できません")
+        path = parsed.path.strip("/").removesuffix(".git")
+        if not re.fullmatch(r"[\w.-]+/[\w.-]+", path):
+            raise UnresolvableTarget("送信先の owner/repo を確定できません")
+        host = parsed.hostname.lower()
+        # GitHub repository names are case-insensitive; other hosts need exact paths.
+        return host + (f":{parsed.port}" if parsed.port else "") + "/" + (path.lower() if host == "github.com" else path)
+    if selector:
+        if re.fullmatch(r"[\w.-]+/[\w.-]+/[\w.-]+", value):
+            return canonical_repository("https://" + value)
+        raise UnresolvableTarget("gh の対象 repo を確定できません")
+    path = Path(value)
+    if not path.is_absolute():
+        raise UnresolvableTarget("相対 URL は送信先を確定できません")
+    gitdir = Path(_git(path.resolve(strict=True), "rev-parse", "--absolute-git-dir")).stat()
+    return f"local:{gitdir.st_dev}:{gitdir.st_ino}"
+
+
+def repository_identity(repo: Path) -> str:
+    remotes = _git(repo, "remote").splitlines()
+    identities = {canonical_repository(url) for remote in remotes
+                  for url in _git(repo, "remote", "get-url", "--all", remote).splitlines()}
+    if len(identities) != 1:
+        raise UnresolvableTarget("複数の repo 候補があるため gh 対象を確定できません")
+    return identities.pop()
+
+
+def checkout_identity(repo: Path) -> list[int]:
+    # A rename/ghq move on the same filesystem preserves these identities. Copies,
+    # independent clones and linked worktrees cannot inherit this approval.
+    root = Path(_git(repo, "rev-parse", "--show-toplevel")).stat()
+    gitdir = Path(_git(repo, "rev-parse", "--absolute-git-dir")).stat()
+    return [root.st_dev, root.st_ino, gitdir.st_dev, gitdir.st_ino]
+
+
+def approval_key(repo: Path) -> str:
+    value = [checkout_identity(repo), _git(repo, "symbolic-ref", "--short", "HEAD")]
+    return hashlib.sha256(json.dumps(value).encode()).hexdigest()
+
+
+def push_target(repo: Path, command: str) -> dict:
+    """Resolve one branch update or fully qualified branch deletion offline.
+
+    Unsupported multi-ref/config override forms fail closed instead of simulating Git.
+    """
+    tokens = _tokenize(command)
+    sensitive_env = ("GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_NAMESPACE", "GIT_COMMON_DIR", "GIT_DIR", "GIT_WORK_TREE")
+    if _env_prefix_names(tokens, sensitive_env) or any(os.environ.get(name) for name in sensitive_env):
+        raise UnresolvableTarget("Git 環境の上書きは承認対象を確定できません")
+    starts = [i for i, token in enumerate(tokens) if token == "git" and _is_git_start(tokens, i)]
+    if len(starts) != 1:
+        raise UnresolvableTarget("単独の push 対象を確定できません")
+    i = starts[0] + 1
+    while i < len(tokens) and tokens[i] != "push":
+        if tokens[i] == "-C":
+            i += 2
+        else:
+            raise UnresolvableTarget("git の設定上書きは承認対象を確定できません")
+    if i == len(tokens):
+        raise UnresolvableTarget("push を解析できません")
+    args = tokens[i + 1:]
+    positional = []
+    delete = False
+    update_options = False
+    i = 0
+    while i < len(args):
+        token = args[i]
+        i += 1
+        if token in _SEPARATORS or token.startswith("2>"):
+            break  # outer hook separately checks the read-only sink allowlist
+        if token in ("--delete", "-d") or re.fullmatch(r"-[vqd]+", token):
+            delete = delete or "d" in token
+        elif token in ("-o", "--push-option"):
+            update_options = True
+            i += 1
+        elif token.startswith(("--push-option=", "--force-with-lease=")) or (token.startswith("-o") and len(token) > 2) or token in ("-u", "--set-upstream", "--force-with-lease", "--dry-run", "-n", "--verbose", "-v", "--quiet", "-q", "--porcelain"):
+            update_options = update_options or token not in ("--verbose", "-v", "--quiet", "-q", "--porcelain")
+            continue
+        elif token.startswith("-"):
+            raise UnresolvableTarget("push の repo 指定・複数 ref・未知の option は承認では通せません")
+        else:
+            if any(char in token for char in _SHELL_EXPANSION_CHARS):
+                raise UnresolvableTarget("展開を含む push 対象は確定できません")
+            positional.append(token)
+    if len(positional) > 2:
+        raise UnresolvableTarget("複数 ref の push は承認では通せません")
+    branch = _git(repo, "symbolic-ref", "--short", "HEAD")
+    if _config(repo, "push.followTags") not in ("", "false", "no", "0") or _config(repo, "push.recurseSubmodules") not in ("", "no", "false", "0"):
+        raise UnresolvableTarget("追加 tag / submodule の push は承認では通せません")
+    remotes = _git(repo, "remote").splitlines()
+    remote = positional[0] if positional else (_config(repo, f"branch.{branch}.pushRemote") or _config(repo, "remote.pushDefault") or _config(repo, f"branch.{branch}.remote"))
+    if not remote:
+        remote = "origin" if "origin" in remotes else remotes[0] if len(remotes) == 1 else ""
+    if not remote:
+        raise UnresolvableTarget("push remote を一意に確定できません")
+    if remote in remotes:
+        urls = _git(repo, "remote", "get-url", "--push", "--all", remote).splitlines()
+        if len(urls) != 1 or _config(repo, f"remote.{remote}.mirror") not in ("", "false", "no", "0"):
+            raise UnresolvableTarget("複数 pushurl / mirror は承認では通せません")
+    else:
+        # get-url applies insteadOf/pushInsteadOf only to configured remotes.
+        rewrites = subprocess.run(["git", "-C", str(repo), "config", "--get-regexp", r"^url\..*\.(insteadof|pushinsteadof)$"], capture_output=True, text=True, timeout=10, check=False)
+        if rewrites.returncode != 1:
+            raise UnresolvableTarget("直接 URL と URL rewrite の併用は対象を確定できません")
+        urls = [remote]
+    if len(positional) == 2:
+        refspec = positional[1]
+        source, separator, destination = refspec.partition(":")
+        delete = delete or (bool(separator) and not source)
+        if delete:
+            if update_options or (separator and source) or not (destination or source):
+                raise UnresolvableTarget("削除は単独の branch ref だけを明示してください")
+            destination = destination if separator else source
+            if not destination.startswith("refs/heads/"):
+                raise UnresolvableTarget("削除 ref は refs/heads/... の完全修飾名で明示してください（短い名・tag・任意 namespace は承認できません）")
+        elif separator and not destination.startswith("refs/heads/"):
+            raise UnresolvableTarget("明示 refspec の送信先は refs/heads/... で指定してください")
+        else:
+            destination = destination or source
+        if not delete:
+            if source not in ("HEAD", branch, "refs/heads/" + branch):
+                raise UnresolvableTarget("承認は現在の HEAD の push だけに適用されます")
+            if destination == "HEAD":
+                destination = branch
+    else:
+        if delete:
+            raise UnresolvableTarget("削除する remote と branch ref を明示してください")
+        if remote in remotes and _config(repo, f"remote.{remote}.push"):
+            raise UnresolvableTarget("remote.push refspec は明示してください")
+        mode = _config(repo, "push.default") or "simple"
+        upstream_remote = _config(repo, f"branch.{branch}.remote")
+        merge = _config(repo, f"branch.{branch}.merge")
+        if mode == "current" or (mode == "simple" and remote != upstream_remote):
+            destination = branch
+        elif mode in ("upstream", "simple") and remote == upstream_remote and merge:
+            destination = merge
+            if mode == "simple" and merge != "refs/heads/" + branch:
+                raise UnresolvableTarget("simple push の upstream branch が一致しません")
+        else:
+            raise UnresolvableTarget("push.default の対象を一意に確定できません。refspec を明示してください")
+    if not destination.startswith("refs/"):
+        destination = "refs/heads/" + destination
+    if not destination.startswith("refs/heads/") or destination in ("refs/heads/main", "refs/heads/master"):
+        raise UnresolvableTarget("保護 ref / branch 以外への push は承認では通せません")
+    _git(repo, "check-ref-format", destination)
+    return {"operation": "git.push.delete" if delete else "git.push", "checkout": checkout_identity(repo), "branch": branch,
+            "head": _git(repo, "rev-parse", "HEAD"), "repository": canonical_repository(urls[0]),
+            "ref": destination}
+
+
+def pr_target(repo: Path, command: str) -> dict:
+    tokens = _tokenize(command)
+    starts = [i for i in range(len(tokens) - 2) if tokens[i:i + 2] == ["gh", "pr"] and _is_env_prefix_position(tokens, i)]
+    if len(starts) != 1:
+        raise UnresolvableTarget("単独の PR 操作を確定できません")
+    args = tokens[starts[0] + 2:]
+    if len(args) < 2 or args[0] not in ("merge", "close") or not re.fullmatch(r"[1-9][0-9]*", args[1]):
+        raise UnresolvableTarget("PR 操作と番号を明示してください")
+    cursor = 2
+    while cursor < len(args):
+        token = args[cursor]
+        cursor += 1
+        if token in ("--merge", "--squash", "--rebase") and args[0] == "merge":
+            continue
+        if token in _GH_REPO_OPTIONS:
+            cursor += 1
+        elif token.startswith(("--repo=", "-R")):
+            continue
+        else:
+            raise UnresolvableTarget("追加副作用 / 未知の PR option は承認では通せません")
+    branch = _git(repo, "symbolic-ref", "--short", "HEAD")
+    reason = gh_target_reason(command, branch, repo)
+    if reason:
+        raise UnresolvableTarget(reason)
+    return {"operation": "pr." + args[0], "checkout": checkout_identity(repo), "branch": branch,
+            "head": _git(repo, "rev-parse", "HEAD"), "repository": repository_identity(repo), "number": args[1]}
 
 
 # --- CLI（bash から呼ぶ。command は stdin 経由） ---
@@ -416,7 +639,7 @@ def _cmd_resolve(args: argparse.Namespace) -> int:
 
 def _cmd_gh_target(args: argparse.Namespace) -> int:
     command = _read_command_from_stdin()
-    reason = gh_target_reason(command, args.current_branch)
+    reason = gh_target_reason(command, args.current_branch, Path.cwd())
     if reason is not None:
         print(reason, file=sys.stderr)
         return 2
@@ -433,6 +656,14 @@ def build_parser() -> argparse.ArgumentParser:
     gh_target_parser = commands.add_parser("gh-target")
     gh_target_parser.add_argument("--current-branch", required=True)
 
+    commands.add_parser("approval-key")
+    commands.add_parser("push-target")
+    check_parser = commands.add_parser("push-check")
+    check_parser.add_argument("--flag", type=Path, required=True)
+    commands.add_parser("pr-target")
+    pr_check_parser = commands.add_parser("pr-check")
+    pr_check_parser.add_argument("--flag", type=Path, required=True)
+
     return parser
 
 
@@ -441,11 +672,51 @@ def main() -> int:
     try:
         if args.command == "resolve":
             return _cmd_resolve(args)
-        return _cmd_gh_target(args)
+        if args.command == "gh-target":
+            return _cmd_gh_target(args)
+        if args.command == "approval-key":
+            print(approval_key(Path.cwd()))
+            return 0
+        is_pr = args.command.startswith("pr-")
+        target = (pr_target if is_pr else push_target)(Path.cwd(), _read_command_from_stdin())
+        if args.command in ("push-target", "pr-target"):
+            print(json.dumps(target, ensure_ascii=False, sort_keys=True))
+            return 0
+        try:
+            approved = json.loads(args.flag.read_text())
+        except (OSError, ValueError) as error:
+            raise UnresolvableTarget("有効な送信先付き承認がありません。承認スクリプトで再承認してください") from error
+        if not isinstance(approved, dict) or approved.get("head") != target["head"]:
+            raise UnresolvableTarget("承認後に HEAD が変わったため再承認が必要です")
+        if approved != target:
+            raise UnresolvableTarget("承認済みの操作・checkout・branch・送信先・ref/PR 番号と一致しません" + (f"（対象 PR #{target['number']}）" if is_pr else ""))
+        ttl = int(os.environ.get("PR_APPROVAL_TTL_SECONDS" if is_pr else "PUSH_APPROVAL_TTL_SECONDS", "1800"))
+        age = time.time() - args.flag.stat().st_mtime
+        if ttl < 0 or age < 0 or age > ttl:
+            args.flag.unlink()
+            raise UnresolvableTarget("承認は TTL により失効しました")
+        if is_pr:
+            return 0
+        if target["operation"] == "git.push.delete":
+            args.flag.unlink()
+            return 0
+        for remote in _git(Path.cwd(), "remote").splitlines():
+            urls = _git(Path.cwd(), "remote", "get-url", "--push", "--all", remote).splitlines()
+            if len(urls) != 1 or canonical_repository(urls[0]) != target["repository"]:
+                continue
+            fetch_urls = _git(Path.cwd(), "remote", "get-url", "--all", remote).splitlines()
+            if len(fetch_urls) != 1 or canonical_repository(fetch_urls[0]) != target["repository"]:
+                continue
+            tracking = "refs/remotes/" + remote + "/" + target["ref"].removeprefix("refs/heads/")
+            result = subprocess.run(["git", "rev-parse", "--verify", tracking], capture_output=True, text=True, timeout=10, check=False)
+            if result.returncode == 0 and result.stdout.strip() == target["head"]:
+                args.flag.unlink()
+                raise UnresolvableTarget("この HEAD は対象 remote に到達済みで承認は失効しました")
+        return 0
     except UnresolvableTarget as error:
         print(error.reason, file=sys.stderr)
         return 2
-    except (KeyError, TypeError, ValueError, OSError) as error:
+    except (KeyError, TypeError, ValueError, OSError, subprocess.SubprocessError) as error:
         print(f"internal error: {error}", file=sys.stderr)
         return 3
 

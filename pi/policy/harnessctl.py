@@ -592,7 +592,7 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
 
     if event_type == "task.complete" or (event_type == "phase.advance" and request.get("event") == "published" and state["phase"] == "publish"):
         verification.require_current(state["evidence"], repo)
-        decision = authorize(state_file, repo, {"action": "pr.create"}, ctx)
+        decision = self_check_decision(state, repo, ctx)
         if not decision["allowed"]:
             raise KernelError(decision["code"], exit_code=2, reason="complete the mandatory self-check and decision before finishing")
     if event_type == "task.complete":
@@ -739,6 +739,39 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
     return state
 
 
+def self_check_decision(state: JsonObject, repo: Path, ctx: WorkflowContext) -> JsonObject:
+    """Shared completion/publication readiness, without authorizing network egress."""
+    if state["phase"] not in ctx.workflow["actions"]["pr.create"]["allowedStates"]:
+        return {"allowed": False, "code": "WORKFLOW_NOT_READY", "phase": state["phase"]}
+    head = git_value(repo, "HEAD")
+    # Review covers its commit and remediation descendants; quota SKIP is not a self-check.
+    code = None
+    for evidence in state["evidence"]:
+        if evidence["kind"] != "local-review":
+            continue
+        subject = evidence.get("subjectSha")
+        if not isinstance(subject, str):
+            continue
+        if subject == head:
+            code = "LOCAL_REVIEW_CURRENT"
+            break
+        if git_is_ancestor(repo, subject, head):
+            code = "LOCAL_REVIEW_ANCESTOR"
+    if code is not None:
+        return {"allowed": True, "code": code, "trust": "audit-only"}
+    return {"allowed": False, "code": "REVIEW_STALE"}
+
+
+def check_pr_create_target(repo: Path, request: JsonObject) -> None:
+    command = request.get("command")
+    reason = gh_target_reason(
+        command if isinstance(command, str) and command.strip() else "gh pr create",
+        git_value(repo, "--abbrev-ref", "HEAD"), repo,
+    )
+    if reason is not None:
+        raise KernelError("REPO_TARGET_UNRESOLVABLE", exit_code=2, reason=reason)
+
+
 def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowContext) -> JsonObject:
     action = request.get("action")
     workflow = ctx.workflow
@@ -747,6 +780,8 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
         raise KernelError("UNKNOWN_ACTION", exit_code=2, action=action)
     # 検証宣言を置いた repo だけが gate を採用する。宣言の無い repo にファイル作成を強いない。
     if not gates_adopted(repo):
+        if action == "pr.create":
+            check_pr_create_target(repo, request)
         return {"action": action, "allowed": True, "code": "NOT_ADOPTED"}
     # Missing/stale completed tasks must re-enter the gate, never fall back to
     # legacy flags. Current completed tasks still need fresh verification.
@@ -779,36 +814,8 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
         # complete already required the self-check; reporting needs it to stay verified.
         return {"action": action, "allowed": True, "code": "TASK_COMPLETE_CURRENT"}
     if action == "pr.create":
-        command = request.get("command")
-        if isinstance(command, str) and command.strip():
-            current_branch = git_value(repo, "--abbrev-ref", "HEAD")
-            reason = gh_target_reason(command, current_branch)
-            if reason is not None:
-                raise KernelError("REPO_TARGET_UNRESOLVABLE", exit_code=2, reason=reason)
-        head = git_value(repo, "HEAD")
-        # レビュー証跡は「レビューした commit が HEAD の祖先」なら現在の HEAD を
-        # カバーする（レビュー後の修正 commit は policy 上の想定経路）。
-        # 外部reviewのquota SKIPは自己チェックの証跡を代替しない。
-        code = None
-        for evidence in state["evidence"]:
-            if evidence["kind"] != "local-review":
-                continue
-            subject = evidence.get("subjectSha")
-            if not isinstance(subject, str):
-                continue
-            if subject == head:
-                code = "LOCAL_REVIEW_CURRENT"
-                break
-            if git_is_ancestor(repo, subject, head):
-                code = "LOCAL_REVIEW_ANCESTOR"
-        if code is not None:
-            return {
-                "action": action,
-                "allowed": True,
-                "code": code,
-                "trust": "audit-only",
-            }
-        return {"action": action, "allowed": False, "code": "REVIEW_STALE"}
+        check_pr_create_target(repo, request)
+        return {"action": action, **self_check_decision(state, repo, ctx)}
     # Merge is the external enforcement boundary. Local files remain audit-only
     # and can never satisfy the required GitHub status check.
     return {

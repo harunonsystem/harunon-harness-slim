@@ -68,6 +68,6 @@ PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number // empty')
 jq -n --arg pr "$PR_NUMBER" '{
   "hookSpecificOutput": {
     "hookEventName": "PostToolUse",
-    "additionalContext": ("push 済み。PR #" + $pr + " の description と現在の diff（base との merge-base 以降）を突き合わせ、乖離があれば更新案をユーザーに提示せよ。`gh pr edit` の自動実行は禁止、提示のみ。")
+    "additionalContext": ("push 済み。PR #" + $pr + " の description と現在の diff（base との merge-base 以降）を `pr-body-sync` skill の手順で突き合わせ、乖離があれば更新案をユーザーに提示せよ。`gh pr edit` の自動実行は禁止、提示のみ。")
   }
 }'

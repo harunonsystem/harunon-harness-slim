@@ -58,7 +58,7 @@ permission deny は迂回しない。push・PR merge/close の ask は承認後�
 | Figma からの実装（Claude のみ） | `figma-implement` skill |
 | 図・HTML・チャートの作成 | `rules/visual-design.md` |
 | 外部 OSS への貢献 | `rules/oss-contribution.md` |
-| PR 作成 | `rules/pr-body.md` と repo の `.github/PULL_REQUEST_TEMPLATE.md`（あれば） |
+| PR 作成・本文更新 | `rules/pr-body.md` と `.github/PULL_REQUEST_TEMPLATE.md`（あれば）。既存 PR は `pr-body-sync` |
 
 この選択は pstack 起動時の自動 routing より優先する。ファイル数・関数境界だけで並列化しない。未検証の runtime 連携は既定にせず、main で比較・検証し制約を報告する。
 

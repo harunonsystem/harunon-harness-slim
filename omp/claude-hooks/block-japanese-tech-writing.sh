@@ -1,12 +1,12 @@
 #!/bin/bash
-# PreToolUse:Bash — block gh pr create when its Japanese technical prose fails the gate
+# PreToolUse:Bash — block gh pr create / edit when the Japanese technical prose of its body fails the gate
 set -euo pipefail
 
 HOOK_DIR="$(cd -P "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 INPUT=$(cat)
 COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // .command // ""' 2>/dev/null || echo "")
 
-if ! printf '%s' "$COMMAND" | grep -qE '(^|&&|;|\|)[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=\S*[[:space:]]+)*(gh|rtk[[:space:]]+gh)[[:space:]]+pr[[:space:]]+create\b'; then
+if ! printf '%s' "$COMMAND" | grep -qE '\bgh\b'; then
   exit 0
 fi
 

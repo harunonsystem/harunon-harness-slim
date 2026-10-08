@@ -23,49 +23,67 @@ FORBIDDEN_PATTERNS = (
 
 def _body_from_command(command: str) -> tuple[str | None, str | None]:
     try:
-        tokens = shlex.split(command)
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|()\n")
+        lexer.whitespace = " \t\r"
+        lexer.whitespace_split = True
+        tokens = list(lexer)
     except ValueError as exc:
         return None, f"PR コマンドを解析できません: {exc}"
 
-    start = None
-    for index, token in enumerate(tokens):
-        if token == "gh":
-            command_start = index
-        elif token == "rtk" and index + 1 < len(tokens) and tokens[index + 1] == "gh":
-            command_start = index + 1
+    segments: list[list[str]] = [[]]
+    for token in tokens:
+        if token and all(char in ";&|()\n" for char in token):
+            segments.append([])
         else:
+            segments[-1].append(token)
+
+    body_option: tuple[bool, str] | None = None
+    for segment in segments:
+        while segment and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", segment[0]):
+            segment = segment[1:]
+        if segment[:2] == ["rtk", "gh"]:
+            segment = segment[1:]
+        if segment[:2] != ["gh", "pr"] or segment[2:3] not in (["create"], ["edit"]):
             continue
-        if tokens[command_start + 1 : command_start + 3] == ["pr", "create"]:
-            start = command_start + 3
-            break
-    if start is None:
-        return "", None
+        if segment[3:] in (["--help"], ["-h"]):
+            continue
+        args = iter(segment[3:])
+        options: list[tuple[bool, str]] = []
+        for token in args:
+            if token in {"--body", "-b", "--body-file", "-F"}:
+                value = next(args, None)
+                if value is None:
+                    return None, f"{token} の値がありません"
+                options.append((token in {"--body-file", "-F"}, value))
+            elif token.startswith(("--body=", "--body-file=")):
+                flag, value = token.split("=", 1)
+                options.append((flag == "--body-file", value))
+            elif token.startswith(("-b", "-F")):
+                options.append((token.startswith("-F"), token[2:].removeprefix("=")))
+        if len(options) > 1:
+            return None, "PR本文の指定が重複しています。本文オプションを1つだけ指定してください"
+        if not options and segment[2] == "edit":
+            continue
+        # ponytail: arbitrary shell execution is not modeled; split mutations into literal commands.
+        if len(segments) > 1:
+            return None, "複合コマンドのPR本文更新は検査できません。更新を単独の gh pr コマンドに分けてください"
+        if not options:
+            return None, "PR本文をコマンドから取得できません（--body または --body-file が必要です）"
+        body_option = options[0]
 
-    args = tokens[start:]
-    for index, token in enumerate(args):
-        if token in {"--body", "-b", "--body-file"}:
-            if index + 1 >= len(args):
-                return None, f"{token} の値がありません"
-            value = args[index + 1]
-            if token == "--body-file":
-                if value in {"-", "/dev/stdin"}:
-                    return None, "標準入力のPR本文は検査できません"
-                try:
-                    return Path(value).read_text(encoding="utf-8"), None
-                except OSError as exc:
-                    return None, f"PR本文ファイルを読めません: {exc}"
-            return value, None
-        for prefix in ("--body=", "--body-file="):
-            if token.startswith(prefix):
-                value = token[len(prefix) :]
-                if prefix == "--body-file=":
-                    try:
-                        return Path(value).read_text(encoding="utf-8"), None
-                    except OSError as exc:
-                        return None, f"PR本文ファイルを読めません: {exc}"
-                return value, None
-
-    return None, "PR本文をコマンドから取得できません（--body または --body-file が必要です）"
+    if body_option is None:
+        return None, None
+    is_file, value = body_option
+    if "$" in value or "`" in value:
+        return None, "動的なPR本文は検査できません。確定した本文ファイルを指定してください"
+    if not is_file:
+        return value, None
+    if value in {"-", "/dev/stdin"}:
+        return None, "標準入力のPR本文は検査できません"
+    try:
+        return Path(value).read_text(encoding="utf-8"), None
+    except (OSError, UnicodeError):
+        return None, "PR本文ファイルをUTF-8で読めません"
 
 
 def violations(text: str) -> list[str]:
@@ -83,7 +101,8 @@ def check_command(command: str) -> int:
     if error:
         print(f"日本語技術文書ゲート: {error}", file=sys.stderr)
         return 2
-    assert body is not None
+    if body is None:
+        return 0
     if not body.strip():
         print("日本語技術文書ゲート: PR本文が空です", file=sys.stderr)
         return 2

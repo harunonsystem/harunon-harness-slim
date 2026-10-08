@@ -264,39 +264,6 @@ exit 1
 '
 }
 
-# push が remote ref の削除だけか判定する（--delete / -d か、全 refspec が ":ref"）。
-# 削除は HEAD を送らないため、承認の失効を「HEAD の remote 到達」で判定できない。
-# 引数は単独判定が許す読み取りパイプ・コメント（正規化で "~"）の手前まで。
-# ref 名に "|" "~" は使えないので、そこで切っても refspec は欠けない。
-_push_is_delete_only() {
-  printf '%s' "$1" | perl -e '
-local $/;
-my $s = <STDIN>;
-$s =~ /(?:\bgit|\brtk[ \t]+git)[ \t]+push[ \t]*([^|~\n]*)/ or exit 1;
-my %takes_value = map { $_ => 1 } qw(-o --push-option --repo --receive-pack --exec);
-my ($skip, $delete, @args) = (0, 0);
-for my $t (split /\s+/, $1) {
-    next unless length $t;
-    if ($skip) { $skip = 0; next; }
-    if ($t =~ /^\d*[<>]/) { $skip = 1 if $t =~ /^\d*[<>]+&?$/; next; }
-    if ($t =~ /^-/) {
-        my ($name) = $t =~ /^([^=]+)/;
-        $skip = 1 if $takes_value{$name} && $t !~ /=/;
-        $delete = 1 if $t eq "--delete";
-        # 結合短縮（-vd）も削除。-o の値に含まれる d（-odebug）は除く。
-        $delete = 1 if $t =~ /^-[A-Za-np-z]*d/;
-        next;
-    }
-    push @args, $t;
-}
-shift @args;  # remote
-exit 1 unless @args;
-# --delete は素の ref 名だけを取る（src:dst / +ref は git も拒否するが判定でも外す）。
-exit((grep { /[:+]/ } @args) ? 1 : 0) if $delete;
-exit((grep { !/^:./ } @args) ? 1 : 0);
-'
-}
-
 # --- impl: "custom" ルール（table では表現しきれない手書きロジックを関数として温存）---
 
 # rule: git-commit-and-push-same-command
@@ -336,7 +303,7 @@ custom_git_push() {
 
   ere_matches "$NORMALIZED" "${ORIGIN}${ere}" || return 0
 
-  local flag current_head push_count flag_mtime flag_age ttl
+  local flag push_count target_reason
 
   # 承認が効くのは「単独・1 回の push」だけ。チェイン / subshell / 複数 push を
   # 許すと次の 2 つが成立してしまう:
@@ -372,43 +339,17 @@ custom_git_push() {
   # review_gate_resolve_target_repo above already resolves --cwd/cd/git -C with the
   # quote-aware repo_target.py kernel and denies ambiguous or missing targets. Keep
   # the approval check bound to that resolved repository.
-  flag=$(push_approved_flag)
-
+  if ! flag=$(push_approved_flag); then
+    echo "${message}。承認の checkout を確定できません" >&2
+    exit 2
+  fi
   if [ ! -f "$flag" ]; then
     echo "$message" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-push" "${COMMAND:-}" || true
     exit 2
   fi
-
-  current_head=$(git rev-parse HEAD 2>/dev/null || echo "")
-  if [ -z "$current_head" ] || [ "$(cat "$flag")" != "$current_head" ]; then
-    echo "${message}。承認後に HEAD が変わったため再承認が必要です" >&2
-    declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-push" "${COMMAND:-}" || true
-    exit 2
-  fi
-
-  # 承認の失効条件は「HEAD が remote に到達した」か「TTL 超過」であり、guard 通過
-  # 時点では消費しない。旧実装は許可した瞬間に rm していたため、その後の pre-push
-  # hook（unittest / validator / 依存不足）で push が落ちると承認だけが消えて
-  # 再承認ループになった（2026-08-29）。push が成功すると remote-tracking ref が
-  # 同じ HEAD を指すので、同一 HEAD の 2 度目の承認利用は自然に閉じる。
-  ttl="${PUSH_APPROVAL_TTL_SECONDS:-1800}"
-  # GNU stat（Linux / CI）を先に試す。逆順だと GNU の `stat -f %m` はファイルシステム情報を
-  # 「成功」で返すため fallback に落ちず、算術式が壊れる（CI で実際に発生）。
-  flag_mtime=$(stat -c %Y "$flag" 2>/dev/null || stat -f %m "$flag" 2>/dev/null || echo 0)
-  flag_age=$(( $(date +%s) - flag_mtime ))
-  if [ "$flag_age" -gt "$ttl" ]; then
-    rm -f "$flag"
-    echo "${message}。承認から ${ttl} 秒以上経過したため失効しました（再承認が必要です）" >&2
-    declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-push" "${COMMAND:-}" || true
-    exit 2
-  fi
-  # 削除だけの push は HEAD を送らず remote 到達で閉じないので、通過時に消費する。
-  if _push_is_delete_only "$NORMALIZED"; then
-    rm -f "$flag"
-  elif [ -n "$(git branch -r --contains "$current_head" 2>/dev/null)" ]; then
-    rm -f "$flag"
-    echo "${message}。この HEAD は既に remote に到達済みで承認は失効しました。別 ref へ push するなら再承認が必要です" >&2
+  if ! target_reason=$(printf '%s' "$COMMAND" | python3 "$_REPO_TARGET_CLI" push-check --flag "$flag" 2>&1); then
+    echo "${message}。${target_reason:-承認の checkout を確定できません}" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-push" "${COMMAND:-}" || true
     exit 2
   fi
@@ -418,29 +359,12 @@ custom_git_push() {
 
 # rule: gh-pr-merge-close
 custom_gh_pr_merge_close() {
-  # approve-pr で発行した承認（PR 番号 + TTL）と一致する、番号を明示した単独の
-  # `gh pr merge|close <番号>` だけを許す。旧実装は無条件 deny で承認経路が無く、
-  # ユーザーが merge を指示しても agent 側から実行する手段が無かった（2026-08-29）。
-  # 検出パターンと deny メッセージは table（danger-rules.json）が SSOT。
   ere_matches "$NORMALIZED" "${ORIGIN}${ere}${WORD_END}" || return 0
 
-  local flag pr_number approved_number flag_mtime flag_age ttl
+  local flag target_reason
 
   if ! _push_is_standalone "$NORMALIZED"; then
     echo "${message}。承認が適用されるのは単独の gh pr merge / close コマンドのみです（チェイン・subshell は対象外）" >&2
-    declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-pr-merge-close" "${COMMAND:-}" || true
-    exit 2
-  fi
-
-  # PR 番号は `gh pr merge 127` か PR URL（.../pull/127）の明示だけを受け付ける。
-  # 番号省略（current branch の PR）は承認と対象の突き合わせができないので deny。
-  pr_number=$(printf '%s' "$COMMAND" | perl -e '
-local $/;
-my $s = <STDIN>;
-if ($s =~ /\bgh[ \t]+pr[ \t]+(?:merge|close)[ \t]+(?:--?[^ \t]+[ \t]+)*(?:\S*\/pull\/)?(\d+)\b/) { print $1 }
-')
-  if [ -z "$pr_number" ]; then
-    echo "${message}。PR 番号を明示してください（gh pr merge <番号>）" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-pr-merge-close" "${COMMAND:-}" || true
     exit 2
   fi
@@ -450,37 +374,19 @@ if ($s =~ /\bgh[ \t]+pr[ \t]+(?:merge|close)[ \t]+(?:--?[^ \t]+[ \t]+)*(?:\S*\/p
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-pr-merge-close" "${COMMAND:-}" || true
     exit 2
   fi
-  # Approval is keyed by the local repo, branch and HEAD, not a remote URL.
-  # Selectors cannot inherit a local approval merely by sharing the PR number.
-  local target_reason
-  if ! target_reason=$(printf '%s' "$COMMAND" | python3 "$HOOK_DIR/../policy/repo_target.py" gh-target --current-branch "$(git rev-parse --abbrev-ref HEAD)" 2>&1); then
-    echo "${message}。${target_reason}" >&2
+  if ! flag=$(pr_approved_flag); then
+    echo "${message}。承認の checkout を確定できません" >&2
+    declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-pr-merge-close" "${COMMAND:-}" || true
     exit 2
   fi
-  if [[ "$NORMALIZED" == *"://"* ]]; then
-    echo "${message}。PR URL はローカル repo の承認と対応付けられません。対象 repo 内で番号を指定してください" >&2
-    exit 2
-  fi
-  flag=$(pr_approved_flag)
   if [ ! -f "$flag" ]; then
     echo "$message" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-pr-merge-close" "${COMMAND:-}" || true
     exit 2
   fi
 
-  ttl="${PR_APPROVAL_TTL_SECONDS:-1800}"
-  flag_mtime=$(stat -c %Y "$flag" 2>/dev/null || stat -f %m "$flag" 2>/dev/null || echo 0)
-  flag_age=$(( $(date +%s) - flag_mtime ))
-  if [ "$flag_age" -gt "$ttl" ]; then
-    rm -f "$flag"
-    echo "${message}。承認から ${ttl} 秒以上経過したため失効しました（再承認が必要です）" >&2
-    declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-pr-merge-close" "${COMMAND:-}" || true
-    exit 2
-  fi
-
-  approved_number=$(cat "$flag")
-  if [ "$approved_number" != "$pr_number" ]; then
-    echo "${message}。承認済みは PR #${approved_number} ですが、対象は #${pr_number} です" >&2
+  if ! target_reason=$(printf '%s' "$COMMAND" | python3 "$_REPO_TARGET_CLI" pr-check --flag "$flag" 2>&1); then
+    echo "${message}。${target_reason}" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-pr-merge-close" "${COMMAND:-}" || true
     exit 2
   fi
@@ -627,7 +533,7 @@ custom_gh_api_comment_write() {
   # 'comment' は URL パスのセグメントに現れたときだけコメント API と見なす
   # （substring 一致だと comment-bot のようなラベル名を誤検知する）。
   if ere_matches "$NORMALIZED" '(^|[[:space:]])[^[:space:]]*/comments?([/?][^[:space:]]*)?([[:space:]]|$)'; then
-    echo "PR へのコメント投稿はユーザーの明示的な許可を得てから実行してください" >&2
+    echo "$message" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-api-comment-write" "${COMMAND:-}" || true
     exit 2
   fi
@@ -637,7 +543,7 @@ custom_gh_api_comment_write() {
   if ere_matches "$NORMALIZED" "${ORIGIN}gh[[:space:]]+api[[:space:]]+graphql" && \
      ere_matches_nocase "$NORMALIZED" '(^|[^A-Za-z0-9_])mutation([^A-Za-z0-9_]|$)' && \
      ere_matches_nocase "$NORMALIZED" 'comment'; then
-    echo "PR へのコメント投稿はユーザーの明示的な許可を得てから実行してください" >&2
+    echo "$message" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-api-comment-write" "${COMMAND:-}" || true
     exit 2
   fi
