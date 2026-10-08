@@ -33,7 +33,7 @@ BLOCKQUOTE = re.compile(r"^>.*$", re.M)
 QUOTE = re.compile(r"「[^」\n]*」")
 # タスク完了の申告だけを kernel の完了状態と照合する。テスト・CI の結果報告は
 # 完了申告ではないので、同一ターンの実行有無と失敗検知だけを見る。
-COMPLETION_CLAIM = re.compile(r"完了しました|完了です|対応済みです")
+COMPLETION_CLAIM = re.compile(r"(?<!未)(?:完了しました|完了です)|対応済みです")
 CLAIM = re.compile(
     COMPLETION_CLAIM.pattern
     + r"|テスト\s*(?:が|は)?\s*(?:すべて|全て|全部)?\s*(?:通りました|通った|通過しました|パスしました|pass)"
