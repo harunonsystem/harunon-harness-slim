@@ -52,7 +52,7 @@
 
 この選択は pstack 起動時の自動 routing より優先する。ファイル数・関数境界だけで並列化しない。未検証の runtime 連携は既定にせず、main で比較・検証し制約を報告する。
 
-ブラウザ操作のデフォルトは `agent-browser`（headless。ユーザーの画面にウィンドウを出さない）。ユーザーのログイン済みタブが必要な時だけ、利用可能なら `opencli-browser` skill を参照して OpenCLI を bind-first で使い、明示依頼なしに `open`・新規タブ・`INTERCEPT` を実行せず、OpenCLI が利用できないか bind できるタブがなければ中止して確認する。
+ブラウザ操作は `agent-browser`（headless。ユーザーの画面にウィンドウを出さない）を使う。
 
 ## Claude runtime
 
