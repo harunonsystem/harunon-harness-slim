@@ -129,19 +129,6 @@ A second review is blocked until the user explicitly approves it. Record that ap
 python3 <skill-dir>/scripts/harness.py approve-review --revision <revision> --reason "<user-approved reason>"
 ```
 
-### GitHub review replies and resolution
-
-For the two approved namespaces, follow `rules/review-policy.md` and the managed
-`policy/comment-owner-policy.md` subset. Approved-owner repository visibility is not
-an authorization condition. Before resolving, read the actual finding
-and thread, inspect the fix at the current GitHub PR head, and record its verification
-and finding ID in the real review/fix evidence. Only resolve findings actually fixed;
-outdated status, a changed file, a reply, a receipt, or a hash alone is not that judgment.
-The helper binds owner/repo/PR/thread/head/operation, not semantic correctness.
-Local review evidence remains audit-only and never grants native/platform consent.
-Other/unknown owners and unsupported connectors retain DENY/ASK; stop on independent
-native refusal without another command shape or connector.
-
 ## Publish
 
 Before drafting the PR body, read `rules/pr-body.md`. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, preserve its headings and checklists while applying the readability rules inside each section. After the structure, facts, evidence, and risk statements are fixed, run the final Japanese prose through `yomiyasu --domain business` before publication. Treat `yomiyasu` as a wording-only pass: it must not invent, remove, or strengthen technical claims, evidence, risk, or unresolved findings.

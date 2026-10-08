@@ -214,7 +214,6 @@ async function evaluate(table, runtime, hooksDir, timeoutMs, toolName, toolInput
   const selected = selectHooks(table, runtime, toolName);
   const warnings = [];
   const askReasons = [];
-  let frozenCommand;
   const missing = selected.filter((hook) => hook.required && !existsSync(join(hooksDir, hook.file)));
   if (missing.length > 0) {
     return deny(
@@ -266,17 +265,7 @@ async function evaluate(table, runtime, hooksDir, timeoutMs, toolName, toolInput
     if (output.permissionDecision === "deny") return deny(reason, input, warnings);
     if (output.permissionDecision === "ask") askReasons.push(reason);
     if (output.updatedInput) input = { ...input, ...output.updatedInput };
-    if (hook.file === "block-dangerous-in-bash.sh" && output.updatedInput) {
-      if (frozenCommand !== void 0 || typeof input.command !== "string") {
-        return deny("comment execution binding invalid", input, warnings);
-      }
-      frozenCommand = input.command;
-    }
-    if (frozenCommand !== void 0 && input.command !== frozenCommand) {
-      return deny("frozen comment payload rewritten; execution blocked", input, warnings);
-    }
   }
-  if (frozenCommand !== void 0) Object.freeze(input);
   return askReasons.length > 0 ? { decision: "ask", reason: askReasons.join("\n"), finalInput: input, warnings } : { decision: "allow", reason: "", finalInput: input, warnings };
 }
 function createHookRunner({

@@ -524,40 +524,27 @@ EOF
   exit 2
 }
 
-# rule: gh-pr-comment
-custom_gh_pr_comment() {
-  ere_matches "$NORMALIZED" "${ORIGIN}gh[[:space:]]+pr[[:space:]]+(comment|review)" || return 0
-  # Approval/change-request reviews keep their existing native permissions.
-  # Only a standalone, explicit non-comment mode can bypass comment inspection.
-  if ere_matches "$NORMALIZED" '^[[:space:]]*gh[[:space:]]+pr[[:space:]]+review[[:space:]]' &&
-     ere_matches "$NORMALIZED" '(^|[[:space:]])(--approve|--request-changes|-a|-r)([[:space:]]|$)' &&
-     ! ere_matches "$NORMALIZED" '(^|[[:space:]])(--comment|-c)([[:space:]]|$)|[;&|]'; then
-    return 0
-  fi
-  comment_write_inspect
-}
-
-comment_write_inspect() {
-  if ! COMMENT_WRITE_OUTPUT=$(printf '%s' "$COMMAND" | python3 "$HOOK_DIR/../policy/comment_write.py" inspect); then
-    echo "$message" >&2
-    declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "$rule_id" "${COMMAND:-}" || true
-    exit 2
-  fi
-}
-
+# rule: gh-api-comment-write
 custom_gh_api_comment_write() {
   # gh api ... comment（書き込み系のみブロック。GET は許可）
   ere_matches "$NORMALIZED" "${ORIGIN}gh[[:space:]]+api" || return 0
-  # Parse the endpoint past global option values, including --hostname. Probe
-  # only selects full inspection; substring matching never grants authority.
-  local probe_status=0
-  printf '%s' "$COMMAND" | python3 "$HOOK_DIR/../policy/comment_write.py" probe || probe_status=$?
-  if [ "$probe_status" -eq 0 ]; then
-    comment_write_inspect
-    return 0
-  elif [ "$probe_status" -ne 3 ]; then
+  ere_matches "$NORMALIZED" '(-X|--method)[[:space:]]*(POST|PUT|PATCH|DELETE)|(^|[[:space:]])(-f|-F|--field|--raw-field|--input)[[:space:]]' || return 0
+
+  # 'comment' は URL パスのセグメントに現れたときだけコメント API と見なす
+  # （substring 一致だと comment-bot のようなラベル名を誤検知する）。
+  if ere_matches "$NORMALIZED" '(^|[[:space:]])[^[:space:]]*/comments?([/?][^[:space:]]*)?([[:space:]]|$)'; then
     echo "$message" >&2
-    declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "$rule_id" "${COMMAND:-}" || true
+    declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-api-comment-write" "${COMMAND:-}" || true
+    exit 2
+  fi
+  # graphql は URL パスを持たないため mutation 名で判定する（addComment 等）。
+  # `query{...comments...}` は読み取りなので、`mutation` キーワードを伴うときだけ block する
+  # （無名の `{...}` 短縮形は GraphQL 仕様上 query 固定）。
+  if ere_matches "$NORMALIZED" "${ORIGIN}gh[[:space:]]+api[[:space:]]+graphql" && \
+     ere_matches_nocase "$NORMALIZED" '(^|[^A-Za-z0-9_])mutation([^A-Za-z0-9_]|$)' && \
+     ere_matches_nocase "$NORMALIZED" 'comment'; then
+    echo "$message" >&2
+    declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-api-comment-write" "${COMMAND:-}" || true
     exit 2
   fi
 }
@@ -703,9 +690,7 @@ if [ -n "${PR_APPROVAL_VERIFIED:-}" ]; then
     ADDITIONAL_CONTEXT="PR 承認を確認しました（approve-pr の番号と一致）"
   fi
 fi
-if [ -n "${COMMENT_WRITE_OUTPUT:-}" ]; then
-  printf '%s\n' "$COMMENT_WRITE_OUTPUT"
-elif [ -n "$ADDITIONAL_CONTEXT" ]; then
+if [ -n "$ADDITIONAL_CONTEXT" ]; then
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}\n' "$ADDITIONAL_CONTEXT"
 fi
 
