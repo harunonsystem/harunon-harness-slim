@@ -86,6 +86,11 @@ if ! review_gate_resolve_target_repo "$CMD"; then
   exit 2
 fi
 TARGET="$(pwd)"
+if [ "$(git -C "$TARGET" rev-parse --is-inside-work-tree 2>/dev/null)" != "true" ]; then
+  echo "hook の作業ディレクトリは Git worktree ではありません: $TARGET" >&2
+  echo "  対象 worktree を明示して git -C <絶対パス> commit ... を実行してください（検査できないため安全側に倒してブロックします）。" >&2
+  exit 2
+fi
 
 # --- staged 差分のシークレット検出（block）。高精度パターンのみ、エントロピー
 # ヒューリスティックは使わない。ファイル・行を提示してユーザーの判断を仰ぐ。

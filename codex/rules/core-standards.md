@@ -174,6 +174,7 @@ block された場合の責務:
 
 commit:
 
+- Codex hook はセッション cwd を使う。対象 worktree が異なる場合は `exec_command` の `workdir` を指定していても、`git add/commit/push` を `git -C <worktree の絶対パス> ...` で実行する。PR 作成は GitHub MCP で対象を解決できないので `( cd <worktree の絶対パス> && gh pr create ... )` を使う
 - git add / git commit / git push は 1 コマンドずつ実行し、`git add <path> && git commit` や `git commit && git push` のようにチェインしない。PreToolUse hook は add の実行前に走るため、同じ呼び出しの中で stage すると block-secrets-in-commit の staged 検査が対象を取りこぼして deny される。commit の単独実行は danger-rules の git-commit-chain / git-commit-and-push-same-command も要求する
 - commit message は subject と必要な body だけで構成し、`Generated with ...` / `Co-Authored-By: ...` の trailer は runtime の既定テンプレートに含まれていても付けない
 - commit message は heredoc で渡さず、`git commit -F <file>` か `-m` の複数指定で渡す。guard は quote 内の文字列（`git commit -m "... git push ..."`）を無視する一方、heredoc 本体はコマンドとして照合するため（`bash <<EOF` 経由の実行を通さない意図的な仕様）、本文に `git push` / `--no-verify` を書くと自分の commit が block される
