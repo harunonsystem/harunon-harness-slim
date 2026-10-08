@@ -180,7 +180,7 @@ commit:
 
 push・PR の承認:
 
-- push 承認フラグ（`approve-push.sh`）は承認した HEAD に紐づき、**HEAD が remote に到達した時点か 30 分（`PUSH_APPROVAL_TTL_SECONDS`）で失効**する。guard 通過時には消費しないので、後続の pre-push hook（unittest / validator / mise の python 依存）が落ちても同じ承認で再 push できる。フラグは `~/.claude/review-gate/` に書くため sandbox 解除は不要
+- push 承認フラグ（`approve-push.sh`）は承認した HEAD に紐づき、**HEAD が remote に到達した時点か 30 分（`PUSH_APPROVAL_TTL_SECONDS`）で失効**する。guard 通過時には消費しないので、後続の pre-push hook（unittest / validator / mise の python 依存）が落ちても同じ承認で再 push できる。例外は remote ref の削除だけの push（`--delete` / `:<ref>`）で、HEAD を送らないため guard 通過時に消費する（main / master の削除は承認でも通らない）。フラグは `~/.claude/review-gate/` に書くため sandbox 解除は不要
 - 承認は cwd の repo + branch 単位なので、worktree で push するなら worktree 内（`git -C <worktree>` の対象）で承認する
 - `gh pr merge` / `close` も同型で、`approve-pr.sh <PR番号> "理由"` の承認（番号紐づき・TTL 30 分）と一致する番号を明示した単独コマンドだけが通る（番号省略形は deny）
 - 長い自律ランは最後の push で止まりやすいため、着手前に `harness-doctor.sh`（前提ツール・未管理スキル・ドリフト）を通してから始める

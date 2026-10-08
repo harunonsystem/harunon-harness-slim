@@ -264,6 +264,39 @@ exit 1
 '
 }
 
+# push が remote ref の削除だけか判定する（--delete / -d か、全 refspec が ":ref"）。
+# 削除は HEAD を送らないため、承認の失効を「HEAD の remote 到達」で判定できない。
+# 引数は単独判定が許す読み取りパイプ・コメント（正規化で "~"）の手前まで。
+# ref 名に "|" "~" は使えないので、そこで切っても refspec は欠けない。
+_push_is_delete_only() {
+  printf '%s' "$1" | perl -e '
+local $/;
+my $s = <STDIN>;
+$s =~ /(?:\bgit|\brtk[ \t]+git)[ \t]+push[ \t]*([^|~\n]*)/ or exit 1;
+my %takes_value = map { $_ => 1 } qw(-o --push-option --repo --receive-pack --exec);
+my ($skip, $delete, @args) = (0, 0);
+for my $t (split /\s+/, $1) {
+    next unless length $t;
+    if ($skip) { $skip = 0; next; }
+    if ($t =~ /^\d*[<>]/) { $skip = 1 if $t =~ /^\d*[<>]+&?$/; next; }
+    if ($t =~ /^-/) {
+        my ($name) = $t =~ /^([^=]+)/;
+        $skip = 1 if $takes_value{$name} && $t !~ /=/;
+        $delete = 1 if $t eq "--delete";
+        # 結合短縮（-vd）も削除。-o の値に含まれる d（-odebug）は除く。
+        $delete = 1 if $t =~ /^-[A-Za-np-z]*d/;
+        next;
+    }
+    push @args, $t;
+}
+shift @args;  # remote
+exit 1 unless @args;
+# --delete は素の ref 名だけを取る（src:dst / +ref は git も拒否するが判定でも外す）。
+exit((grep { /[:+]/ } @args) ? 1 : 0) if $delete;
+exit((grep { !/^:./ } @args) ? 1 : 0);
+'
+}
+
 # --- impl: "custom" ルール（table では表現しきれない手書きロジックを関数として温存）---
 
 # rule: git-commit-and-push-same-command
@@ -370,7 +403,10 @@ custom_git_push() {
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-push" "${COMMAND:-}" || true
     exit 2
   fi
-  if [ -n "$(git branch -r --contains "$current_head" 2>/dev/null)" ]; then
+  # 削除だけの push は HEAD を送らず remote 到達で閉じないので、通過時に消費する。
+  if _push_is_delete_only "$NORMALIZED"; then
+    rm -f "$flag"
+  elif [ -n "$(git branch -r --contains "$current_head" 2>/dev/null)" ]; then
     rm -f "$flag"
     echo "${message}。この HEAD は既に remote に到達済みで承認は失効しました。別 ref へ push するなら再承認が必要です" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-push" "${COMMAND:-}" || true
@@ -736,9 +772,9 @@ done <<< "$TABLE_ROWS"
 ADDITIONAL_CONTEXT="${WARN_MESSAGE:-}"
 if [ -n "${PUSH_APPROVAL_VERIFIED:-}" ]; then
   if [ -n "$ADDITIONAL_CONTEXT" ]; then
-    ADDITIONAL_CONTEXT="${ADDITIONAL_CONTEXT}（push 承認を確認しました。HEAD が remote に到達した時点で失効）"
+    ADDITIONAL_CONTEXT="${ADDITIONAL_CONTEXT}（push 承認を確認しました。HEAD が remote に到達した時点で失効。削除だけの push は今回で消費）"
   else
-    ADDITIONAL_CONTEXT="push 承認を確認しました（HEAD が remote に到達した時点で失効）"
+    ADDITIONAL_CONTEXT="push 承認を確認しました（HEAD が remote に到達した時点で失効。削除だけの push は今回で消費）"
   fi
 fi
 if [ -n "${PR_APPROVAL_VERIFIED:-}" ]; then

@@ -4,6 +4,7 @@
 # 現在の HEAD の push を許可する。承認は HEAD が remote-tracking ref に到達した時点
 # （= push 成功）か、PUSH_APPROVAL_TTL_SECONDS（既定 1800 秒）経過で失効する。
 # guard hook 通過時には消費しないので、pre-push hook が落ちても再承認は不要。
+# 例外は remote ref の削除だけの push（HEAD を送らず到達で閉じない）で、guard 通過時に消費する。
 # ログは ~/.claude/push-approve.log（PUSH_APPROVE_LOG で上書き可）に記録。
 
 set -euo pipefail
