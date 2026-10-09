@@ -129,11 +129,25 @@ A second review is blocked until the user explicitly approves it. Record that ap
 python3 <skill-dir>/scripts/harness.py approve-review --revision <revision> --reason "<user-approved reason>"
 ```
 
+## Resume and handoff
+
+For GitHub work, reconcile before resuming stale instructions, handing off, or publishing:
+
+```bash
+python3 <skill-dir>/scripts/harness.py --repo <worktree> status --pr <number-or-URL>
+```
+
+Omit the selector after `--pr` to find the current branch's PR, including closed/merged PRs. This optional read-only observation neither changes kernel state nor grants permission. `MERGED`/`CLOSED` stops the old work; a later revert does not reopen that task. `revertMessageCommits` only records existing local git message evidence, not a guessed replay or the current net effect. `UNKNOWN` or unavailable workflow state is pending investigation, not success. Reuse an `OPEN` PR; `reconcile-head` means old published-HEAD CI cannot establish the current result. The existing SHA-bound verification remains authoritative for local evidence.
+
+The implementer owns fixes, ordinary commit/push, published-HEAD CI, and latest valid review fixes within the authorized scope. Self-check or coordinator review does not transfer that work or require renewed consent; native/platform confirmation remains independent. Handoff/progress states the current command or bounded wait target, last success, and remaining work. Immediately report a merged/closed PR or changed HEAD to the coordinator/user and reconcile before continuing.
+
+After publication, resolve the CI run for the exact published SHA and use `gh run watch <run-id> --repo github.com/<owner/repo> --interval 30 --exit-status` with a bounded tool timeout. Read final CI/review results once and handle valid current findings; do not replace this with repeated LLM status polls or a new long-lived observer.
+
 ## Publish
 
 Before drafting the PR body, read `rules/pr-body.md`. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, preserve its headings and checklists while applying the readability rules inside each section. After the structure, facts, evidence, and risk statements are fixed, run the final Japanese prose through `yomiyasu --domain business` before publication. Treat `yomiyasu` as a wording-only pass: it must not invent, remove, or strengthen technical claims, evidence, risk, or unresolved findings.
 
-Before PR creation, authorize the normalized action. In Codex, prefer the GitHub app's pull-request tool when it is available; use `gh` only as a fallback.
+Before PR creation, reconcile as above and reuse an existing matching PR instead of creating a duplicate, then authorize the normalized action. In Codex, prefer the GitHub app's pull-request tool when it is available; use `gh` only as a fallback.
 
 ```bash
 python3 <skill-dir>/scripts/harness.py authorize pr.create

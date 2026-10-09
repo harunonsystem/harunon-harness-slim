@@ -33,7 +33,7 @@ BLOCKQUOTE = re.compile(r"^>.*$", re.M)
 QUOTE = re.compile(r"「[^」\n]*」")
 # タスク完了の申告だけを kernel の完了状態と照合する。テスト・CI の結果報告は
 # 完了申告ではないので、同一ターンの実行有無と失敗検知だけを見る。
-COMPLETION_CLAIM = re.compile(r"(?<!未)(?:完了しました|完了です)|対応済みです")
+COMPLETION_CLAIM = re.compile(r"(?<!未)(?:完了しました|完了です|修正完了(?=\s*(?:$|[。！？.!?、,])))|対応済みです")
 CLAIM = re.compile(
     COMPLETION_CLAIM.pattern
     + r"|テスト\s*(?:が|は)?\s*(?:すべて|全て|全部)?\s*(?:通りました|通った|通過しました|パスしました|pass)"
@@ -159,7 +159,9 @@ def claims(text: str) -> list[str]:
     for match in CLAIM.finditer(text):
         tail = text[match.end():match.end() + 40]
         before = text[max(0, match.start() - 30):match.start()]
-        if re.match(r"(?:とは|と)\s*(?:言えません|いえません|断定できません|言っていません)|(?:か|とは)\s*(?:未検証|不明)", tail):
+        if re.match(r"\s*(?:になったら|ら|なら|場合|とき|時)", tail) or re.search(r"\bif\s+(?:the\s+)?$", before, re.I):
+            continue
+        if re.match(r"[\s、,。.]*(?:(?:とは|と)\s*(?:言えません|いえません|断定できません|言っていません)|ではありません|未検証|(?:か|とは)\s*(?:未検証|不明))", tail):
             continue
         if re.search(r"(?:cannot|can't) say\s*$|\bnot\s*$", before, re.I):
             continue

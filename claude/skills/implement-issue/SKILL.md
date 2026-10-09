@@ -35,7 +35,7 @@ config.yml の設定:
 
 ## Phase 0: 既存 task の再開確認
 
-issue 情報を取得する前に、入力から task ID / 対象 repo を解決し、`git worktree list` と対象 worktree の `run-change` status (`python3 <run-change-skill-dir>/scripts/harness.py status`。`<run-change-skill-dir>` は同じ配布 skills ディレクトリ内の `run-change/` を指す) を確認する。会話内の accepted intake 情報と task ID・repo・worktree が一致する場合は、state の有無にかかわらず既存情報を再利用して Phase 3 へ進み、Phase 1〜2 を繰り返さない。active state がある場合は task ID も一致することを確認する。別 task の state は変更せず、その worktree を今回の task に使わない。task / repo / worktree / intake を確認できない新規依頼だけ Phase 1 以降の未解決手順へ進む。
+issue 情報を取得する前に、入力から task ID / 対象 repo を解決し、`git worktree list` と対象 worktree の `run-change` status (`python3 <run-change-skill-dir>/scripts/harness.py --repo <worktree> status`。`<run-change-skill-dir>` は同じ配布 skills ディレクトリ内の `run-change/` を指す) を確認する。GitHub PR に関係する再開では `status --pr <既知の番号またはURL>`、番号がなければ `status --pr` で実状態も照合し、[run-change の再開・handoff](../run-change/SKILL.md#resume-and-handoff) に従う。その照合後、会話内の accepted intake 情報と task ID・repo・worktree が一致する場合は、state の有無にかかわらず既存情報を再利用して Phase 3 へ進み、Phase 1〜2 を繰り返さない。active state がある場合は task ID も一致することを確認する。別 task の state は変更せず、その worktree を今回の task に使わない。task / repo / worktree / intake を確認できない新規依頼だけ Phase 1 以降の未解決手順へ進む。
 
 ## ワークフロー
 
