@@ -25,7 +25,7 @@ Do not edit state files directly. Every mutation uses revision compare-and-swap 
 
 - Source repository: `packages/core/policy/harnessctl.py` and `packages/core/workflows/change.json`.
 - Installed runtime: `policy/harnessctl.py` and `workflows/change.json`, relative to the runtime config directory—not the current project repository.
-- State: `<absolute-git-dir>/harness/v2/state.json`, with receipts alongside it. The legacy `harness/state.json` is not migrated or edited.
+- State: `<absolute-git-dir>/harness/v2/state.json`, with receipts alongside it.
 - Agents invoke the kernel through this skill's `scripts/harness.py`; do not run `policy/harnessctl.py` relative to the project root.
 
 ## Resume

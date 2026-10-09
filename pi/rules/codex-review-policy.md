@@ -35,7 +35,7 @@ pstack の `architect` / `interrogate` 等が使う runtime 内の設計批評�
 
 ### 既存 gate との関係
 
-v2の`harness-publication-gate.sh`とnative adapterは公開判定をkernelに委譲する。タスク未開始・完了済みでも検証を迂回しない。自己チェックは`local-review`として現HEADまたは祖先の記録を受け付けるが、必須検証は常に現在のcheckoutに一致させる。この証跡ではmergeは承認されない。
+`harness-publication-gate.sh`とnative adapterは公開判定をkernelに委譲する。タスク未開始・完了済みでも検証を迂回しない。自己チェックは`local-review`として現HEADまたは祖先の記録を受け付けるが、必須検証は常に現在のcheckoutに一致させる。この証跡ではmergeは承認されない。
 
 旧runtimeの`block-pr-without-codex-review.sh`とreview-routerはlegacy経路として残るが、v2公開gateの代替ではない。旧経路がallowしても必須検証・セルフチェックは免除されない。`block-commit-without-difit.sh`の大きなdiff向けgateも維持する。
 

@@ -1,5 +1,5 @@
 /**
- * ターン終了時の完了申告を v2 kernel と照合する（pi / omp 共通）。判定は Claude / Codex と同じ
+ * ターン終了時の完了申告を Core Workflow kernel と照合する（pi / omp 共通）。判定は Claude / Codex と同じ
  * require-evidence-for-completion.py（--kernel-only）に任せ、差し戻す理由だけを返す。
  * SSOT: harunon-harness packages/core/hook-runner/
  */

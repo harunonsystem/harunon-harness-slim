@@ -164,41 +164,10 @@ def validate_state(state: JsonObject) -> None:
         raise KernelError("STATE_INVALID", errors=errors)
 
 
-def _validate_v1_minimal(state: JsonObject) -> list[str]:
-    """schemaVersion 1 の state を task_is_active 判定に必要な最小限だけ検証する。
-
-    v1 の state は v2 スキーマ（assignments 必須等）を満たさないため、フルスキーマ
-    validate は必ず失敗する。task_is_active が使うフィールドだけ確認すれば、非
-    アクティブな旧 state を安全に読める（ADR-012 §6）。
-    """
-    errors: list[str] = []
-    if not isinstance(state.get("phase"), str):
-        errors.append("$.phase: missing or invalid")
-    if not isinstance(state.get("revision"), int) or isinstance(state.get("revision"), bool):
-        errors.append("$.revision: missing or invalid")
-    task = state.get("task")
-    if not isinstance(task, dict) or not isinstance(task.get("id"), str):
-        errors.append("$.task.id: missing or invalid")
-    if not isinstance(state.get("context"), dict):
-        errors.append("$.context: missing or invalid")
-    return errors
-
-
 def read_state(path: Path) -> JsonObject:
     if not path.is_file():
         raise KernelError("STATE_NOT_FOUND", exit_code=2, path=str(path))
     state = load_json(path, "STATE")
-    if state.get("schemaVersion") == 1:
-        # 非アクティブな v1 state だけ読める（task.start での上書き、authorize の
-        # inactive 判定）。active な v1 state はここで必ず止め、旧 kernel で完了
-        # させる（永続ブロックを作らない既存原則は「非アクティブなら必ず解除
-        # できる」ことを指すので、active な旧 state を騙し騙し進めるのは対象外）。
-        errors = _validate_v1_minimal(state)
-        if errors:
-            raise KernelError("STATE_INVALID", errors=errors)
-        if task_is_active(state):
-            raise KernelError("STATE_SCHEMA_VERSION_UNSUPPORTED", exit_code=2)
-        return state
     validate_state(state)
     return state
 
@@ -537,8 +506,6 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
             # 非アクティブ判定は workflow version を bind せずに行う。change.json 更新後に
             # 残った complete / 着手前 state を VERSION_MISMATCH で読めなくすると、
             # 新タスクを start できず gate も解除できない永続ブロックに戻るため。
-            # v1 state は read_state 内で active なら STATE_SCHEMA_VERSION_UNSUPPORTED
-            # になり、非アクティブなら素通しされる（ADR-012 §6）。
             existing = read_state(state_file)
             validate_context(existing, repo)
             if task_is_active(existing):
@@ -569,12 +536,6 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
         raise KernelError("UNKNOWN_EVENT", eventType=event_type)
 
     state = read_state(state_file)
-    if state.get("schemaVersion") != 2:
-        # read_state は非アクティブな v1 state をそのまま返す（task.start の上書き
-        # 判定用）。task.start 以外のイベントは v2 の assignments 等を前提にする
-        # ため、ここで v1 を弾かないと state["assignments"] で KeyError になり
-        # INTERNAL_CONTRACT_VIOLATION（exit 3）に化けてしまう。
-        raise KernelError("STATE_SCHEMA_VERSION_UNSUPPORTED", exit_code=2)
     assert_workflow_bound(state, ctx)
     validate_context(state, repo)
     check_revision(state, request)
@@ -783,7 +744,7 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
             raise KernelError("TASK_REQUIRED", exit_code=2, reason="start --publish-only and verify before completing or publishing") from error
         raise
     validate_context(state, repo)
-    if state.get("schemaVersion") != 2 or (state["phase"] == "complete" and state["workflow"]["version"] != ctx.version):
+    if state["phase"] == "complete" and state["workflow"]["version"] != ctx.version:
         raise KernelError(
             "TASK_REQUIRED",
             exit_code=2,
@@ -1140,8 +1101,6 @@ def main() -> int:
             )
         if command == "inspect":
             state = read_state(state_file)
-            if state.get("schemaVersion") != 2:
-                raise KernelError("STATE_SCHEMA_VERSION_UNSUPPORTED", exit_code=2)
             assert_workflow_bound(state, ctx)
             validate_context(state, repo)
             return emit({"state": state})

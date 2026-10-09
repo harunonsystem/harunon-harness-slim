@@ -9,7 +9,7 @@ OpenCode 固有の hook / custom tool 実装。これらを個別に auto-load �
 
 | module | 役割 |
 | --- | --- |
-| `harness-policy.js` | Bash / GitHub MCP の PR create・merge を正規化し、共通 Policy Kernel で認可 |
+| `harness-policy.js` | Bash / GitHub MCP の PR create・merge を正規化し、Core Workflow kernel で認可 |
 | `harness-workflow.js` | `harness_workflow` custom tool から `inspect` / `apply` / `authorize` と assignment 操作を呼ぶ |
 | `claude-hooks-bridge.js` | bash の `tool.execute.before` を Claude の Bash / tool_input に写し、`../hook-runner/hook-runner.js`（hookRunner。`packages/core/hook-runner/` から `runtime/hook-runner/` へ配布）に渡す adapter。どの hook を流すか・wire protocol・required hook の fail-closed は hookRunner が `runtime/policy/hook-pipeline.json` から決め、`runtime/claude-hooks/*.sh` を無改修実行する。`~/.claude/hooks` には依存しない。ask は throw（deny）に落とす（確認 UI が無い） |
 | `post-edit-checks.js` | write / edit 後の `tool.execute.after` で `../hook-runner/post-edit.js` を呼び、shellcheck / jq の指摘を tool result 末尾に追記する adapter（.md は fix-gfm-tables.js が担うため除外） |

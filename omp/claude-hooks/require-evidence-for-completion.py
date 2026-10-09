@@ -8,7 +8,7 @@ core-standards の「done / テスト通った / CI green は同じ turn でそ�
 - このターンで tool を 1 度も実行していない(前の turn の結果や推測に基づく宣言)
 - このターンで最後に実行したテストコマンドの出力が失敗を示している
 
-- git checkout 内で、v2 kernel の task.report が許可されない(complete 前・検証が古い・kernel 不達)。
+- git checkout 内で、Core Workflow kernel の task.report が許可されない(complete 前・検証が古い・kernel 不達)。
   ただし task が無く、未 commit 変更も origin の既定ブランチに無い commit も無ければ照合しない
   (pull・merge・配布だけのターンには完了を記録する変更が無い)
 
@@ -180,7 +180,7 @@ def has_local_work(cwd: str) -> bool:
 
 
 def kernel_reason(quoted: str, cwd: str) -> str | None:
-    """git checkout での完了申告を v2 kernel の完了状態と照合する。照合できなければ止める。"""
+    """git checkout での完了申告を Core Workflow kernel の完了状態と照合する。照合できなければ止める。"""
     try:
         inside = subprocess.run(["git", "-C", cwd, "rev-parse", "--is-inside-work-tree"], capture_output=True, text=True)
         if inside.returncode != 0:
@@ -198,7 +198,7 @@ def kernel_reason(quoted: str, cwd: str) -> str | None:
     except (OSError, subprocess.TimeoutExpired) as error:
         detail = str(error)
     return (
-        f"{quoted}と書いていますが、v2 kernel では完了が確定していません: {detail}\n"
+        f"{quoted}と書いていますが、Core Workflow kernel では完了が確定していません: {detail}\n"
         "run-change で必須検証(verify)・自己チェック・complete を記録してから報告するか、"
         "未完了・未検証であることと残作業を明記して書き直してください。"
     )
