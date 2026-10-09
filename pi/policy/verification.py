@@ -1,4 +1,4 @@
-"""Execute repository-declared checks and bind their receipts to checkout inputs."""
+"""Execute registry-declared checks and bind their receipts to checkout inputs."""
 
 from __future__ import annotations
 
@@ -11,12 +11,36 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from repo_target import UnresolvableTarget, canonical_repository
 
-CONTRACT_PATH = Path(".harness/verification.json")
+
+REGISTRY_PATH = Path(__file__).with_name("verification-repos.json")
+REGISTRY_ENV = "HARNESS_VERIFICATION_REPOS"
 
 
 class VerificationError(Exception):
     pass
+
+
+def _remote_identities(repo: Path) -> set[str]:
+    result = subprocess.run(["git", "-C", str(repo), "config", "--get-regexp", r"^remote\..*\.url$"], capture_output=True, text=True)
+    identities = set()
+    for line in result.stdout.splitlines():
+        with contextlib.suppress(UnresolvableTarget, OSError, ValueError):
+            identities.add(canonical_repository(line.split(" ", 1)[1]))
+    return identities
+
+
+def registry_entry(repo: Path) -> object | None:
+    """Registered remote identity first, then the "*" entry. Unreadable registry fails closed."""
+    path = Path(os.environ.get(REGISTRY_ENV) or REGISTRY_PATH)
+    try:
+        registry = json.loads(path.read_bytes())
+    except (OSError, ValueError) as error:
+        raise VerificationError(f"{path}: {error}") from error
+    if not isinstance(registry, dict):
+        raise VerificationError(f"{path}: must be an object keyed by repository identity")
+    return next((registry[key] for key in sorted(_remote_identities(repo)) if key in registry), registry.get("*"))
 
 
 def file_hash(path: Path) -> str:
@@ -28,11 +52,9 @@ def file_hash(path: Path) -> str:
 
 
 def declaration(repo: Path) -> tuple[dict, str]:
-    try:
-        raw = (repo / CONTRACT_PATH).read_bytes()
-        config = json.loads(raw)
-    except (OSError, ValueError) as error:
-        raise VerificationError(f"{CONTRACT_PATH}: {error}") from error
+    config = registry_entry(repo)
+    if config is None:
+        raise VerificationError("repository is not registered for mandatory verification")
     commands = config.get("commands") if isinstance(config, dict) else None
     if not isinstance(commands, list) or not commands:
         raise VerificationError("commands must be a non-empty array of argv arrays")
@@ -47,7 +69,8 @@ def declaration(repo: Path) -> tuple[dict, str]:
     timeout = config.get("timeoutSeconds", 1800)
     if type(timeout) is not int or not 1 <= timeout <= 86400:
         raise VerificationError("timeoutSeconds must be an integer from 1 to 86400")
-    return {"commands": commands, "timeoutSeconds": timeout}, hashlib.sha256(raw).hexdigest()
+    normalized = {"commands": commands, "timeoutSeconds": timeout}
+    return normalized, hashlib.sha256(json.dumps(normalized, sort_keys=True).encode()).hexdigest()
 
 
 def git(repo: Path, *args: str) -> bytes:

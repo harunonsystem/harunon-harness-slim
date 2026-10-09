@@ -1,15 +1,17 @@
 # Harness v2 verification contract
 
-The repository owns `.harness/verification.json`. Commands are argv arrays, not shell strings; use an explicit shell command only when the existing entrypoint needs globbing or pipelines.
+The harness owns the declarations in `policy/verification-repos.json`, distributed from the SSOT; repositories carry no harness file. Entries are keyed by remote identity (`host/owner/repo`, lowercased for GitHub; `*` applies to every repository). Commands are argv arrays, not shell strings; use an explicit shell command only when the existing entrypoint needs globbing or pipelines.
 
 ```json
 {
-  "timeoutSeconds": 1800,
-  "commands": [["mise", "run", "test"], ["npm", "run", "lint"]]
+  "github.com/owner/repo": {
+    "timeoutSeconds": 1800,
+    "commands": [["mise", "run", "test"], ["npm", "run", "lint"]]
+  }
 }
 ```
 
-A repository adopts the gates when this file exists in the working tree, `HEAD`, or the origin default branch (`origin/HEAD`, or `origin/main` / `origin/master` when it is unset); deleting it locally does not un-adopt. Elsewhere `authorize` returns `NOT_ADOPTED` (allowed) for every action. The declaration must contain at least one command. Timeout applies per command, defaults to 1800 seconds, and must be an integer between 1 and 86400. Each check executes at the repository root with inherited environment, no interactive stdin, and a combined stdout/stderr log. Timeout kills its process group. The kernel executes the declaration; callers cannot select, omit, or replace commands.
+A repository adopts the gates when any of its remote URLs canonicalizes to a registered identity; tracked files cannot un-adopt it, but the remote URL in `.git/config` is the identity (outside the receipt threat model below). An unreadable registry counts as adopted and blocks. `HARNESS_VERIFICATION_REPOS` overrides the registry path. Elsewhere `authorize` returns `NOT_ADOPTED` (allowed) for every action. The declaration must contain at least one command. Timeout applies per command, defaults to 1800 seconds, and must be an integer between 1 and 86400. Each check executes at the repository root with inherited environment, no interactive stdin, and a combined stdout/stderr log. Timeout kills its process group. The kernel executes the declaration; callers cannot select, omit, or replace commands.
 
 State and receipts are worktree-local in `<absolute-git-dir>/harness/v2/`. Existing `harness/state.json` remains untouched. Verification binds HEAD, index, tracked/untracked file contents and modes, initialized submodules, and declaration hash. Ignored outputs, tool binaries, environment variables and external services are outside this fingerprint: this is not a reproducible-build guarantee.
 

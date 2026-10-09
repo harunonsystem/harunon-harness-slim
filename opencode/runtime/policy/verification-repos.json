@@ -1,0 +1,6 @@
+{
+  "github.com/harunonsystem/harunon-harness": {
+    "timeoutSeconds": 1800,
+    "commands": [["mise", "run", "ci"]]
+  }
+}

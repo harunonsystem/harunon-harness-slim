@@ -117,20 +117,11 @@ def resolve_repo(request: JsonObject) -> Path:
 
 
 def gates_adopted(repo: Path) -> bool:
-    """作業ツリー・HEAD・origin 既定ブランチのどれかに検証宣言があれば採用済み。
-
-    ローカルで宣言を消しても gate は外れない。origin/HEAD は clone 方法によっては
-    無いので、既定ブランチの慣習名 main / master も見る。
-    """
-    if (repo / verification.CONTRACT_PATH).is_file():
+    """repo 外の registry に remote が載っていれば採用済み。壊れた registry は採用扱いで止める。"""
+    try:
+        return verification.registry_entry(repo) is not None
+    except verification.VerificationError:
         return True
-    return any(
-        subprocess.run(
-            ["git", "-C", str(repo), "cat-file", "-e", f"{ref}:{verification.CONTRACT_PATH}"],
-            capture_output=True,
-        ).returncode == 0
-        for ref in ("HEAD", "refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/remotes/origin/master")
-    )
 
 
 def git_value(repo: Path, *args: str) -> str:
@@ -778,7 +769,7 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
     action_policy = workflow.get("actions", {}).get(action)
     if not isinstance(action_policy, dict):
         raise KernelError("UNKNOWN_ACTION", exit_code=2, action=action)
-    # 検証宣言を置いた repo だけが gate を採用する。宣言の無い repo にファイル作成を強いない。
+    # registry に載った repo だけが gate を採用する。repo 側にファイルは置かせない。
     if not gates_adopted(repo):
         if action == "pr.create":
             check_pr_create_target(repo, request)

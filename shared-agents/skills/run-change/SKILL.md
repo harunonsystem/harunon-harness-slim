@@ -69,7 +69,7 @@ An invalid transition or stale revision must remain blocked. Re-inspect instead 
 
 ## Verify
 
-The repository owns `.harness/verification.json`: a non-empty `commands` array of argv arrays referencing its existing mise tasks, package scripts, or verification scripts. A repository without the file in its working tree, `HEAD`, or origin default branch has not adopted the gates: completion and publication are not gated there, so do not create the file in other projects. Invalid or empty declarations are unverified; ask the repository owner to establish the mandatory checks instead of substituting optional tests or an agent's success claim. Full declaration and evidence contract: `policy/verification.md` under the runtime config directory.
+Mandatory checks are declared outside the repository, in the harness registry `policy/verification-repos.json` under the runtime config directory, keyed by remote identity (`github.com/owner/repo`): a non-empty `commands` array of argv arrays referencing the repository's existing mise tasks, package scripts, or verification scripts. A repository whose remotes are not registered has not adopted the gates: completion and publication are not gated there. Never create a declaration file inside a repository. Invalid or empty declarations are unverified; ask the repository owner to establish the mandatory checks instead of substituting optional tests or an agent's success claim. Full declaration and evidence contract: `policy/verification.md` under the runtime config directory.
 
 Read status, then run the mandatory checks through the kernel:
 
