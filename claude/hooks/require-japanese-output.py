@@ -22,7 +22,7 @@ PATH_LIKE = re.compile(r"\S*[/\\]\S*")
 LATIN = re.compile(r"[A-Za-z]")
 JAPANESE = re.compile(r"[぀-ヿ㐀-鿿ｦ-ﾟ]")
 RAW_REQUEST = re.compile(
-    r"\b(?:raw|verbatim|in English|English only)\b|英語で|原文のまま|逐語|そのまま(?:貼|返|出力|表示|引用|書|見せ)",
+    r"\b(?:raw|verbatim|in English|English only|respond with exactly|exactly the following)\b|英語で|原文のまま|逐語|そのまま(?:貼|返|出力|表示|引用|書|見せ)",
     re.I,
 )
 
