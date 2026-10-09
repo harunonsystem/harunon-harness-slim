@@ -9,6 +9,7 @@
  */
 import { postEditFindings } from "../hook-runner/post-edit.js";
 import { editedPaths } from "../hook-runner/runtime-mapping.js";
+import { japaneseOutputSessions, polishFile } from "../hook-runner/japanese-output.js";
 
 export function createToolResultHandler(options = {}) {
   return async (event, ctx) => {
@@ -16,6 +17,16 @@ export function createToolResultHandler(options = {}) {
     const baseCwd = typeof ctx?.cwd === "string" && ctx.cwd ? ctx.cwd : process.cwd();
     const reports = [];
     for (const path of editedPaths(event.toolName, event.input, baseCwd)) {
+      const policy = japaneseOutputSessions.get(ctx?.sessionManager?.getSessionId());
+      if (policy && !policy.bypass && ["write", "edit", "apply_patch"].includes(event.toolName)) {
+        try {
+          const outcome = await polishFile(path, policy.polish);
+          if (outcome === "changed") reports.push(`\n[japanese-output] ${path}: 日本語を推敲しました。保存内容を読み直し、その内容で検証してください。`);
+          if (outcome === "concurrent-edit") reports.push(`\n[japanese-output] ${path}: 別の編集を検出したため、推敲結果を保存しませんでした。`);
+        } catch {
+          reports.push(`\n[japanese-output] ${path}: 推敲結果を保存できませんでした。ファイルの状態を確認してから検証してください。`);
+        }
+      }
       const findings = await postEditFindings(path, options);
       if (findings) reports.push(`\n[post-edit-check] ${path}\n${findings}`);
     }

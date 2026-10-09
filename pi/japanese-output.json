@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "provider": "openai-codex",
+  "model": "gpt-6-luna",
+  "thinking": "low",
+  "timeoutMs": 15000,
+  "maxChars": 24000
+}

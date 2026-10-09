@@ -8,6 +8,7 @@
 import {
 	appendFileSync,
 	chmodSync,
+	existsSync,
 	mkdirSync,
 	readFileSync,
 	renameSync,
@@ -15,6 +16,8 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import type { AssistantMessage, AssistantMessageEvent } from "@earendil-works/pi-ai";
+import { createJapanesePolisher, japaneseOutputSessions, JAPANESE_REWRITE_CONTRACT } from "../hook-runner/japanese-output.js";
 import { withCredentialLock } from "./lib/credential-lock.mjs";
 import type {
 	ExtensionAPI,
@@ -341,8 +344,8 @@ function createForwardingStream<T>(model: { api: string; provider: string; id: s
 			onEvent?.(event);
 			push(event);
 		}
-		finish(typeof (source as { result?: () => Promise<unknown> }).result === "function"
-			? await (source as { result: () => Promise<unknown> }).result()
+		finish("result" in source && typeof source.result === "function"
+			? await source.result()
 			: undefined);
 	}).catch((error: unknown) => {
 		const message = {
@@ -381,6 +384,63 @@ function createForwardingStream<T>(model: { api: string; provider: string; id: s
 	};
 }
 
+type Polish = (texts: string[], signal?: AbortSignal) => Promise<string[]>;
+
+/** Buffer before display; reconstruct protocol events and keep tool/thinking blocks intact. */
+export function polishedStream(source: AsyncIterable<AssistantMessageEvent>, polish: Polish, signal?: AbortSignal) {
+	let result: AssistantMessage | undefined;
+	const events = (async function* () {
+		for await (const event of source) {
+			if (event.type === "start") {
+				yield { ...event, partial: { ...event.partial, content: [] } };
+			} else if (event.type === "error") {
+				result = event.error;
+				yield event;
+			} else if (event.type === "done") {
+				const original = event.message;
+				const texts = original.content.filter((part) => part.type === "text").map((part) => part.text);
+				const replacements = signal?.aborted ? texts : await polish(texts, signal);
+				if (signal?.aborted) {
+					result = { ...original, stopReason: "aborted" };
+					yield { type: "error", reason: "aborted", error: result } satisfies AssistantMessageEvent;
+					return;
+				}
+				let index = 0;
+				let changed = false;
+				const content = original.content.map((part) => {
+					if (part.type !== "text") return part;
+					const text = replacements[index++];
+					if (text === part.text) return part;
+					changed = true;
+					const { textSignature: _signature, ...rest } = part;
+					return { ...rest, text };
+				});
+				result = { ...original, content };
+				if (changed) delete result.responseId;
+				for (let contentIndex = 0; contentIndex < content.length; contentIndex++) {
+					const part = content[contentIndex];
+					const partial = { ...result, content: content.slice(0, contentIndex + 1) };
+					if (part.type === "text") {
+						yield { type: "text_start", contentIndex, partial } satisfies AssistantMessageEvent;
+						yield { type: "text_delta", contentIndex, delta: part.text, partial } satisfies AssistantMessageEvent;
+						yield { type: "text_end", contentIndex, content: part.text, partial } satisfies AssistantMessageEvent;
+					} else if (part.type === "thinking") {
+						yield { type: "thinking_start", contentIndex, partial } satisfies AssistantMessageEvent;
+						yield { type: "thinking_delta", contentIndex, delta: part.thinking, partial } satisfies AssistantMessageEvent;
+						yield { type: "thinking_end", contentIndex, content: part.thinking, partial } satisfies AssistantMessageEvent;
+					} else {
+						yield { type: "toolcall_start", contentIndex, partial } satisfies AssistantMessageEvent;
+						yield { type: "toolcall_delta", contentIndex, delta: JSON.stringify(part.arguments), partial } satisfies AssistantMessageEvent;
+						yield { type: "toolcall_end", contentIndex, toolCall: part, partial } satisfies AssistantMessageEvent;
+					}
+				}
+				yield { ...event, message: result };
+			} // Deltas are held until the complete message has been polished.
+		}
+	})();
+	return Object.assign(events, { result: async () => result });
+}
+
 function formatResetAt(resetAt: number | undefined): string {
 	return resetAt ? `; work retry ${new Date(resetAt).toISOString()}` : "";
 }
@@ -411,8 +471,8 @@ function accountForSession(ctx: ExtensionContext): AccountState {
 	return { account: override ?? existing?.account ?? "work", reason: existing?.reason, resetAt: existing?.resetAt };
 }
 
-function setSessionAccount(ctx: ExtensionContext, state: AccountState): void {
-	ctx.sessionManager.appendCustomEntry(ACCOUNT_ENTRY_TYPE, state);
+function setSessionAccount(pi: ExtensionAPI, ctx: ExtensionContext, state: AccountState): void {
+	pi.appendEntry(ACCOUNT_ENTRY_TYPE, state);
 	ctx.ui.setStatus("openai-codex-account", statusText(state));
 }
 
@@ -447,7 +507,7 @@ function registerAccountCommand(pi: ExtensionAPI, currentState: Map<string, Acco
 				saveSettings({ manualOverride: value });
 				const next = { account: value, reason: "manual override" } satisfies AccountState;
 				currentState.set(sessionId, next);
-				setSessionAccount(ctx, next);
+				setSessionAccount(pi, ctx, next);
 				if (current.account !== value) logSwitch(ctx, current.account, value, "manual override", 0);
 				ctx.ui.notify(`openai-codex account override: ${value}`, "info");
 				return;
@@ -488,7 +548,7 @@ export default function openAICodexAccounts(pi: ExtensionAPI): void {
 			}
 			const work = { account: "work", reason: "reported reset elapsed" } satisfies AccountState;
 			currentState.set(sessionId, work);
-			setSessionAccount(ctx, work);
+			setSessionAccount(pi, ctx, work);
 			logSwitch(ctx, "personal", "work", "reported reset elapsed", active.status ?? 0, resetAt);
 			ctx.ui.notify("openai-codex account: personal → work (reported reset elapsed)", "info");
 			retryTimers.delete(sessionId);
@@ -502,7 +562,7 @@ export default function openAICodexAccounts(pi: ExtensionAPI): void {
 		if (current.account !== "work" || readSettings().manualOverride) return;
 		const next = { account: "personal", reason: "quota/rate-limit", status, resetAt } satisfies AccountState;
 		currentState.set(sessionId, next);
-		setSessionAccount(ctx, next);
+		setSessionAccount(pi, ctx, next);
 		logSwitch(ctx, "work", "personal", "quota/rate-limit", status, resetAt);
 		notifySwitch(ctx, "work", "personal", resetAt);
 
@@ -527,18 +587,24 @@ export default function openAICodexAccounts(pi: ExtensionAPI): void {
 					const account = state?.account ?? "work";
 					const token = await accessTokenFor(account);
 					if (!token) throw new Error(`openai-codex ${account} account is not configured`);
-					const piAi = await import("@earendil-works/pi-ai");
+					if (model.api !== "openai-codex-responses") throw Error("unexpected Codex API");
+					const codexModel = { ...model, api: model.api };
+					// Pi's extension loader aliases the SDK root to compat. The native factory
+					// also avoids dispatching this request back through the registered adapter.
+					const piAi = await import("@earendil-works/pi-ai/compat");
+					const policy = sessionId ? japaneseOutputSessions.get(sessionId) : undefined;
 					// A Codex WebSocket is cached by session ID. Force the fallback account
 					// through SSE so a work-account socket cannot be reused after rotation.
-					return piAi.streamSimple(model, context, {
+					const source = piAi.openAICodexResponsesApi().streamSimple(codexModel, piAi.normalizeContext(context), {
 						...options,
-						...(account === "personal" ? { transport: "sse" as const } : {}),
+						...(account === "personal" || (policy && !policy.bypass) ? { transport: "sse" as const } : {}),
 						apiKey: token,
 						onResponse: async (response, responseModel) => {
 							responseStatus = response.status;
 							await options?.onResponse?.(response, responseModel);
 						},
 					});
+					return policy && !policy.bypass ? polishedStream(source, policy.polish, options?.signal) : source;
 				},
 				(event) => {
 					const record = event as {
@@ -557,16 +623,94 @@ export default function openAICodexAccounts(pi: ExtensionAPI): void {
 	});
 
 	registerAccountCommand(pi, currentState);
+	pi.registerCommand("yomiyasu", {
+		description: "Session Japanese polishing: on, off, status",
+		handler: async (args, ctx) => {
+			const policy = japaneseOutputSessions.get(ctx.sessionManager.getSessionId());
+			if (!policy) { ctx.ui.notify("yomiyasu: 設定またはモデルを読み込めませんでした。", "warning"); return; }
+			if (args.trim() === "off") policy.disabled = true;
+			else if (args.trim() === "on") policy.disabled = false;
+			else if (args.trim() && args.trim() !== "status") { ctx.ui.notify("Usage: /yomiyasu [on|off|status]", "error"); return; }
+			policy.bypass = policy.disabled;
+			ctx.ui.notify(`yomiyasu: ${policy.disabled ? "off" : "on"}`, "info");
+		},
+	});
+	pi.on("input", (event, ctx) => {
+		const policy = japaneseOutputSessions.get(ctx.sessionManager.getSessionId());
+		if (policy) policy.bypass = policy.disabled || /\braw\b|そのまま|逐語|推敲しない/i.test(event.text);
+	});
 
-	pi.on("session_start", async (_event, ctx) => {
+	let previousSessionId: string | undefined;
+	const initializeSession = async (ctx: ExtensionContext) => {
 		const sessionId = ctx.sessionManager.getSessionId();
+		ctx.ui.setStatus("yomiyasu", undefined);
+		japaneseOutputSessions.delete(sessionId);
+		if (previousSessionId) japaneseOutputSessions.delete(previousSessionId);
+		if (previousSessionId && previousSessionId !== sessionId) {
+			clearTimeout(retryTimers.get(previousSessionId));
+			retryTimers.delete(previousSessionId);
+			sessionContexts.delete(previousSessionId);
+			currentState.delete(previousSessionId);
+		}
+		previousSessionId = sessionId;
 		sessionContexts.set(sessionId, ctx);
+		const path = join(process.env.PI_CODING_AGENT_DIR ?? configDir(), "japanese-output.json");
+		if (existsSync(path)) {
+			try {
+				const config: unknown = JSON.parse(readFileSync(path, "utf8"));
+				if (!config || typeof config !== "object" || Array.isArray(config) ||
+					!("enabled" in config) || typeof config.enabled !== "boolean" ||
+					!("provider" in config) || config.provider !== CODEX_PROVIDER ||
+					!("model" in config) || !("thinking" in config) || !("timeoutMs" in config) || !("maxChars" in config) ||
+					typeof config.model !== "string" ||
+					(config.thinking !== "low" && config.thinking !== "medium" && config.thinking !== "high" && config.thinking !== "xhigh") ||
+					typeof config.timeoutMs !== "number" || !Number.isInteger(config.timeoutMs) || config.timeoutMs < 1 || config.timeoutMs > 60000 ||
+					typeof config.maxChars !== "number" || !Number.isInteger(config.maxChars) || config.maxChars < 1 || config.maxChars > 24000) throw Error("invalid config");
+				const model = ctx.modelRegistry.find(config.provider, config.model);
+				if (!model || model.api !== "openai-codex-responses") throw Error("missing Codex model");
+				const codexModel = { ...model, api: model.api };
+				const reasoning = config.thinking;
+				const skillDir = join(homedir(), ".agents", "skills", "yomiyasu");
+				const instructions = ["SKILL.md", "references/domains/tech.md"].map((file) => readFileSync(join(skillDir, file), "utf8")).join("\n");
+				const polish: Polish = createJapanesePolisher({
+					instructions, timeoutMs: config.timeoutMs, maxChars: config.maxChars,
+					complete: async ({ instructions, documents, slots, signal }) => {
+						const account = currentState.get(sessionId)?.account ?? "work";
+						const apiKey = await accessTokenFor(account);
+						if (!apiKey) throw Error("missing credential");
+						const piAi = await import("@earendil-works/pi-ai/compat");
+						if (signal.aborted || japaneseOutputSessions.get(sessionId)?.polish !== polish) throw Error("aborted");
+						ctx.ui.setStatus("yomiyasu", "yomiyasu: 推敲中");
+						const response = await piAi.openAICodexResponsesApi().streamSimple(codexModel, piAi.normalizeContext({
+							messages: [
+								{ role: "system", timestamp: Date.now(), content: `${instructions}\n${JAPANESE_REWRITE_CONTRACT}` },
+								{ role: "user", timestamp: Date.now(), content: JSON.stringify({ documents, slots }) },
+							],
+						}), { apiKey, reasoning, transport: "sse", signal }).result();
+						if (japaneseOutputSessions.get(sessionId)?.polish !== polish) throw Error("inactive session");
+						pi.appendEntry("japanese-output-usage", { model: model.id, usage: response.usage });
+						if (response.stopReason === "error" || response.stopReason === "aborted") throw Error("provider error");
+						return response.content.filter((part) => part.type === "text").map((part) => part.text).join("");
+					},
+					report: (report) => {
+						if (japaneseOutputSessions.get(sessionId)?.polish !== polish) return;
+						ctx.ui.setStatus("yomiyasu", undefined);
+						pi.appendEntry("japanese-output", report);
+						if (report.outcome === "fallback") ctx.ui.notify(`yomiyasu: ${report.reason} のため原文を残しました。`, "warning");
+					},
+				});
+				japaneseOutputSessions.set(sessionId, { polish, disabled: !config.enabled, bypass: !config.enabled });
+			} catch {
+				ctx.ui.notify("yomiyasu: 設定・モデル・skill を読み込めないため推敲を無効にしました。", "warning");
+			}
+		}
 		const state = accountForSession(ctx);
 		currentState.set(sessionId, state);
 		if (state.account === "personal" && state.resetAt) scheduleWorkRetry(ctx, state.resetAt);
-		if (!latestEntry(ctx.sessionManager.getEntries() as unknown[])) setSessionAccount(ctx, state);
+		if (!latestEntry(ctx.sessionManager.getEntries() as unknown[])) setSessionAccount(pi, ctx, state);
 		else ctx.ui.setStatus("openai-codex-account", statusText(state));
-	});
+	};
+	pi.on("session_start", (_event, ctx) => initializeSession(ctx));
 
 	pi.on("after_provider_response", async (event, ctx) => {
 		if (ctx.model?.provider !== CODEX_PROVIDER || !isQuotaOrRateLimitResponse(event.status, event.headers)) return;
@@ -580,5 +724,6 @@ export default function openAICodexAccounts(pi: ExtensionAPI): void {
 		retryTimers.delete(sessionId);
 		currentState.delete(sessionId);
 		sessionContexts.delete(sessionId);
+		japaneseOutputSessions.delete(sessionId);
 	});
 }

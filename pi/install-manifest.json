@@ -23,6 +23,7 @@
     "extensions/harness-policy.js",
     "extensions/terminal-status-title.js",
     "hook-runner",
+    "japanese-output.json",
     "mcp.json",
     "model-providers.json",
     "policy",
