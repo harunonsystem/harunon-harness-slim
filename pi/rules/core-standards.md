@@ -240,6 +240,7 @@ main への push は通らないので、ローカル main に commit してし�
 
 ### Claude sandbox の既知の制約
 
+- `excludedCommands` が sandbox 外で走らせるのは単体コマンドだけで、パイプ・`&&`・`;`・リダイレクト・`cd`・ループ・`$(...)` を含む呼び出しは sandbox 内で走る。`gh` と `git branch`（`-m` / `--set-upstream-to` は `.git/config` を書く）は単体で呼び、整形は `gh --json --jq` で行う。hook を走らせる `git switch` / `checkout` と、hook 設定を書き換えられる `git config` は sandbox 脱出経路になるので除外せず、`.git/config` で失敗したら runtime の承認経路で再実行する
 - Git の remote 操作・`gh` は credential 読み取り、`codex-companion.mjs` / `codex app-server` は SQLite 初期化が sandbox で失敗する場合がある。権限エラーと認証切れを区別し、必要な操作を runtime の承認経路で再実行する
 - 一時ファイルは `$TMPDIR` を使う。配布先の write deny は SSOT-first の境界なので解除せず、配布元を修正する
 - lockfile を更新する `pnpm install` は最初から sandbox 外で実行する。sandbox 内ではグローバル store に書けないため pnpm が worktree 内に空の store を作り、全パッケージを一から再取得して 10 分以上止まる（`--prefer-offline` でも同じ）。lint / typecheck / build は sandbox 内で通る

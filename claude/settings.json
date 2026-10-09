@@ -208,6 +208,8 @@
       "git pull *",
       "git commit *",
       "git -C * commit *",
+      "git branch *",
+      "git -C * branch *",
       "./scripts/bootstrap.sh",
       "./scripts/bootstrap.sh *"
     ],
@@ -236,6 +238,7 @@
         "~/.pi/agent",
         "~/.local/bin",
         "~/ghq/github.com/harunonsystem/harunon-harness",
+        "~/.local/state/cclens",
         "~/.local/state/cclens-multi",
         "~/Library/pnpm/store",
         "~/Library/Caches/pnpm",
