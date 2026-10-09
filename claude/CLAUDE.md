@@ -57,7 +57,7 @@
 ## Claude runtime
 
 - 通常の回答・レビューは日本語。raw 出力は原文を維持する。
-- 委譲時、skill が専用 agent を指定する場合はその指定を使う。それ以外の調査は `Explore`、実装は `fast-worker`、難しい原因分析・設計は `deep-reasoner`、レビューは `reviewer`。利用可能なモデルと effort は runtime の設定で選ぶ。
+- 委譲時、skill が専用 agent を指定する場合はその指定を使う。それ以外の調査は `Explore`、実装は `fast-worker`（仕様が具体的なもの）、確認コマンドの実行だけなら `command-runner`、難しい原因分析・設計は `deep-reasoner`、レビューは `reviewer`。利用可能なモデルと effort は runtime の設定で選ぶ。
 - 新規 worktree は `EnterWorktree(name: <branch>)`。作成方式は runtime の設定に従う。
 - skill の「ユーザー確認機能」は `AskUserQuestion`。承認済みの操作に再確認は不要。
 - Edit / Write する既存ファイルは Bash の `cat` ではなく `Read` で先に読む。Edit は Read 済みを要求し、`File has not been read yet` は同じ引数の retry では消えない。
