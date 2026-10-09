@@ -235,6 +235,8 @@
         "~/.omp/agent",
         "~/.pi/agent",
         "~/.local/bin",
+        "~/ghq/github.com/harunonsystem/harunon-harness",
+        "~/.local/state/cclens-multi",
         "~/Library/pnpm/store",
         "~/Library/Caches/pnpm",
         "~/..claude.harness-distribution.lock",

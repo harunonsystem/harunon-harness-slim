@@ -30,16 +30,16 @@
   "settingsKeys": [
     "permission",
     "instructions",
-    "mcp.sentry",
-    "mcp.linear-server",
-    "mcp.figma",
-    "mcp.notion"
+    "mcp.linear-server"
   ],
   "settingsRemoveKeys": [
     "env",
     "mcp.servers",
     "skills.paths",
-    "mcp.jev"
+    "mcp.jev",
+    "mcp.sentry",
+    "mcp.figma",
+    "mcp.notion"
   ],
   "ledger": ".harunon-slim.installed.json"
 }

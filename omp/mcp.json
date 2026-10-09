@@ -1,19 +1,7 @@
 {
   "mcpServers": {
-    "sentry": {
-      "url": "https://mcp.sentry.dev/mcp",
-      "type": "http"
-    },
     "linear-server": {
       "url": "https://mcp.linear.app/mcp",
-      "type": "http"
-    },
-    "figma": {
-      "url": "https://mcp.figma.com/mcp",
-      "type": "http"
-    },
-    "notion": {
-      "url": "https://mcp.notion.com/mcp",
       "type": "http"
     }
   },

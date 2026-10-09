@@ -4,14 +4,5 @@ default_permissions = "harunon"
 [permissions.harunon]
 extends = ":workspace"
 
-[mcp_servers.sentry]
-url = "https://mcp.sentry.dev/mcp"
-
 [mcp_servers.linear-server]
 url = "https://mcp.linear.app/mcp"
-
-[mcp_servers.figma]
-url = "https://mcp.figma.com/mcp"
-
-[mcp_servers.notion]
-url = "https://mcp.notion.com/mcp"
