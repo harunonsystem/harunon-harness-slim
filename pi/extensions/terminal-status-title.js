@@ -31,8 +31,10 @@ export default function terminalStatusTitle(pi) {
 		lastCtx = ctx;
 		const sessionName = pi.getSessionName()?.trim();
 		const name = truncate(sessionName || basename(ctx.cwd));
-		const indicator =
-			status === "working" ? SPINNER[frame % SPINNER.length] : status === "done" ? "✓" : "○";
+		let indicator = "○";
+		if (status === "working") indicator = SPINNER[frame % SPINNER.length];
+		else if (status === "done") indicator = "✓";
+		else if (status === "aborted") indicator = "×";
 		ctx.ui.setTitle(`${indicator} | ${PREFIX} | ${name}`);
 	};
 
@@ -67,8 +69,8 @@ export default function terminalStatusTitle(pi) {
 		setStatus("working", ctx);
 	});
 
-	pi.on("agent_settled", async (_event, ctx) => {
-		setStatus("done", ctx);
+	pi.on("agent_settled", async (event, ctx) => {
+		setStatus(event.aborted === true ? "aborted" : "done", ctx);
 	});
 
 	pi.on("session_shutdown", async () => {

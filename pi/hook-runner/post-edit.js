@@ -2,7 +2,8 @@
  * write / edit 直後のファイル品質チェック（Claude Code の PostToolUse 相当）の共有 module。
  * 判定本体は claude-hooks/post-edit-checks.sh（runtime 中立 shell。.md → GFM 自動修正 /
  * .sh → shellcheck / .json → jq、JSONC は構文検査の対象外）で、ここは「どの拡張子なら shell を呼ぶか」と
- * 「spawn して stdout を findings として返す」だけを持つ。
+ * 「spawn して stdout を findings として返す」だけを持つ。JSONC の既知の除外は
+ * shell 側の判定と揃え、必ず空振りする spawn を避ける。
  *
  * 指摘はモデルが自己修正するための追記なので advisory: script 欠落・spawn 失敗・timeout は
  * 黙って undefined（block しない）。adapter（pi-extensions / opencode-plugins）が持つのは
@@ -19,7 +20,12 @@ export function checkKindFor(path) {
   if (typeof path !== "string") return undefined;
   if (path.endsWith(".md")) return "md";
   if (path.endsWith(".sh")) return "sh";
-  if (path.endsWith(".json") || path.endsWith(".jsonc")) return "json";
+  if (path.endsWith(".jsonc")) return undefined;
+  if (path.endsWith(".json")) {
+    if (/(?:^|\/)(?:tsconfig[^/]*|jsconfig[^/]*|devcontainer)\.json$/.test(path)) return undefined;
+    if (/(?:^|\/)\.vscode\/[^/]+\.json$/.test(path)) return undefined;
+    return "json";
+  }
   return undefined;
 }
 
