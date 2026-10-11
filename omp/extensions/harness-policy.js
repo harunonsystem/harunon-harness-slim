@@ -1,4 +1,4 @@
-import { resolve as resolvePath } from "node:path";
+import { resolveCwd } from "../hook-runner/runtime-mapping.js";
 import { AMBIGUOUS_PR_ACTION } from "../policy/pr-action.js";
 import { authorize, classifyToolCall, gateToolCall } from "../policy/publication-gate.js";
 
@@ -15,18 +15,6 @@ function commandFromToolCall(event) {
   return undefined;
 }
 
-function commandCwd(event, baseCwd) {
-  const input = event?.input;
-  const toolCwd =
-    typeof input?.workdir === "string"
-      ? input.workdir
-      : typeof input?.cwd === "string"
-        ? input.cwd
-        : undefined;
-  if (typeof toolCwd !== "string" || toolCwd.trim() === "") return baseCwd;
-  return resolvePath(baseCwd || process.cwd(), toolCwd);
-}
-
 const toolNameOf = (event) => event?.tool ?? event?.name ?? event?.toolName ?? "";
 
 export function actionFromToolCall(event) {
@@ -37,7 +25,7 @@ export function actionFromToolCall(event) {
 export function createHarnessPolicyHandler(run = authorize) {
   return async (event, ctx) => {
     const verdict = await gateToolCall(
-      { toolName: toolNameOf(event), command: commandFromToolCall(event), cwd: commandCwd(event, ctx?.cwd) },
+      { toolName: toolNameOf(event), command: commandFromToolCall(event), cwd: resolveCwd(event?.input, ctx?.cwd) },
       run,
     );
     return verdict && !verdict.allowed ? { block: true, reason: verdict.reason } : undefined;

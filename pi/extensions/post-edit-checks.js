@@ -5,7 +5,7 @@
  * 編集先の取り出しは ../hook-runner/runtime-mapping.js の editedPaths が単独で持つ
  * （write/edit の path、omp hashline の paths[]、apply_patch、exec_command 内の apply_patch heredoc）。
  * ここが持つのは「content 末尾への追記」だけ。
- * SSOT: harunon-harness packages/core/pi-extensions/
+ * SSOT: harunon-harness packages/core/pi-omp-extensions/
  */
 import { postEditFindings } from "../hook-runner/post-edit.js";
 import { editedPaths } from "../hook-runner/runtime-mapping.js";

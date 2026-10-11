@@ -21,7 +21,7 @@
     "claude-hooks/rtk-rewrite.sh",
     "extensions",
     "extensions/harness-policy.js",
-    "extensions/terminal-status-title.js",
+    "extensions/post-edit-checks.js",
     "hook-runner",
     "japanese-output.json",
     "mcp.json",

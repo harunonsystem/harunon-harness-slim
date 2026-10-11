@@ -60,7 +60,7 @@ function toClaudeInput(runtime, toolName, input) {
 // differently (OpenCode 1.18 and pi/omp exec_command: `workdir`; older shapes:
 // `cwd`); a per-runtime branch once read only `cwd` for OpenCode and judged
 // worktree commands against the session root.
-function resolveCwd(input, baseCwd) {
+export function resolveCwd(input = {}, baseCwd = process.cwd()) {
   const selected = [input.workdir, input.cwd].find(
     (value) => typeof value === "string" && value.trim() !== "",
   );
