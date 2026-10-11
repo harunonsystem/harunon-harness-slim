@@ -1,7 +1,7 @@
 /** Shared semantic permission layer for pi and omp tool_call events. */
-import { resolveCwd, settleDecision } from "../hook-runner/runtime-mapping.js";
-import { loadPermissionIntent } from "../policy/permission-intent.js";
-import { evaluateRuntimePermission } from "../policy/permission-runtime.js";
+import { resolveCwd, settleDecision } from "../../hook-runner/runtime-mapping.js";
+import { loadPermissionIntent } from "../../policy/permission-intent.js";
+import { evaluateRuntimePermission } from "../../policy/permission-runtime.js";
 
 export function createPermissionIntentHandler(runtime, intent = loadPermissionIntent()) {
   return async (event, ctx) => {

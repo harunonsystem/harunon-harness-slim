@@ -1,3 +1,3 @@
-import { piPermissionIntent } from "./permission-intent-core.js";
+import { piPermissionIntent } from "./lib/permission-intent-core.js";
 
 export default piPermissionIntent;
