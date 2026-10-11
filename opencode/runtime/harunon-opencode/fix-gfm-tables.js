@@ -3,6 +3,8 @@
 // OpenCode の汎用 event hook で file.edited を受け、Markdown テーブルを GFM 形式に自動修正する。
 // Claude Code の hooks/fix_gfm_tables.py と同等。
 
+import { readFile, writeFile } from "node:fs/promises";
+
 function isTableRow(line) {
   const stripped = line.trim();
   if (!stripped) return false;
@@ -78,11 +80,10 @@ export const FixGfmTables = async ({ $ }) => {
       if (!filePath || !filePath.endsWith(".md")) return;
 
       try {
-        const file = Bun.file(filePath);
-        const content = await file.text();
+        const content = await readFile(filePath, "utf8");
         const fixed = fixGfmTables(content);
         if (fixed !== content) {
-          await Bun.write(filePath, fixed);
+          await writeFile(filePath, fixed);
         }
       } catch {
         // ファイルが存在しない場合は無視

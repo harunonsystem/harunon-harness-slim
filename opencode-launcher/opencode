@@ -8,6 +8,14 @@ if [ -n "${OPENCODE_REAL_BIN:-}" ]; then
   exec "$OPENCODE_REAL_BIN" "$@"
 fi
 
+if command -v mise >/dev/null 2>&1; then
+  managed_root=$(mise where 'npm:@opencode/cli' 2>/dev/null || true)
+  managed_bin="$managed_root/node_modules/.bin/opencode"
+  if [ -n "$managed_root" ] && [ -x "$managed_bin" ]; then
+    exec "$managed_bin" "$@"
+  fi
+fi
+
 for candidate in \
   "$HOME/.opencode/bin/opencode" \
   "/opt/homebrew/bin/opencode" \

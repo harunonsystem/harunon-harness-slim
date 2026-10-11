@@ -1,31 +1,8 @@
-import { fileURLToPath } from "node:url";
 import { tool } from "@opencode-ai/plugin";
-import { runProcess } from "../hook-runner/hook-runner.js";
 import { resolveToolCwd, sessionBaseCwd } from "./tool-cwd.js";
+import { compileWorkflowRequest, invokeKernel } from "./harness-workflow-core.js";
 
-const KERNEL = fileURLToPath(new URL("../policy/harnessctl.py", import.meta.url));
-
-async function invoke(command, request, cwd) {
-  const result = await runProcess("python3", [KERNEL, command], {
-    cwd,
-    stdin: JSON.stringify({ repo: cwd, ...request }),
-    // The kernel owns each check's timeout. Hooks keep their normal 60s limit.
-    timeoutMs: request.operation === "verify" ? 2_147_483_647 : undefined,
-  });
-  const output = result.stdout.trim() || result.stderr.trim();
-  if (result.code === 0) return output;
-  throw new Error(output || `harnessctl exited ${result.code}`);
-}
-
-function compile(args) {
-  const operation = args.operation;
-  const operationArguments = { ...args };
-  delete operationArguments.operation;
-  delete operationArguments.cwd;
-  return { operation, arguments: operationArguments };
-}
-
-export const HarnessWorkflow = async ({ invokeKernel = invoke } = {}) => ({
+export const HarnessWorkflow = async ({ invokeKernel: run = invokeKernel } = {}) => ({
   tool: {
     harness_workflow: tool({
       description:
@@ -68,10 +45,10 @@ export const HarnessWorkflow = async ({ invokeKernel = invoke } = {}) => ({
         action: tool.schema.enum(["pr.create", "pr.merge"]).optional(),
       },
       async execute(args, context) {
-        const request = compile(args);
+        const request = compileWorkflowRequest(args);
         // bash tool の cwd 引数と同じ規約: 独立 worktree で作業しているセッションは
         // cwd を渡さないと親リポジトリの state（別タスク）を掴んで ACTIVE_TASK_EXISTS になる
-        return invokeKernel("operate", request, resolveToolCwd(sessionBaseCwd(context), args.cwd));
+        return run("operate", request, resolveToolCwd(sessionBaseCwd(context), args.cwd));
       },
     }),
   },

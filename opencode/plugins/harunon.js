@@ -1,14 +1,13 @@
 import { HarnessPolicy } from "../runtime/harunon-opencode/harness-policy.js";
-import { HarnessWorkflow } from "../runtime/harunon-opencode/harness-workflow.js";
 import { ClaudeHooksBridge } from "../runtime/harunon-opencode/claude-hooks-bridge.js";
 import { FixGfmTables } from "../runtime/harunon-opencode/fix-gfm-tables.js";
 import { ScanNewSkills } from "../runtime/harunon-opencode/scan-new-skills.js";
 import { ModelProviders } from "../runtime/harunon-opencode/model-providers.js";
 import { PostEditChecks } from "../runtime/harunon-opencode/post-edit-checks.js";
+import { setupHarunonV2 } from "../runtime/harunon-opencode/harunon-v2.js";
 
 const PLUGINS = [
   HarnessPolicy,
-  HarnessWorkflow,
   ClaudeHooksBridge,
   FixGfmTables,
   ScanNewSkills,
@@ -43,8 +42,16 @@ function compose(instances) {
   };
 }
 
-export const Harunon = async (context) => {
+const Harunon = async (context) => {
   const instances = [];
+  const { HarnessWorkflow } = await import("../runtime/harunon-opencode/harness-workflow.js");
+  instances.push(await HarnessWorkflow(context));
   for (const plugin of PLUGINS) instances.push(await plugin(context));
   return compose(instances);
+};
+
+export default {
+  id: "harunon-harness",
+  setup: setupHarunonV2,
+  server: Harunon,
 };
