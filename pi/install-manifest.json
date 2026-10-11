@@ -38,6 +38,8 @@
     "enableInstallTelemetry",
     "enableSkillCommands"
   ],
-  "settingsRemoveKeys": [],
+  "settingsRemoveKeys": [
+    "observational-memory"
+  ],
   "ledger": ".harunon-slim.installed.json"
 }
