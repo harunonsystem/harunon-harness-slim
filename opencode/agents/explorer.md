@@ -2,9 +2,13 @@
 description: 読み取り専用の調査・コード探索係。広い grep/読み込みを肩代わりし結論だけ返す。
 mode: subagent
 steps: 12
-permission:
-  edit: deny
-  bash: deny
+permissions:
+- action: edit
+  resource: '*'
+  effect: deny
+- action: shell
+  resource: '*'
+  effect: deny
 ---
 
 役割: 読み取り専用の調査・コード探索係。編集・実行はしない。

@@ -40,6 +40,15 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "Bash|Read|Edit|Write|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/permission-intent.sh"
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {

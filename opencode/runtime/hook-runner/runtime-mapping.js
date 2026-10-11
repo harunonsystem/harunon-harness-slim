@@ -91,7 +91,7 @@ export function normalizeToolCall(runtime, toolName, input, baseCwd) {
 
 const APPLY_PATCH_BEGIN = "*** Begin Patch";
 const APPLY_PATCH_END = "*** End Patch";
-const PATCH_TARGET = /^\*\*\* (Add File|Update File|Move to): (.+)$/;
+const PATCH_TARGET = /^\*\*\* (Add File|Update File|Delete File|Move to): (.+)$/;
 
 /**
  * Cut the apply_patch envelope (Begin..End) out of a command string.
@@ -109,13 +109,14 @@ export function extractApplyPatchEnvelope(command) {
   return command.slice(begin, end + APPLY_PATCH_END.length);
 }
 
-function patchTargets(envelope) {
+function patchTargets(envelope, includeRemoved = false) {
   const paths = [];
   for (const line of envelope.split("\n")) {
     const match = PATCH_TARGET.exec(line.replace(/\r$/, ""));
     if (!match) continue;
+    if (match[1] === "Delete File" && !includeRemoved) continue;
     // Move to: replaces the Update File path it follows (the old path no longer exists).
-    if (match[1] === "Move to") paths.pop();
+    if (match[1] === "Move to" && !includeRemoved) paths.pop();
     paths.push(match[2].trim());
   }
   return paths;
@@ -124,22 +125,23 @@ function patchTargets(envelope) {
 /**
  * Every file a pi / omp tool call writes, resolved to absolute paths. The single place that
  * knows the edit shapes: write/edit `path`, omp hashline multi-file edit `paths[]`, apply_patch
- * `input` envelope, and an apply_patch heredoc inside exec_command `cmd`. Deleted files are
- * not included. Non-edit tools return [].
+ * `input` envelope, and an apply_patch heredoc inside exec_command `cmd`. Deleted files and
+ * move sources are omitted by default; permission guards include them with includeRemoved.
+ * Non-edit tools return [].
  *
  * @returns {string[]}
  */
-export function editedPaths(toolName, input, baseCwd) {
+export function editedPaths(toolName, input, baseCwd, { includeRemoved = false } = {}) {
   if (!input || typeof input !== "object") return [];
   const claudeToolName = RUNTIME_TOOLS.pi[toolName] ?? RUNTIME_TOOLS.omp[toolName];
   let paths = [];
   if (claudeToolName === "Write" || claudeToolName === "Edit") {
     if (typeof input.path === "string") paths = [input.path];
     else if (Array.isArray(input.paths)) paths = input.paths.filter((p) => typeof p === "string");
-    else if (typeof input.input === "string") paths = patchTargets(input.input);
+    else if (typeof input.input === "string") paths = patchTargets(input.input, includeRemoved);
   } else if (COMMAND_FIELD_TOOLS.has(toolName)) {
     const envelope = extractApplyPatchEnvelope(input.cmd);
-    if (envelope !== undefined) paths = patchTargets(envelope);
+    if (envelope !== undefined) paths = patchTargets(envelope, includeRemoved);
   }
   const cwd = resolveCwd(input, baseCwd);
   return [...new Set(paths.filter(Boolean).map((p) => resolve(cwd, p)))];

@@ -27,7 +27,7 @@ export function createHarnessPolicy(run = authorize) {
   // directory は project root を指すため、独立 worktree では別タスクの state を
   // 参照してしまう。worktree を優先し、さらに bash tool の cwd 引数（セッションと
   // 別の worktree でコマンドを実行する形）があればそれを base にする
-  // （harness-workflow.js と同じ解決。tool-cwd.js が SSOT）。
+  // （harness-workflow-v2.js と同じ解決。tool-cwd.js が SSOT）。
   return async ({ directory, worktree }) => ({
     "tool.execute.before": async (input, output) => {
       const cwd = resolveToolCwd(

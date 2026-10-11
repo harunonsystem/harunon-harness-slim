@@ -1,160 +1,536 @@
 {
-  "permission": {
-    "bash": {
-      "*": "ask",
-      "alias *": "allow",
-      "bash *": "allow",
-      "brew *": "allow",
-      "bun --version *": "allow",
-      "bunx difit *": "allow",
-      "cargo *": "allow",
-      "cat *": "allow",
-      "cd *": "allow",
-      "chezmoi *": "allow",
-      "chmod *": "allow",
-      "claude config *": "allow",
-      "claude mcp *": "allow",
-      "code *": "allow",
-      "codex-review-bypass *": "allow",
-      "codex-review-reset *": "allow",
-      "colima *": "allow",
-      "comm *": "allow",
-      "command *": "allow",
-      "curl *": "allow",
-      "defaults read *": "allow",
-      "devpod *": "allow",
-      "docker *": "allow",
-      "du *": "allow",
-      "echo *": "allow",
-      "env *": "allow",
-      "exec zsh": "allow",
-      "fc-list *": "allow",
-      "fc-match *": "allow",
-      "find *": "allow",
-      "gh *": "allow",
-      "ghostty *": "allow",
-      "git -C *": "allow",
-      "git add *": "allow",
-      "git branch *": "allow",
-      "git diff *": "allow",
-      "git fetch *": "allow",
-      "git log *": "allow",
-      "git ls-tree *": "allow",
-      "git show *": "allow",
-      "git stash *": "allow",
-      "git status *": "allow",
-      "git tag *": "allow",
-      "git worktree list *": "allow",
-      "grep *": "allow",
-      "gwm *": "allow",
-      "jq *": "allow",
-      "ls *": "allow",
-      "lsof *": "allow",
-      "mdfind *": "allow",
-      "mdschema help *": "allow",
-      "mise *": "allow",
-      "mkdir *": "allow",
-      "mv *": "allow",
-      "node --version *": "allow",
-      "npm *": "allow",
-      "npx *": "allow",
-      "open *": "allow",
-      "osascript *": "allow",
-      "pbcopy": "allow",
-      "pbpaste": "allow",
-      "pgrep *": "allow",
-      "pnpm *": "allow",
-      "podman *": "allow",
-      "portless *": "allow",
-      "printf *": "allow",
-      "ps *": "allow",
-      "python3 *": "allow",
-      "rtk *": "allow",
-      "sh *": "allow",
-      "source *": "allow",
-      "tail *": "allow",
-      "test *": "allow",
-      "tree *": "allow",
-      "wc *": "allow",
-      "which docker *": "allow",
-      "xargs *": "allow",
-      "git push": "ask",
-      "git push *": "ask",
-      "git push --force*": "deny",
-      "git push -f": "deny",
-      "git push -f *": "deny",
-      "git push -u origin main": "deny",
-      "git push -u origin main *": "deny",
-      "git push -u origin master": "deny",
-      "git push origin +*": "deny",
-      "git push origin main": "deny",
-      "git push origin main *": "deny",
-      "git push origin master": "deny",
-      "git push origin master *": "deny",
-      "git commit *": "ask",
-      "git branch -D main*": "deny",
-      "git branch -D master*": "deny",
-      "git branch -D origin/*": "deny",
-      "git update-ref *": "deny",
-      "git clean -fd*": "deny",
-      "git clean -fdx*": "deny",
-      "gh pr close*": "ask",
-      "gh pr merge*": "ask",
-      "gh repo delete*": "deny",
-      "gh repo edit*": "deny",
-      "gh repo create*": "deny",
-      "gh repo fork*": "deny",
-      "gh release delete*": "deny",
-      "git rebase *": "deny",
-      "git pull *": "deny",
-      "git merge main": "deny",
-      "git merge main *": "deny",
-      "git merge master": "deny",
-      "git merge master *": "deny",
-      "git merge origin/main*": "deny",
-      "git merge origin/master*": "deny",
-      "git reset --hard*": "deny",
-      "git checkout --force*": "deny",
-      "git checkout -f *": "deny",
-      "git remote add*": "deny",
-      "git remote remove*": "deny",
-      "git remote rm*": "deny",
-      "git remote rename*": "deny",
-      "git remote set-url*": "deny",
-      "git remote set-head*": "deny",
-      "git remote set-branches*": "deny",
-      "git remote prune*": "deny",
-      "git remote update*": "deny",
-      "npm install -g *pi-coding-agent*": "deny",
-      "npm i -g *pi-coding-agent*": "deny",
-      "npm add -g *pi-coding-agent*": "deny",
-      "mise use *pi-coding-agent*": "deny",
-      "mise install *pi-coding-agent*": "deny",
-      "mise up *pi-coding-agent*": "deny",
-      "mise upgrade *pi-coding-agent*": "deny",
-      "gh pr comment *": "deny",
-      "netlify deploy*": "deny",
-      "netlify build*": "deny",
-      "netlify api*": "deny",
-      "ntl deploy*": "deny",
-      "ntl build*": "deny",
-      "ntl api*": "deny",
-      "npx netlify-cli*": "deny",
-      "gh release create*": "ask",
-      "gh workflow run*": "ask",
-      "gh api*": "ask",
-      "git stash drop*": "deny",
-      "git stash clear*": "deny"
+  "permissions": [
+    {
+      "action": "*",
+      "resource": "*",
+      "effect": "ask"
     },
-    "external_directory": {
-      "/private/tmp/**": "allow",
-      "/tmp/**": "allow",
-      "~/**": "allow"
+    {
+      "action": "read",
+      "resource": "*",
+      "effect": "allow"
     },
-    "skill": "allow",
-    "webfetch": "allow",
-    "websearch": "allow"
-  },
+    {
+      "action": "edit",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "glob",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "grep",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "subagent",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "skill",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "question",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "webfetch",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "websearch",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "execute",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "plan_enter",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "plan_exit",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "*",
+      "effect": "ask"
+    },
+    {
+      "action": "read",
+      "resource": ".env*",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "**/.env*",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "~/.aws/**",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "~/.ssh/**",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "~/.config/gh/**",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "~/.config/gcloud/**",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "~/.kube/**",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "~/.docker/config.json",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "~/.netrc",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "~/.codex/auth.json",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local/share/opencode/auth.json",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "~/.config/opencode/opencode.json",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": ".env*",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "**/.env*",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.aws/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.ssh/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/gh/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/gcloud/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.kube/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.docker/config.json",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.netrc",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.codex/auth.json",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.local/share/opencode/auth.json",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/opencode/opencode.json",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git push",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git push *",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git push --force*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push -f",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push -f *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push -u origin main",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push -u origin main *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push -u origin master",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push origin +*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push origin main",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push origin main *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push origin master",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push origin master *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git commit *",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git branch -D main*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git branch -D master*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git branch -D origin/*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git update-ref *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git clean -fd*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git clean -fdx*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "gh pr close*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "gh pr merge*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "gh repo delete*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "gh repo edit*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "gh repo create*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "gh repo fork*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "gh release delete*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git rebase *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git pull *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git merge main",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git merge main *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git merge master",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git merge master *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git merge origin/main*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git merge origin/master*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git reset --hard*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git checkout --force*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git checkout -f *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote add*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote remove*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote rm*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote rename*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote set-url*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote set-head*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote set-branches*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote prune*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote update*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "npm install -g *pi-coding-agent*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "npm i -g *pi-coding-agent*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "npm add -g *pi-coding-agent*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "mise use *pi-coding-agent*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "mise install *pi-coding-agent*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "mise up *pi-coding-agent*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "mise upgrade *pi-coding-agent*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "gh pr comment *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "netlify deploy*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "netlify build*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "netlify api*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "ntl deploy*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "ntl build*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "ntl api*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "npx netlify-cli*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "gh release create*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "gh workflow run*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "gh api*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git stash drop*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git stash clear*",
+      "effect": "deny"
+    }
+  ],
   "instructions": [],
   "mcp": {
     "linear-server": {

@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "status": "runtime-wired-partial",
+  "shell": { "default": "ask", "dangerRules": "danger-rules.json" },
+  "files": {
+    "secretPaths": [
+      "~/.aws/**",
+      "~/.ssh/**",
+      "~/.config/gh/**",
+      "~/.config/gcloud/**",
+      "~/.kube/**",
+      "~/.docker/config.json",
+      "~/.netrc",
+      "~/.codex/auth.json",
+      "~/.local/share/opencode/auth.json",
+      "~/.config/opencode/opencode.json"
+    ],
+    "secretBasenames": [".env", ".env.*"],
+    "secretEffect": "deny",
+    "outsideProject": "ask"
+  },
+  "mcp": { "default": "ask" },
+  "pluginTool": { "default": "ask" },
+  "publication": { "owner": "workflow-contract.json" },
+  "pluginDirectProcess": { "effect": "unresolved" },
+  "targets": {
+    "claude": {
+      "shell": "native-and-hook", "readEdit": "native-and-hook", "workspace": "native-and-hook-partial", "mcp": "hook", "publication": "hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
+    },
+    "codex": {
+      "shell": "native-approval-partial", "readEdit": "sandbox-and-hook", "workspace": "sandbox-and-hook-partial", "mcp": "native-approval-partial", "publication": "native-and-hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
+    },
+    "pi": {
+      "shell": "hook-and-extension", "readEdit": "extension", "workspace": "extension-partial", "mcp": "extension", "publication": "hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
+    },
+    "omp": {
+      "shell": "native-hook-extension", "readEdit": "extension", "workspace": "extension-partial", "mcp": "extension", "publication": "hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
+    },
+    "opencode": {
+      "shell": "native-and-permission-hook", "readEdit": "native-and-permission-hook", "workspace": "native-and-permission-hook-partial", "mcp": "permission-hook-ask", "publication": "hook", "pluginTool": "permission-hook-partial", "pluginDirectProcess": "unresolved"
+    }
+  }
+}

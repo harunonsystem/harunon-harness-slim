@@ -7,8 +7,12 @@ import { ScanNewSkills } from "./scan-new-skills.js";
 import { PostEditChecks } from "./post-edit-checks.js";
 import { buildProviderEntries } from "./model-providers.js";
 import { workflowToolV2 } from "./harness-workflow-v2.js";
+import { loadPermissionIntent } from "../policy/permission-intent.js";
+import { evaluateRuntimePermission } from "../policy/permission-runtime.js";
+import { normalizePermissionEvent } from "../policy/permission-targets.js";
 
 const CATALOG = fileURLToPath(new URL("../model-providers.json", import.meta.url));
+const NATIVE_OTHER_ACTIONS = new Set(["glob", "grep", "subagent", "skill", "question", "webfetch", "websearch", "execute", "plan_enter", "plan_exit"]);
 
 function legacyToolName(name) {
   return name === "shell" ? "bash" : name;
@@ -27,6 +31,7 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
   }
 
   const base = ctx.location.directory;
+  const intent = loadPermissionIntent();
   const policy = await createHarnessPolicy(authorizePr)({ directory: base });
   const bridge = await ClaudeHooksBridge({ directory: base, hooksDir, tablePath });
   const scan = await ScanNewSkills({});
@@ -34,6 +39,27 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
   const tables = await FixGfmTables({});
 
   await ctx.tool.transform((editor) => editor.add(workflowToolV2(base, invokeKernel)));
+
+  await ctx.permission.hook("evaluate", (event) => {
+    const location = { cwd: base, project: ctx.location.project?.canonical ?? base };
+    if (normalizePermissionEvent("opencode", event, location).action === "publication") return;
+    const verdict = evaluateRuntimePermission("opencode", event, {
+      ...location,
+    }, { intent, channel: "permission-v2" });
+    if (!verdict) {
+      // Unknown custom and MCP actions still pass through V2's native prompt.
+      // Configured denies are final before this hook, and native built-ins retain their policy.
+      if (!NATIVE_OTHER_ACTIONS.has(event.action) && event.effect === "allow") {
+        event.effect = "ask";
+        event.message = "Unclassified tool permission requires approval";
+      }
+      return;
+    }
+    if (verdict.effect === "deny" || (verdict.effect === "ask" && event.effect === "allow")) {
+      event.effect = verdict.effect;
+      event.message = verdict.reason;
+    }
+  });
 
   await ctx.tool.hook("execute.before", async (event) => {
     if (event.tool === "shell" && (!event.input || typeof event.input.command !== "string")) {

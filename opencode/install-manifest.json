@@ -28,11 +28,13 @@
   "settingsFile": "opencode.json",
   "settingsFormat": "json",
   "settingsKeys": [
-    "permission",
+    "permissions",
     "instructions",
     "mcp.linear-server"
   ],
   "settingsRemoveKeys": [
+    "permission",
+    "plugin",
     "env",
     "mcp.servers",
     "skills.paths",

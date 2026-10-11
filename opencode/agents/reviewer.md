@@ -2,9 +2,13 @@
 description: diff レビュー係。finding を file:line 付きで返す。
 mode: subagent
 steps: 8
-permission:
-  edit: deny
-  bash: deny
+permissions:
+- action: edit
+  resource: '*'
+  effect: deny
+- action: shell
+  resource: '*'
+  effect: deny
 ---
 
 役割: 変更差分（diff）のレビュー係。編集はしない、指摘のみ行う。
