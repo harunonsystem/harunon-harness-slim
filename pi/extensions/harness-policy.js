@@ -18,14 +18,14 @@ function commandFromToolCall(event) {
 const toolNameOf = (event) => event?.tool ?? event?.name ?? event?.toolName ?? "";
 
 export function actionFromToolCall(event) {
-  const action = classifyToolCall(toolNameOf(event), commandFromToolCall(event));
+  const action = classifyToolCall(toolNameOf(event), commandFromToolCall(event), event?.input ?? event?.args ?? event?.params);
   return action === AMBIGUOUS_PR_ACTION ? undefined : action;
 }
 
 export function createHarnessPolicyHandler(run = authorize) {
   return async (event, ctx) => {
     const verdict = await gateToolCall(
-      { toolName: toolNameOf(event), command: commandFromToolCall(event), cwd: resolveCwd(event?.input, ctx?.cwd) },
+      { toolName: toolNameOf(event), command: commandFromToolCall(event), input: event?.input ?? event?.args ?? event?.params, cwd: resolveCwd(event?.input, ctx?.cwd) },
       run,
     );
     return verdict && !verdict.allowed ? { block: true, reason: verdict.reason } : undefined;

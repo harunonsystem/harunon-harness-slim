@@ -145,17 +145,37 @@ After publication, resolve the CI run for the exact published SHA and use `gh ru
 
 ## Publish
 
-Before drafting the PR body, read `rules/pr-body.md`. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, preserve its headings and checklists while applying the readability rules inside each section. After the structure, facts, evidence, and risk statements are fixed, run the final Japanese prose through `yomiyasu --domain business` before publication. Treat `yomiyasu` as a wording-only pass: it must not invent, remove, or strengthen technical claims, evidence, risk, or unresolved findings.
+Before drafting the PR body, read `rules/pr-body.md`. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, preserve its headings and checklists while applying the readability rules inside each section. After the structure, facts, evidence, and risk statements are fixed, explicitly load the Agent Skill `yomiyasu` and apply its `business` domain before publication; this is not a shell command. Treat it as a wording-only pass: it must not invent, remove, or strengthen technical claims, evidence, risk, or unresolved findings.
 
 Before PR creation, reconcile as above and reuse an existing matching PR instead of creating a duplicate, then authorize the normalized action. In Codex, prefer the GitHub app's pull-request tool when it is available; use `gh` only as a fallback.
 
 ```bash
-python3 <skill-dir>/scripts/harness.py authorize pr.create
+python3 <skill-dir>/scripts/harness.py authorize pr.create --body-file <final-body.md>
 ```
 
 In a repository that has adopted the gates, missing tasks and stale workflow versions return `TASK_REQUIRED`: use `start --publish-only`, kernel verification, and the passed self-check before publishing. An untouched `intake` task must enter the gates; a completed task still requires current verification and local review evidence. Legacy flags and inactive-task status never substitute for either requirement.
 
 An explicit user request to create the PR is the publication confirmation. Do not ask for the same confirmation again; only surface a platform permission prompt when the runtime itself requires one.
+
+### Exact authored body and references
+
+After the actual wording/visual decision, save an attestation JSON outside the source diff with `taskId`, current `subjectSha`, `bodyFile`, `target`, and `checks`. Target is `{"action":"pr.create"}` or `{"action":"pr.update-body","number":123}`. Checks contains:
+
+- `rule`: exact absolute path to the applied `rules/pr-body.md`. Its bytes must match the current bundled rule; both references remain freshness-bound.
+- `yomiyasu`: `{"mode":"applied","domain":"business","references":["<exact yomiyasu/SKILL.md>","<applicable reference>"]}`. English-only text may use `{"mode":"english-only"}`. A genuinely unavailable runtime may use `{"mode":"manual-unavailable","unavailable":true,"reason":"<concrete limit and manual check>"}`.
+- `showMe`: `{"mode":"applied","format":"call-tree","references":["<exact show-me/SKILL.md>"]}` or `{"mode":"unnecessary","reason":"<why a diagram does not help>"}`.
+
+Attach through revision CAS, without another code review:
+
+```bash
+python3 <skill-dir>/scripts/harness.py attach-publication-body --revision <revision> --artifact <body-attestation.json>
+```
+
+The kernel computes exact UTF-8 body and reference digests and binds them to task/worktree/HEAD/branch/operation. Body, attestation, or reference changes require redoing applicable steps and attaching current evidence. A hash is audit evidence, not proof of actual Skill cognition or native consent. Valid same-task evidence can be reused across threads after these checks.
+
+Supported publication inputs are one literal `gh pr create` / `gh pr edit <number>` with `--body` or `--body-file`, or a GitHub create/update tool's actual structured body/repository/head/PR fields. Opaque fill/stdin/dynamic inputs remain unverified; use an explicit final body. Label-only edits and read-only operations do not enter this body gate. For an authored body update, reconcile the exact PR head/branch first and authorize `pr.update-body --pr <number> --body-file <final-body.md>`. After publication, read back actual bytes, preserve bot-owned badge regions, and account explicitly for any bot-added content. `advance published` accepts `--body-file` for matching evidence; no-PR `complete` never requires a PR body.
+
+When a remote parent cannot read local Skills, `local-skill-handoff` supplies bounded metadata, explicit selection, and freshness-checked references over the existing local executor. It does not register a native dot catalog or implement unavailable host APIs.
 
 PR merge remains subject to the external required status check and branch rules. Never treat writable local state as merge authorization.
 

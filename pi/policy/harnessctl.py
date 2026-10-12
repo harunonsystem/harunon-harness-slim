@@ -20,6 +20,7 @@ from typing import Any
 from repo_target import UnresolvableTarget, gh_target_reason, resolve_target
 from schema import validate
 import verification
+import publication_body
 
 
 CORE_DIR = Path(__file__).resolve().parents[1]
@@ -527,6 +528,7 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
         "review.attach",
         "review.approve",
         "review.skip",
+        "publication.attach",
         "assignment.create",
         "assignment.dispatched",
         "assignment.report",
@@ -547,6 +549,8 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
         decision = self_check_decision(state, repo, ctx)
         if not decision["allowed"]:
             raise KernelError(decision["code"], exit_code=2, reason="complete the mandatory self-check and decision before finishing")
+        if event_type != "task.complete":
+            publication_body.require(state, repo, {**request, "action": "pr.create"}, CORE_DIR)
     if event_type == "task.complete":
         state["phase"] = "complete"
     elif event_type == "verification.run":
@@ -607,6 +611,13 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
             else None
         )
         _apply_review_report(state, request, repo, workflow, assignment_index)
+    elif event_type == "publication.attach":
+        if state["phase"] not in ("review", "decide", "publish", "complete"):
+            raise KernelError("INVALID_PUBLICATION_PHASE", exit_code=2, phase=state["phase"])
+        artifact = request.get("artifact")
+        if not isinstance(artifact, str) or not artifact.strip():
+            raise KernelError("PUBLICATION_ARTIFACT_REQUIRED", exit_code=2)
+        state["evidence"].append(publication_body.capture(state, repo, artifact, CORE_DIR))
     elif event_type == "assignment.create":
         if state["phase"] not in ("implement", "review"):
             raise KernelError("INVALID_ASSIGNMENT_PHASE", exit_code=2, phase=state["phase"])
@@ -765,9 +776,12 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
     if action == "task.report":
         # complete already required the self-check; reporting needs it to stay verified.
         return {"action": action, "allowed": True, "code": "TASK_COMPLETE_CURRENT"}
-    if action == "pr.create":
+    if action in ("pr.create", "pr.update-body"):
         check_pr_create_target(repo, request)
-        return {"action": action, **self_check_decision(state, repo, ctx)}
+        decision = self_check_decision(state, repo, ctx)
+        if decision["allowed"]:
+            publication_body.require(state, repo, request, CORE_DIR)
+        return {"action": action, **decision}
     # Merge is the external enforcement boundary. Local files remain audit-only
     # and can never satisfy the required GitHub status check.
     return {
@@ -785,6 +799,7 @@ SUPPORTED_OPERATIONS = (
     "advance",
     "approve_review",
     "attach_review",
+    "attach_publication_body",
     "skip_review",
     "assign",
     "dispatched",
@@ -954,11 +969,12 @@ def compile_operation(
             request["mode"] = mode
         return "apply", request
     if operation == "advance":
-        _validate_operation_keys(operation, operation_arguments, ("event", "expectedRevision"))
+        _validate_operation_keys(operation, operation_arguments, ("event", "expectedRevision"), ("publication",))
         return "apply", {
             "type": "phase.advance",
             "event": _operation_string(operation, operation_arguments, "event"),
             "expectedRevision": _operation_revision(operation, operation_arguments),
+            **({"publication": _operation_json_object(operation, operation_arguments, "publication")} if "publication" in operation_arguments else {}),
         }
     if operation in ("verify", "complete"):
         _validate_operation_keys(operation, operation_arguments, ("expectedRevision",))
@@ -990,6 +1006,10 @@ def compile_operation(
                 "artifact": artifact,
             },
         }
+    if operation == "attach_publication_body":
+        _validate_operation_keys(operation, operation_arguments, ("expectedRevision", "artifact"))
+        return "apply", {"type": "publication.attach", "expectedRevision": _operation_revision(operation, operation_arguments),
+                         "artifact": _resolve_operation_artifact(_operation_artifact(operation, operation_arguments, "artifact"), repo)}
     if operation == "skip_review":
         _validate_operation_keys(operation, operation_arguments, ("expectedRevision", "provider", "reason"))
         return "apply", {
@@ -1072,8 +1092,10 @@ def compile_operation(
             "expectedRevision": _operation_revision(operation, operation_arguments),
             "reason": _operation_string(operation, operation_arguments, "reason"),
         }
-    _validate_operation_keys(operation, operation_arguments, ("action",))
-    return "authorize", {"action": _operation_string(operation, operation_arguments, "action")}
+    _validate_operation_keys(operation, operation_arguments, ("action",), ("publication", "command"))
+    return "authorize", {"action": _operation_string(operation, operation_arguments, "action"),
+                         **({"publication": _operation_json_object(operation, operation_arguments, "publication")} if "publication" in operation_arguments else {}),
+                         **({"command": _operation_string(operation, operation_arguments, "command")} if "command" in operation_arguments else {})}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1120,6 +1142,8 @@ def main() -> int:
         return emit({"code": error.code, **error.details}, error.exit_code)
     except verification.VerificationError as error:
         return emit({"code": "VERIFICATION_REQUIRED", "reason": str(error)}, 2)
+    except publication_body.BodyEvidenceError as error:
+        return emit({"code": error.code, "reason": str(error)}, 2)
     except (KeyError, TypeError, ValueError) as error:
         return emit({"code": "INTERNAL_CONTRACT_VIOLATION", "reason": str(error)}, 3)
 

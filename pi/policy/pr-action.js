@@ -40,6 +40,7 @@ function pushWord(tokens, word) {
   if (word.value.length > 0 || word.started) tokens.push({ ...word });
   word.value = "";
   word.started = false;
+  word.dynamic = false;
 }
 
 /**
@@ -49,7 +50,7 @@ function pushWord(tokens, word) {
  */
 function tokenize(command) {
   const tokens = [];
-  const word = { value: "", started: false };
+  const word = { value: "", started: false, dynamic: false };
   let quote;
 
   for (let index = 0; index < command.length; index += 1) {
@@ -70,6 +71,7 @@ function tokenize(command) {
         word.started = true;
         index += 1;
       } else {
+        if (character === "$" || character === "`") word.dynamic = true;
         word.value += character;
         word.started = true;
       }
@@ -124,6 +126,7 @@ function tokenize(command) {
       continue;
     }
 
+    if (character === "$" || character === "`") word.dynamic = true;
     word.value += character;
     word.started = true;
   }
@@ -151,7 +154,7 @@ function skipWrapperOptions(tokens, index, wrapper) {
   return index;
 }
 
-function actionForCommand(tokens) {
+function directPrTokens(tokens) {
   let index = 0;
   while (index < tokens.length) {
     const token = tokens[index];
@@ -170,10 +173,45 @@ function actionForCommand(tokens) {
     index += 1;
   }
   if (tokens[index]?.value !== "gh" || tokens[index + 1]?.value !== "pr") return undefined;
-  const action = tokens[index + 2]?.value;
+  return tokens.slice(index + 2);
+}
+
+const BODY_OPTION = /^(?:--body(?:-file)?(?:=|$)|-[bF])/;
+
+function actionForCommand(tokens) {
+  const args = directPrTokens(tokens);
+  const action = args?.[0]?.value;
   if (action === "create") return "pr.create";
   if (action === "merge") return "pr.merge";
+  if (action === "edit" && args.slice(1).some((token) => BODY_OPTION.test(token.value))) return "pr.update-body";
   return undefined;
+}
+
+/** Exact supported authored input. Never execute shell substitutions or guess --fill/stdin. */
+export function publicationInput(command) {
+  const tokens = tokenize(command);
+  if (!tokens || tokens.some((token) => token.separator)) return { bodyError: "Use one literal gh pr command with --body or --body-file" };
+  const args = directPrTokens(tokens);
+  if (!args) return { bodyError: "Unsupported publication command" };
+  const choices = [];
+  for (let index = 1; index < args.length; index += 1) {
+    const token = args[index];
+    if (!BODY_OPTION.test(token.value)) continue;
+    let value;
+    let dynamic = token.dynamic;
+    const file = token.value.startsWith("--body-file") || token.value.startsWith("-F");
+    if (["--body", "--body-file", "-b", "-F"].includes(token.value)) {
+      value = args[++index]?.value;
+      dynamic ||= args[index]?.dynamic;
+    } else {
+      value = token.value.startsWith("--") ? token.value.slice(token.value.indexOf("=") + 1) : token.value.slice(2).replace(/^=/, "");
+    }
+    if (value === undefined || dynamic || (file && ["-", "/dev/stdin"].includes(value))) return { bodyError: "Final body must be literal UTF-8; --fill/stdin/dynamic body is unavailable" };
+    choices.push(file ? { bodyFile: value } : { body: value });
+  }
+  if (choices.length !== 1) return { bodyError: "Specify exactly one final --body or --body-file" };
+  const target = args[1]?.value;
+  return { ...choices[0], ...(args[0].value === "edit" ? { number: target } : {}) };
 }
 
 /**

@@ -19,7 +19,7 @@ function shellCommand(input, output) {
 }
 
 export function actionFromTool(input, output) {
-  const action = classifyToolCall(toolNameOf(input), shellCommand(input, output));
+  const action = classifyToolCall(toolNameOf(input), shellCommand(input, output), output?.args);
   return action === AMBIGUOUS_PR_ACTION ? undefined : action;
 }
 
@@ -35,7 +35,7 @@ export function createHarnessPolicy(run = authorize) {
         output?.args?.workdir ?? output?.args?.cwd,
       );
       const verdict = await gateToolCall(
-        { toolName: toolNameOf(input), command: shellCommand(input, output), cwd },
+        { toolName: toolNameOf(input), command: shellCommand(input, output), input: output?.args, cwd },
         run,
       );
       if (verdict && !verdict.allowed) throw new Error(verdict.reason);

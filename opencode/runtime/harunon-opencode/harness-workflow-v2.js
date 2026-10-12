@@ -3,13 +3,13 @@ import { resolveToolCwd } from "./tool-cwd.js";
 
 const OPERATIONS = [
   "inspect", "verify", "complete", "start", "advance", "approve_review",
-  "attach_review", "skip_review", "assign", "dispatched", "report",
+  "attach_review", "attach_publication_body", "skip_review", "assign", "dispatched", "report",
   "abandon", "authorize",
 ];
 
 const STRING_FIELDS = [
   "cwd", "taskId", "event", "provider", "subjectSha", "artifact", "reason",
-  "executor", "workerId", "transport", "ref", "at", "resultSha", "checks",
+  "executor", "workerId", "transport", "ref", "at", "resultSha", "checks", "command",
 ];
 
 export function workflowToolV2(base, run = invokeKernel) {
@@ -24,7 +24,11 @@ export function workflowToolV2(base, run = invokeKernel) {
         expectedRevision: { type: "integer" },
         mode: { type: "string", enum: ["change", "publish"] },
         role: { type: "string", enum: ["implement", "review"] },
-        action: { type: "string", enum: ["pr.create", "pr.merge"] },
+        action: { type: "string", enum: ["pr.create", "pr.update-body", "pr.merge"] },
+        publication: { type: "object", properties: {
+          body: { type: "string" }, number: { type: "integer" }, repository: { type: "string" },
+          headBranch: { type: "string" }, headRepository: { type: "string" }, bodyError: { type: "string" },
+        }, additionalProperties: false },
       },
       required: ["operation"],
       additionalProperties: false,

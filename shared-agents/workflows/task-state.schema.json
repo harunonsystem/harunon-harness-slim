@@ -65,7 +65,49 @@
         "type": "object",
         "required": ["kind", "trust"],
         "properties": {
-          "kind": { "type": "string", "enum": ["local-review", "review-skipped", "worker-report", "verification"] },
+          "kind": { "type": "string", "enum": ["local-review", "review-skipped", "worker-report", "verification", "publication-body"] },
+          "publication": {
+            "type": "object",
+            "required": [
+              "bodyReference",
+              "target",
+              "artifactReference",
+              "references",
+              "taskId",
+              "repository",
+              "branch"
+            ],
+            "properties": {
+              "bodyReference": {
+                "type": "object"
+              },
+              "artifactReference": {
+                "type": "object"
+              },
+              "references": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "target": {
+                "type": "object"
+              },
+              "taskId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "repository": {
+                "type": "string",
+                "minLength": 1
+              },
+              "branch": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
           "passed": { "type": "boolean" },
           "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
           "trust": { "const": "audit-only" },

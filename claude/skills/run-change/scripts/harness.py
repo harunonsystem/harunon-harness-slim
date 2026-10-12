@@ -43,6 +43,7 @@ def parse_args() -> argparse.Namespace:
     advance = commands.add_parser("advance")
     advance.add_argument("event")
     advance.add_argument("--revision", type=int, required=True)
+    advance.add_argument("--body-file", type=Path)
     approve = commands.add_parser("approve-review")
     approve.add_argument("--revision", type=int, required=True)
     approve.add_argument("--reason", required=True)
@@ -51,12 +52,17 @@ def parse_args() -> argparse.Namespace:
     attach.add_argument("--provider", required=True)
     attach.add_argument("--subject-sha", required=True)
     attach.add_argument("--artifact", type=Path, required=True)
+    body = commands.add_parser("attach-publication-body")
+    body.add_argument("--revision", type=int, required=True)
+    body.add_argument("--artifact", type=Path, required=True)
     skip = commands.add_parser("skip-review")
     skip.add_argument("--revision", type=int, required=True)
     skip.add_argument("--provider", required=True)
     skip.add_argument("--reason", required=True)
     authorize = commands.add_parser("authorize")
-    authorize.add_argument("action", choices=("pr.create", "pr.merge"))
+    authorize.add_argument("action", choices=("pr.create", "pr.update-body", "pr.merge"))
+    authorize.add_argument("--body-file", type=Path)
+    authorize.add_argument("--pr", type=int)
     assign = commands.add_parser("assign")
     assign.add_argument("role", choices=("implement", "review"))
     assign.add_argument("--executor", required=True)
@@ -160,6 +166,8 @@ def main() -> int:
         }
     elif operation == "advance":
         arguments = {"event": args.event, "expectedRevision": args.revision}
+        if args.body_file is not None:
+            arguments["publication"] = {"body": args.body_file.read_bytes().decode("utf-8")}
     elif operation in ("verify", "complete"):
         arguments = {"expectedRevision": args.revision}
     elif operation == "approve_review":
@@ -179,6 +187,10 @@ def main() -> int:
         }
     elif operation == "authorize":
         arguments = {"action": args.action}
+        if args.body_file is not None:
+            arguments["publication"] = {"body": args.body_file.read_bytes().decode("utf-8"), "number": args.pr}
+    elif operation == "attach_publication_body":
+        arguments = {"expectedRevision": args.revision, "artifact": str(args.artifact.expanduser().resolve())}
     elif operation == "assign":
         arguments = {
             "role": args.role,
