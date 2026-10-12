@@ -103,6 +103,39 @@ function fileDecision(intent, action, resource, cwd, project) {
   }
 }
 
+// Only a single, literal command can skip shell approval. In particular, no
+// quotes, substitutions, redirects, pipelines, environment assignments or
+// executable Git options reach this list. Unknown syntax keeps the default ask.
+function readOnlyShellPaths(command) {
+  if (typeof command !== "string" || !/^[A-Za-z0-9_./:@+ -]+$/.test(command)) return undefined;
+  const [program, ...args] = command.trim().split(/ +/);
+  if (program === "pwd" && args.length === 0) return [];
+  if (program === "cat" && args.length > 0 && args.every((arg) => !arg.startsWith("-"))) return args;
+  if (program !== "git") return undefined;
+  const [subcommand, ...options] = args;
+  // Status can execute a configured fsmonitor hook; log can invoke a pager or
+  // configured signature verifier. Only fixed rev-parse forms skip approval.
+  if (subcommand === "rev-parse" && (
+    options.length === 1 && ["HEAD", "--show-toplevel", "--is-inside-work-tree", "--show-prefix"].includes(options[0]) ||
+    options.length === 2 && options[0] === "--abbrev-ref" && options[1] === "HEAD"
+  )) return [];
+  return undefined;
+}
+
+export function isReadOnlyShellCommand(intent, command, cwd, project) {
+  const paths = readOnlyShellPaths(command);
+  return paths !== undefined && [".", ...paths].every((path) => {
+    try {
+      // The common file rule checks the basename. Shell exceptions also reject
+      // secret-named parent directories (for example .env.local/token).
+      if (pathPair(path, cwd).some((absolute) => absolute.split(sep).some((part) =>
+        intent.files.secretBasenames.some((name) =>
+          name.endsWith("*") ? part.startsWith(name.slice(0, -1)) : part === name)))) return false;
+    } catch { return false; }
+    return fileDecision(intent, "read", path, cwd, project).effect === "allow";
+  });
+}
+
 /** A conservative, target-independent decision. `delegate` means use the existing kernel. */
 export function decidePermission(intent, { action, resources = [], cwd, project } = {}) {
   if (action === "plugin.directProcess") return { effect: "unresolved", reason: "plugin process boundary undecided" };
@@ -111,7 +144,10 @@ export function decidePermission(intent, { action, resources = [], cwd, project 
     if (!Array.isArray(resources) || resources.length === 0 || resources.some((item) => typeof item !== "string" || !item)) {
       return { effect: "unresolved", reason: "missing resource" };
     }
-    return action === "shell" ? { effect: intent.shell.default, reason: "shell command" } :
+    return action === "shell" ?
+      resources.length === 1 && isReadOnlyShellCommand(intent, resources[0], cwd, project) ?
+        { effect: "allow", reason: "read-only shell command" } :
+        { effect: intent.shell.default, reason: "shell command" } :
       { effect: intent.files.outsideProject, reason: "external directory" };
   }
   if (action === "mcp") return { effect: intent.mcp.default, reason: "MCP tool" };

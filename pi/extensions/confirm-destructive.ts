@@ -1,9 +1,10 @@
 /**
  * pi には Claude Code の permission 層（settings の allow/deny/ask）が存在しないため、
- * その欠落を補う pi 専用の破壊的コマンド確認レイヤー。
+ * その欠落を補う pi の権限確認入口。共通の permission intent を適用し、
+ * 破壊的コマンドと確認が必要な MCP には操作固有の文面を一度だけ表示する。
  * TUI では confirm ダイアログ、非対話（-p / rpc）では安全側に倒して block する。
  * git 系の細かいガードは claude-hooks-bridge 側の block-dangerous-in-bash.sh が担当し、
- * ここは「Claude Code なら permission ask になっていた操作」だけを扱う。
+ * 汎用の shell/read/edit 判定は共通 policy に委譲する。
  *
  * RULES は packages/core/policy/danger-rules.json（危険コマンドルール SSOT）から
  * 実行時に読み込む。table の schema・他表現との整合は
@@ -17,6 +18,8 @@ import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { normalizeShellCommand } from "../hook-runner/hook-runner.js";
 import { normalizeToolCall } from "../hook-runner/runtime-mapping.js";
+import { createPermissionIntentHandler } from "../policy/permission-tool-call.js";
+import { serializedConfirmContext, shutdownConfirmationQueue, startConfirmationQueue } from "./lib/confirm-queue.js";
 import type {
 	BridgeContext,
 	ToolCallEvent,
@@ -198,13 +201,15 @@ async function confirmOrBlock(
 export function createConfirmDestructiveHandler(
 	annotationsOf: (toolName: string) => ToolAnnotations | undefined = () => undefined,
 ) {
+	const permissionIntent = createPermissionIntentHandler("pi");
 	return async (event: ToolCallEvent, ctx: BridgeContext): Promise<ToolCallResponse> => {
+		const approvalCtx = serializedConfirmContext(ctx);
 		// codemode script 内の MCP 呼び出しも個別の tool_call で届くため、codemode tool 自体は判定しない。
 		if (event.toolName.startsWith("mcp__")) {
 			const hints = annotationsOf(event.toolName);
-			if (!mcpNeedsApproval(hints)) return undefined;
+			if (!mcpNeedsApproval(hints)) return permissionIntent(event, approvalCtx);
 			return confirmOrBlock(
-				ctx,
+				approvalCtx,
 				"MCP ツールの確認",
 				"read-only と宣言されていない MCP ツールです",
 				`${event.toolName} ${JSON.stringify(event.input)}`,
@@ -212,18 +217,20 @@ export function createConfirmDestructiveHandler(
 		}
 		const normalized = normalizeToolCall("pi", event.toolName, event.input, ctx.cwd ?? process.cwd());
 		if (!normalized || normalized.toolName !== "Bash") {
-			return undefined;
+			return permissionIntent(event, approvalCtx);
 		}
 		const command = typeof normalized.input.command === "string" ? normalized.input.command : "";
 		const reason = destructiveReason(command);
 		if (!reason) {
-			return undefined;
+			return permissionIntent(event, approvalCtx);
 		}
-		return confirmOrBlock(ctx, "破壊的コマンドの確認", reason, `$ ${command}`);
+		return confirmOrBlock(approvalCtx, "破壊的コマンドの確認", reason, `$ ${command}`);
 	};
 }
 
 export default function confirmDestructive(pi: ExtensionAPI) {
+	pi.on("session_start", startConfirmationQueue);
+	pi.on("session_shutdown", shutdownConfirmationQueue);
 	pi.on(
 		"tool_call",
 		createConfirmDestructiveHandler(

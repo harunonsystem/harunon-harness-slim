@@ -17,6 +17,7 @@ import {
 	restoreToolInput,
 	settleDecision,
 } from "../hook-runner/runtime-mapping.js";
+import { serializedConfirmContext } from "./lib/confirm-queue.js";
 
 export interface HookRunResult {
 	decision: "allow" | "deny" | "ask";
@@ -51,16 +52,18 @@ export interface BridgeContext {
 	ui: BridgeUi;
 	/** セッションの base cwd（pi ExtensionContext.cwd 相当）。hook の spawn cwd の基準になる。 */
 	cwd: string;
+	signal?: AbortSignal;
 }
 
 export function createToolCallHandler(runner: HookRunner) {
 	return async (event: ToolCallEvent, ctx: BridgeContext): Promise<ToolCallResponse> => {
+		const approvalCtx = serializedConfirmContext(ctx);
 		const normalized = normalizeToolCall("pi", event.toolName, event.input, ctx.cwd);
 		if (!normalized) {
 			return undefined;
 		}
 		const result = await runner.preToolUse(normalized.toolName, normalized.input, normalized.cwd);
-		const blocked = await settleDecision(result, ctx);
+		const blocked = await settleDecision(result, approvalCtx);
 		if (blocked) {
 			return blocked;
 		}
@@ -80,7 +83,7 @@ export function createToolCallHandler(runner: HookRunner) {
 					envelope !== undefined ? { file_path: "", input: envelope } : { file_path: "" };
 				const patchBlocked = await settleDecision(
 					await runner.preToolUse("Write", syntheticInput, normalized.cwd),
-					ctx,
+					approvalCtx,
 				);
 				if (patchBlocked) {
 					return patchBlocked;
