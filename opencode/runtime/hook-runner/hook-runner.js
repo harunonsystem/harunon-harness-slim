@@ -2,7 +2,7 @@
 
 // src/hook-runner.ts
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,20 @@ var DEFAULT_TIMEOUT_MS = 6e4;
 var DEFAULT_MAX_OUTPUT_BYTES = 1048576;
 function message(error) {
   return error instanceof Error ? error.message : String(error);
+}
+function spawnError(error, cwd) {
+  let cause = "";
+  if (cwd && error instanceof Error && "code" in error && (error.code === "ENOENT" || error.code === "ENOTDIR")) {
+    try {
+      if (!statSync(cwd).isDirectory()) cause = "working directory is not a directory; ";
+    } catch (cwdError) {
+      if (cwdError instanceof Error && "code" in cwdError) {
+        if (cwdError.code === "ENOENT") cause = "working directory does not exist; ";
+        else if (cwdError.code === "ENOTDIR") cause = "working directory is not a directory; ";
+      }
+    }
+  }
+  return `spawn failed (cwd=${cwd}): ${cause}${message(error)}`;
 }
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -152,7 +166,7 @@ function runProcess(file, args, {
         stdio: [stdin === void 0 ? "ignore" : "pipe", "pipe", "pipe"]
       });
     } catch (error) {
-      resolve({ code: 1, stdout: "", stderr: `spawn failed (cwd=${cwd}): ${message(error)}` });
+      resolve({ code: 1, stdout: "", stderr: spawnError(error, cwd) });
       return;
     }
     const outputLimit = Number.isFinite(maxOutputBytes) && maxOutputBytes >= 0 ? Math.floor(maxOutputBytes) : DEFAULT_MAX_OUTPUT_BYTES;
@@ -197,7 +211,7 @@ function runProcess(file, args, {
     child.stdout?.on("data", (chunk) => capture("stdout", chunk));
     child.stderr?.on("data", (chunk) => capture("stderr", chunk));
     child.on("close", (code) => finish(code));
-    child.on("error", (error) => finish(1, `spawn failed (cwd=${cwd}): ${message(error)}`, true));
+    child.on("error", (error) => finish(1, spawnError(error, cwd), true));
     if (stdin !== void 0 && child.stdin) {
       child.stdin.on("error", () => {
       });
