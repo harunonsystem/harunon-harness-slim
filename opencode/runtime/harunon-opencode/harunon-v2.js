@@ -55,6 +55,11 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
       }
       return;
     }
+    if (event.action === "shell" && verdict.effect === "allow" && event.effect === "ask") {
+      event.effect = "allow";
+      event.message = verdict.reason;
+      return;
+    }
     if (verdict.effect === "deny" || (verdict.effect === "ask" && event.effect === "allow")) {
       event.effect = verdict.effect;
       event.message = verdict.reason;

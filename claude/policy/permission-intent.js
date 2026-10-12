@@ -110,6 +110,7 @@ function readOnlyShellPaths(command) {
   if (typeof command !== "string" || !/^[A-Za-z0-9_./:@+ -]+$/.test(command)) return undefined;
   const [program, ...args] = command.trim().split(/ +/);
   if (program === "pwd" && args.length === 0) return [];
+  if (program === "mise" && args.length === 2 && args[0] === "settings" && args[1] === "--help") return [];
   if (program === "cat" && args.length > 0 && args.every((arg) => !arg.startsWith("-"))) return args;
   if (program !== "git") return undefined;
   const [subcommand, ...options] = args;
