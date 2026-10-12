@@ -66,7 +66,7 @@
 
 ## Hooks（自動適用）
 
-`~/.pi/agent/extensions/` が Claude Code hooks を実行する。`confirm-destructive` は共通権限方針を適用し、破壊的コマンドと書き込み系 MCP は操作固有の確認を一度だけ行う。非対話で確認が必要な操作は拒否する。表は GFM に補正する。
+`~/.pi/agent/extensions/` が Claude Code hooks を実行する。`confirm-destructive` は破壊的コマンドと、annotation 上で確認が必要な MCP に操作固有の確認を行う。一般の shell/read/edit に対する共通権限判定は接続しない。非対話で確認が必要な操作は拒否する。表は GFM に補正する。
 
 ## Account rotation boundary
 

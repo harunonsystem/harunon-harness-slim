@@ -31,10 +31,10 @@
       "shell": "native-approval-partial", "readEdit": "sandbox-and-hook", "workspace": "sandbox-and-hook-partial", "mcp": "native-approval-partial", "publication": "native-and-hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
     },
     "pi": {
-      "shell": "hook-and-extension", "readEdit": "extension", "workspace": "extension-partial", "mcp": "extension", "publication": "hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
+      "shell": "danger-extension-and-hook", "readEdit": "generic-intent-unwired", "workspace": "generic-intent-unwired", "mcp": "annotation-danger-extension", "publication": "hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
     },
     "omp": {
-      "shell": "native-hook-extension", "readEdit": "extension", "workspace": "extension-partial", "mcp": "extension", "publication": "hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
+      "shell": "native-patterns-and-hook", "readEdit": "generic-intent-unwired", "workspace": "generic-intent-unwired", "mcp": "generic-intent-unwired", "publication": "hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
     },
     "opencode": {
       "shell": "native-and-permission-hook", "readEdit": "native-and-permission-hook", "workspace": "native-and-permission-hook-partial", "mcp": "permission-hook-ask", "publication": "hook", "pluginTool": "permission-hook-partial", "pluginDirectProcess": "unresolved"
