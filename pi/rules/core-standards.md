@@ -28,6 +28,8 @@ workflow / reusable workflow / composite action を変更したら、既存の p
 4. **Simplify**: green 後、今回触った差分を簡素化の観点で読み直す。不要な複雑性がある非自明なコード変更では `simplify` skill を使う。数行の一意な修正では skill を儀式的に起動せず、その場の確認でよい。観測可能な挙動を保ったまま、不要な抽象・重複・分岐・old path と、変更によって古くなった code / test / docs を整理する。
 5. **Verify**: repository が宣言する deterministic checks と受入条件を再実行し、code / test / docs の整合と不要物が残っていないことを最終確認する。
 
+**テスト信頼性**: flaky test / race condition を retry・timeout 増加・sleep・不要な直列化・assertion の弱体化で隠さない。実際の並列実行 topology と共有 resource / lifecycle を確認し、同期は経過時間ではなく observable state / readiness / barrier を待つ。resource allocation は atomic に行い、teardown は close / abort / kill の呼び出しではなく process / resource が quiescent state に到達した時点を完了とする。並行性の回帰テストは可能なら barrier 等で deterministic に再現し、高回数実行して「落ちなかった」ことだけを根拠にしない。
+
 プロジェクトが明示的に「開発中・内部向け」で、外部利用者・永続データ・既存契約に対する互換性や migration 要件がない場合は、古い構造を温存しない。理想形へ直接置き換え、不要になった旧実装・compatibility layer・migration・deprecated path を同じ変更で削除する。公開 API、保存済みデータ、外部 consumer がある場合は、削除前に互換性・migration 要件を確定する。
 
 新機能より既存の差分修正・バグ修正を先にやる。新機能追加時はエントリポイント・ナビゲーションも同じ変更セットで更新する。
