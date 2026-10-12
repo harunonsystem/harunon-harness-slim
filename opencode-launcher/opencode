@@ -9,8 +9,8 @@ if [ -n "${OPENCODE_REAL_BIN:-}" ]; then
 fi
 
 if command -v mise >/dev/null 2>&1; then
-  managed_root=$(mise where 'npm:@opencode/cli' 2>/dev/null || true)
-  managed_bin="$managed_root/node_modules/.bin/opencode"
+  managed_root=$(mise -C "$HOME" where 'npm:@opencode/cli@2' 2>/dev/null || true)
+  managed_bin="$managed_root/bin/opencode"
   if [ -n "$managed_root" ] && [ -x "$managed_bin" ]; then
     exec "$managed_bin" "$@"
   fi
@@ -21,10 +21,10 @@ for candidate in \
   "/opt/homebrew/bin/opencode" \
   "/usr/local/bin/opencode"
 do
-  if [ -x "$candidate" ]; then
+  if [ -x "$candidate" ] && "$candidate" --version 2>/dev/null | grep -Eq '(^| )v?2\.'; then
     exec "$candidate" "$@"
   fi
 done
 
-echo "ERROR: real OpenCode binary not found; set OPENCODE_REAL_BIN" >&2
+echo "ERROR: OpenCode v2 binary not found; set OPENCODE_REAL_BIN" >&2
 exit 127
