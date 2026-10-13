@@ -19,7 +19,14 @@
     "secretEffect": "deny",
     "outsideProject": "ask"
   },
-  "mcp": { "default": "ask" },
+  "mcp": {
+    "default": "ask",
+    "readOnlyTools": [
+      "mcp__notion__notion-fetch",
+      "mcp__notion__notion-search",
+      "mcp__notion__notion-query-data-sources"
+    ]
+  },
   "pluginTool": { "default": "ask" },
   "publication": { "owner": "workflow-contract.json" },
   "pluginDirectProcess": { "effect": "unresolved" },

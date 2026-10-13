@@ -32,6 +32,12 @@ export function loadPermissionIntent(path = CONTRACT) {
       throw new Error(`permission intent: invalid ${label}`);
     }
   }
+  const readOnlyTools = intent.mcp?.readOnlyTools;
+  if (!Array.isArray(readOnlyTools) || readOnlyTools.some((name) =>
+    typeof name !== "string" || !/^mcp__[A-Za-z0-9_-]+__[A-Za-z0-9_-]+$/.test(name)) ||
+    new Set(readOnlyTools).size !== readOnlyTools.length) {
+    throw new Error("permission intent: mcp.readOnlyTools must contain unique exact MCP tool names");
+  }
   if (intent.files.secretPaths.some((path) => !path.startsWith("~/") && !isAbsolute(path)) ||
       intent.files.secretBasenames.some((name) => name.includes("/") || (name.includes("*") && !name.endsWith("*")))) {
     throw new Error("permission intent: invalid secret path pattern");
@@ -151,7 +157,9 @@ export function decidePermission(intent, { action, resources = [], cwd, project 
         { effect: intent.shell.default, reason: "shell command" } :
       { effect: intent.files.outsideProject, reason: "external directory" };
   }
-  if (action === "mcp") return { effect: intent.mcp.default, reason: "MCP tool" };
+  if (action === "mcp") return Array.isArray(resources) && resources.length === 1 && intent.mcp.readOnlyTools.includes(resources[0]) ?
+    { effect: "allow", reason: "verified read-only MCP tool" } :
+    { effect: intent.mcp.default, reason: "MCP tool" };
   if (action === "plugin.toolCall") return { effect: intent.pluginTool.default, reason: "plugin tool" };
   if (action !== "read" && action !== "edit") return { effect: "unresolved", reason: `unmapped action: ${action}` };
   if (!Array.isArray(resources) || resources.length === 0) return { effect: "unresolved", reason: "missing file resources" };
