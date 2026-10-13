@@ -68,9 +68,8 @@ export function createToolCallHandler(runner: HookRunner) {
 			return blocked;
 		}
 
-		// pi-codex-conversion は exec_command 内の `apply_patch <<'EOF' ... EOF` を
-		// ツール名 exec_command のまま直接適用する（src/tools/exec/command-tool.ts の
-		// interceptApplyPatch）ため、Bash hooks 通過後の最終 cmd に envelope があれば
+		// exec_command 内に `apply_patch <<'EOF' ... EOF` がある場合、
+		// ツール名は exec_command のままなので、Bash hooks 通過後の最終 cmd に envelope があれば
 		// Write hooks にも envelope で渡す（block-edit-on-main が envelope から対象 path を取る）。
 		// envelope が切り出せない（End が無い等）ときは file_path 無しで渡し、hook 側の
 		// fail-closed（cwd を対象にする）に委ねる。updatedInput は検査専用で反映しない。

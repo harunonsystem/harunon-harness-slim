@@ -95,8 +95,8 @@ const PATCH_TARGET = /^\*\*\* (Add File|Update File|Delete File|Move to): (.+)$/
 
 /**
  * Cut the apply_patch envelope (Begin..End) out of a command string.
- * pi-codex-conversion applies `apply_patch <<'EOF' ... EOF` inside exec_command directly
- * (tool name stays exec_command), so edit guards and post-edit checks must look into cmd.
+ * A Pi exec_command can carry `apply_patch <<'EOF' ... EOF` while the tool name
+ * stays exec_command, so edit guards and post-edit checks must look into cmd.
  *
  * @returns {string|undefined} undefined when Begin or End is missing
  */
