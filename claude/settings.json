@@ -40,7 +40,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Read|Edit|Write|mcp__.*",
+        "matcher": "^(Read|Edit|Write|mcp__notion__notion-fetch|mcp__notion__notion-search|mcp__notion__notion-query-data-sources)$",
         "hooks": [
           {
             "type": "command",
