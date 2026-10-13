@@ -8,6 +8,7 @@
     "CLAUDE.md",
     "agents",
     "commands",
+    "hook-runner/runtime-mapping.js",
     "hooks",
     "policy",
     "rules",
