@@ -8,7 +8,7 @@ compatibility: codex opencode pi omp claude
 
 When `yomiyasu` is unavailable, proofread the wording locally under the same constraints instead of invoking it.
 
-Follow the resident Routing instructions for implementation, directly or through the selected pstack skill; keep the runtime's native execution loop. This skill uses the common kernel for required outcomes, verification evidence, and completion/publication gates, and resumes existing Core Workflow state; it does not orchestrate implementation. For a new task, finish the work and checks, then use `start --publish-only` before publishing. If a task already has active state, resume it and record completed phases without replaying work.
+Follow the resident Routing instructions for implementation, directly or through the selected pstack skill; keep the runtime's native execution loop. This skill uses the common kernel for required outcomes, verification evidence, and completion/publication gates, and resumes existing Core Workflow state; it does not orchestrate implementation. For a new task, finish implementation, then use `start --publish-only` to enter the completion/publication gates. If a task already has active state, resume it and record completed phases without replaying work.
 
 `run-change` owns lifecycle state, policy gates, and evidence binding. It does **not** own worker selection, spawning, dispatch, retries, worktree management, or runtime-specific handoff. Those belong to each runtime's native orchestration layer.
 
@@ -71,7 +71,9 @@ An invalid transition or stale revision must remain blocked. Re-inspect instead 
 
 Mandatory checks are declared outside the repository, in the harness registry `policy/verification-repos.json` under the runtime config directory, keyed by remote identity (`github.com/owner/repo`): a non-empty `commands` array of argv arrays referencing the repository's existing mise tasks, package scripts, or verification scripts. A repository whose remotes are not registered has not adopted the gates: completion and publication are not gated there. Never create a declaration file inside a repository. Invalid or empty declarations are unverified; ask the repository owner to establish the mandatory checks instead of substituting optional tests or an agent's success claim. Full declaration and evidence contract: `policy/verification.md` under the runtime config directory.
 
-Read status, then run the mandatory checks through the kernel:
+Run focused checks during development and retain any required pre-commit checks. Schedule mandatory kernel verification after the final authorized commit; the kernel does not require verification evidence to commit. For completed native work, use `start --publish-only` and verify that final HEAD once. If no commit is authorized or needed, verify the final uncommitted checkout. Reuse current successful kernel evidence for completion/publication; separate pre-push and CI gates still run their required checks.
+
+Read status; if mandatory verification is not current, run the declared checks through the kernel:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py verify --revision <revision>
