@@ -143,7 +143,7 @@ Omit the selector after `--pr` to find the current branch's PR, including closed
 
 The implementer owns fixes, ordinary commit/push, published-HEAD CI, and latest valid review fixes within the authorized scope. Self-check or coordinator review does not transfer that work or require renewed consent; native/platform confirmation remains independent. Handoff/progress states the current command or bounded wait target, last success, and remaining work. Immediately report a merged/closed PR or changed HEAD to the coordinator/user and reconcile before continuing.
 
-After publication, resolve the CI run for the exact published SHA and use `gh run watch <run-id> --repo github.com/<owner/repo> --interval 30 --exit-status` with a bounded tool timeout. Read final CI/review results once and handle valid current findings; do not replace this with repeated LLM status polls or a new long-lived observer.
+After publication, resolve the CI run for the exact published SHA and use `gh run watch <run-id> --repo github.com/<owner/repo> --interval 30 --exit-status` with a bounded tool timeout (in Claude Code, the `Monitor` tool may be used for non-blocking CI watch to continue drafting/reviewing concurrently; see `/claude-monitor`). Read final CI/review results once and handle valid current findings; do not replace this with repeated LLM status polls or a new long-lived observer.
 
 ## Publish
 

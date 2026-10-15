@@ -64,4 +64,5 @@ pstack 自動 routing より本選択を優先。ファイル数・関数境界�
 - 新規 worktree は `EnterWorktree(name: <branch>)`。作成方式は runtime の設定に従う。
 - skill の「ユーザー確認機能」は `AskUserQuestion`。承認済みの操作に再確認は不要。
 - Edit / Write する既存ファイルは Bash の `cat` ではなく `Read` で先に読む。Edit は Read 済みを要求し、`File has not been read yet` は同じ引数の retry では消えない。
+- 長時間のバックグラウンド監視（CI 完了待ち、Dev サーバーエラー監視、テスト進捗）は Bash でセッションを停止させず `Monitor` ツールを使う。pnpm 環境では `-s` / `--silent`、`--stream`、`FORCE_COLOR=0`、`pnpm -C` を徹底する（定型は `/claude-monitor` 参照）。
 - 会話はリストを基本にし、比較が必要な場合だけ表を使う。
