@@ -691,7 +691,21 @@ if [ -n "${PR_APPROVAL_VERIFIED:-}" ]; then
   fi
 fi
 if [ -n "$ADDITIONAL_CONTEXT" ]; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}\n' "$ADDITIONAL_CONTEXT"
+  if command -v jq >/dev/null 2>&1; then
+    jq -n --arg ctx "$ADDITIONAL_CONTEXT" '{
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "additionalContext": $ctx
+      }
+    }'
+  else
+    printf '%s\n' "$ADDITIONAL_CONTEXT" | python3 -c '
+import json, sys
+ctx = sys.stdin.read().rstrip("\n")
+print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": ctx}}, ensure_ascii=False))
+' 2>/dev/null || printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}\n' \
+      "$(printf '%s' "$ADDITIONAL_CONTEXT" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr '\n' ' ')"
+  fi
 fi
 
 exit 0

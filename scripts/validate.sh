@@ -72,8 +72,10 @@ for path in filter(None, sys.stdin.buffer.read().split(b"\0")):
     compile(open(path, encoding="utf-8").read(), path, "exec")
 '
 
-if find . -type f -not -path './scripts/validate.sh' -not -path './.git/*' -print0 \
-  | xargs -0 perl -ne 'if (/(ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{20,})/) { print "$ARGV:$.: credential-like token\n"; $found = 1 } END { exit($found ? 0 : 1) }'; then
+TOKEN_HITS=$(find . -type f -not -path './scripts/validate.sh' -not -path './.git/*' -print0 \
+  | xargs -0 perl -ne 'if (/(ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{20,})/) { print "$ARGV:$.: credential-like token\n" }')
+if [ -n "$TOKEN_HITS" ]; then
+  printf '%s\n' "$TOKEN_HITS" >&2
   echo "credential-like token found" >&2
   exit 1
 fi

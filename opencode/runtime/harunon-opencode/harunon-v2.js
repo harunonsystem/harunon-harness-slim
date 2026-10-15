@@ -89,14 +89,23 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
 
   const controller = new AbortController();
   void (async () => {
-    try {
-      for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
-        if (event.type === "file.edited") {
-          await tables.event({ event: { type: "file.edited", properties: { file: event.data?.file } } });
+    while (!controller.signal.aborted) {
+      try {
+        for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
+          if (event.type === "file.edited") {
+            try {
+              await tables.event({ event: { type: "file.edited", properties: { file: event.data?.file } } });
+            } catch (eventError) {
+              console.error("[harunon] file.edited handler failed", eventError);
+            }
+          }
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error("[harunon] file event stream failed", error);
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
       }
-    } catch (error) {
-      if (!controller.signal.aborted) console.error("[harunon] file event stream failed", error);
     }
   })();
   return () => controller.abort();
