@@ -177,6 +177,25 @@ Codex レビューの扱いは `rules/codex-review-policy.md` SSOT（1回だけ�
 
 コマンド安全ポリシーの SSOT は `policy/danger-rules.json`、hook の配線範囲は `policy/hook-pipeline.json` が宣言する（runtime ごとの消費経路と実効 rule はそこを読む）。全ターゲットで同じ hook が同じ判断をすると仮定しない。検出漏れの実例として、omp の `bash.patterns` は `--no-verify` 長形式しか見ず、`-n` 短縮形・結合短フラグ・env prefix は hook 側が第二防衛線として拾う。staged 内容の秘密情報検出は danger table ではなく `verify-before-commit.sh` の責務。
 
+### ガード・権限の3層防御モデルとテーブル駆動設計
+
+安全ガードは個別シェルスクリプトを増やさず、以下の3層防御モデルとテーブル駆動設計（ADR-022）に従う。
+
+1. **3層防御モデル**:
+   - **第1層（誘導: AGENTS.md / rules）**: コーディング作法・推論手順・スタイル。hook でブロックせずプロンプト指示と事後 lint / validator に任せる。
+   - **第2層（枠組み: ネイティブ権限）**: 各ランタイム本来の権限設定（Claude `settings.json` deny, Codex permission profiles, pi の確認ダイアログ等）。ランタイム標準の安全機構を最優先する。
+   - **第3層（水際阻止: 共有ポリシーエンジン）**: 不可逆な破壊操作のみを水際（ゲート）で止める。作業中の可逆操作（sed, grep, 一時ファイル作成等）は止めない。
+2. **水際ガード対象の限定（不可逆な4操作）**:
+   - `git push`（特に main 直 push / force-push）
+   - `gh pr merge` / `close`（未承認の変更適用）
+   - コミット前のシークレット混入（`verify-before-commit.sh`）
+   - 未検証での PR 作成（Core Workflow / publication gate）
+3. **ロジックとアダプターの分離（個別シェルスクリプト新設の禁止）**:
+   - 新規ガードは `policy/danger-rules.json`、`policy/hook-pipeline.json`、`policy/permission-intent.json` の宣言的データ（SSOT）へ集約する。
+   - ランタイム側アダプターは入出力の正規化と共有ポリシー呼び出しに徹し、ターゲット固有のシェルスクリプトを単体で増やさない。
+4. **Denial メッセージにおける Escape Hatch（代替手段）の義務化**:
+   - コマンドを拒否するメッセージには、単なる「禁止」だけでなく「なぜダメか」と「代わりにどう実行すべきか（推奨コマンド・承認取得手順）」を必ず明記し、モデルの自律的な軌道修正を促す（deny ループによるトークン浪費を防ぐ）。
+
 block された場合の責務:
 
 - 原因を直す。hook を skip する形の回避を試みない
