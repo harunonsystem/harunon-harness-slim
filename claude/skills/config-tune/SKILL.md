@@ -24,7 +24,13 @@ cclens（定量分析）と Claude ネイティブ `/insights`（定性の修正
 
 ## Phase 1: Collect
 
-runtime 横断では実行ファイルの `--help` と `agent-context` を確認し、`cclens-multi doctor --json` で入力を更新する。その DB に対して `usage`・`failures`・`stuck` を必要な `--agent`・期間と `--frozen --json` で取得する。利用者のタイムゾーンを含む RFC3339 境界を指定し、取得範囲・欠損・打ち切りを確認する。
+runtime 横断では実行ファイルの実体・版・hash、`--help` と `agent-context` を確認し、次の順で収集する。
+
+1. 利用者のタイムゾーンを含む RFC3339 で `[開始以上, 終了未満)` を固定する。既存 checkpoint・保存 DB・レポートがあれば成功状態・hash・区間境界を確認し、保存結果を優先する。全履歴の snapshot は `--frozen --since <開始> --until <終了>` で対象部分だけ読む。日次 partial / remainder とその consolidated を重ねて足さず、重複しない区間と event identity を照合する。
+2. 不足区間だけ別の作業用 DB で取得する。更新が必要なときは `cclens-multi doctor --db <作業用DB> --json`、取得後は同じ DB の `usage`・`failures`・`stuck` を `--agent`・期間・`--frozen --json` で読む。重複期間の再監査では日次 continuation・checkpoint・累計を更新せず、今回の成果を別保存する。正規の日次継続はその成功境界から再開する。
+3. runtime 別の取得可否・対象期間・欠損を先に報告する。読取成功だが区間内記録なし、読取失敗、指標未対応を区別し、欠損は `null` のまま残す。CLI 保存ログの観測を App 全体の取得済み利用量に広げない。`failures` の反復集計と全 failure event 数も区別する。
+
+応答時間は初回保存応答の代理値と直接記録された TTFT を分ける。tool の call→result は開始・結果が区間内か、境界を跨ぐか、締切まで未終端かを分け、native 実行時間・単一 cell 時間と合算しない。未終端や時間差だけで hang・承認待ちと断定せず、polling は引数、hook は理由と検証シナリオまで照合する。モデル利用量・失敗事象と、task/run→最終 HEAD の検証→受入は別に報告し、対応する前後証拠がない改善効果は未検証とする。
 
 委譲の効率は総量だけで判断しない。重複除去済みの `multi_events` と `multi_sessions` を読み取り専用で照会し、親・子孫の消費を目的別に集計する。schema は実物で確認する。通常作業、評価、独立レビュー、自動承認を分け、起動の理由・重複・失敗は元ログの根拠に戻って確かめる。cached input を二重加算せず、raw token を費用や削減可能量と読み替えない。会話の再開・fork と起動失敗により起動数と usage のある子の数が違う場合も残す。
 
