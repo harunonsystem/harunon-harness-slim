@@ -475,9 +475,9 @@
       "action": "block",
       "impl": "table",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "コメント投稿を拒否しました。owned bridge に確認 UI はありますが、owner 分類と最終 target/本文に束縛した ask の契約が未定義です。company/local-only/unknown の拒否を維持するため、ローカル記録では解除できません",
+      "message": "直接のコメント書き込みは拒否しました。現在の依頼に関する本人 PR の通常コメントには run-change の own-pr comment を使い、hostname / repository / PR / body-file / task-id を明示してください。同じ実行での実効ユーザー・作者一致と既存 gate が必要です。native / 上位権限の拒否は解除しません",
       "autoMode": [
-        { "tier": "soft_deny", "prose": "PR / issue へのコメント投稿（gh pr comment / gh api での comment 書き込み）はユーザーの明示的な許可がある場合のみ" }
+        { "tier": "soft_deny", "prose": "PR / issue の直接コメント書き込みは拒否。依頼された本人 PR の通常コメントだけ run-change own-pr の照合済み経路を使い、native / 上位権限は維持する" }
       ],
       "match": {
         "ere": "gh[[:space:]]+pr[[:space:]]+comment",
@@ -493,7 +493,7 @@
       "action": "block",
       "impl": "custom",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "コメント投稿を拒否しました。owned bridge に確認 UI はありますが、owner 分類と最終 target/本文に束縛した ask の契約が未定義です。company/local-only/unknown の拒否を維持するため、ローカル記録では解除できません"
+      "message": "直接のコメント書き込みは拒否しました。現在の依頼に関する本人 PR の通常コメントには run-change の own-pr comment を使い、hostname / repository / PR / body-file / task-id を明示してください。同じ実行での実効ユーザー・作者一致と既存 gate が必要です。native / 上位権限の拒否は解除しません"
     },
     {
       "id": "codex-companion-sandbox",

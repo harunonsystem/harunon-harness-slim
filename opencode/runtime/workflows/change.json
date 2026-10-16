@@ -57,6 +57,10 @@
       "allowedStates": ["publish", "complete"],
       "requires": ["repository-verification-current", "local-review-covers-head", "publication-body-current"]
     },
+    "pr.comment": {
+      "allowedStates": ["publish", "complete"],
+      "requires": ["repository-verification-current", "local-review-covers-head"]
+    },
     "pr.merge": {
       "allowedStates": ["publish", "complete"],
       "requires": ["repository-verification-current", "trusted-review-current-head"]

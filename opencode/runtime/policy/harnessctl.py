@@ -776,6 +776,8 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
     if action == "task.report":
         # complete already required the self-check; reporting needs it to stay verified.
         return {"action": action, "allowed": True, "code": "TASK_COMPLETE_CURRENT"}
+    if action == "pr.comment":
+        return {"action": action, **self_check_decision(state, repo, ctx)}
     if action in ("pr.create", "pr.update-body"):
         check_pr_create_target(repo, request)
         decision = self_check_decision(state, repo, ctx)

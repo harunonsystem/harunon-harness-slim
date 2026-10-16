@@ -63,6 +63,13 @@ def parse_args() -> argparse.Namespace:
     authorize.add_argument("action", choices=("pr.create", "pr.update-body", "pr.merge"))
     authorize.add_argument("--body-file", type=Path)
     authorize.add_argument("--pr", type=int)
+    own_pr = commands.add_parser("own-pr", help="publish a task-related comment/body to the current worktree's own PR")
+    own_pr.add_argument("operation", choices=("comment", "update-body"))
+    own_pr.add_argument("--hostname", required=True)
+    own_pr.add_argument("--repository", required=True, help="owner/repo, without a hostname")
+    own_pr.add_argument("--pr", type=int, required=True)
+    own_pr.add_argument("--body-file", type=Path, required=True)
+    own_pr.add_argument("--task-id", required=True)
     assign = commands.add_parser("assign")
     assign.add_argument("role", choices=("implement", "review"))
     assign.add_argument("--executor", required=True)
@@ -157,6 +164,24 @@ def reconcile_pr(repo: Path, selector: str) -> dict:
 
 def main() -> int:
     args = parse_args()
+    if args.command == "own-pr":
+        kernel = locate_kernel()
+        sys.path.insert(0, str(kernel.parent))
+        from own_pr import OwnPrError, publish
+        from repo_target import UnresolvableTarget
+
+        try:
+            result = publish(args.repo.resolve(), kernel, operation=args.operation, hostname=args.hostname,
+                             repository=args.repository, number=args.pr, body_file=args.body_file, task_id=args.task_id)
+        except OwnPrError as error:
+            print(json.dumps({"code": "OWN_PR_REFUSED_OR_UNKNOWN", "reason": str(error)}))
+            return 2
+        except (UnresolvableTarget, OSError, ValueError, TypeError, AttributeError, subprocess.SubprocessError):
+            print(json.dumps({"code": "OWN_PR_REFUSED_OR_UNKNOWN",
+                              "reason": "Own-PR publication refused or outcome unknown; inspect target before retrying"}))
+            return 2
+        print(json.dumps(result, ensure_ascii=False))
+        return 0
     operation = "inspect" if args.command == "status" else args.command.replace("-", "_")
     arguments: dict[str, object] = {}
     if operation == "start":

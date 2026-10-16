@@ -181,6 +181,24 @@ When a remote parent cannot read local Skills, `local-skill-handoff` supplies bo
 
 PR merge remains subject to the external required status check and branch rules. Never treat writable local state as merge authorization.
 
+## Task-related publication to your own PR
+
+For a requested normal comment or body update on the current worktree's open PR, use this narrow route after the existing verification and review gates. Replace every target explicitly; repo ownership and git author settings do not establish authorship:
+
+```bash
+python3 <skill-dir>/scripts/harness.py --repo <worktree> own-pr comment \
+  --hostname <github-host> --repository <owner/repo> --pr <number> \
+  --task-id <current-task-id> --body-file <final-comment.md>
+```
+
+Use `own-pr update-body` for a body update, after the existing `pr.update-body` attestation and authorization steps. The helper requires the current task, matching repository/PR/HEAD/branch, and live `gh api --hostname <host> user` and PR-author responses (both login and numeric user ID). It uses one resolved `gh` executable and one inherited environment for the reads and write, including environment-token precedence. It never calls `gh auth token`, persists an identity permit, or executes body/target text as shell code. The only writes are a new conversation comment and the PR's `body` field. Direct `gh pr comment`, arbitrary API writes, comment edits/deletes, merge and permissions remain outside this route.
+
+For executable trust, PATH must resolve `gh` to the installed entry at `/usr/bin/gh`, `/usr/local/bin/gh`, or `/opt/homebrew/bin/gh`. Custom paths and wrappers fail closed; establish a supported trusted installation separately rather than overriding this check. The helper compares the latest observed PR body with the attested previous/final digest and rechecks the gate immediately before sending. This does not add an atomic server-side body precondition; reconcile concurrent edits before updating.
+
+Only use it for content requested in this task. Read the exact final `.md` or `.txt` file first, exclude confidential material, and preserve bot-owned body regions. Known credential patterns and secret file paths are refused; this is not a general confidential-content classifier. No auto retry: a timeout, failed response, or missing read-back may mean a write happened; inspect the exact PR before retrying. A failed identity check, another author's PR, fork/head mismatch, missing state or stale gate stays refused. No calls to related PRs are implied.
+
+This is a harness-controlled publication path, not native/platform consent. If an upper guard refuses it, stop that action and report the target, reason and last successful stage. Do not switch commands or tools to bypass that refusal. Runtime installation is required before this new SSOT path is available; changing source alone does not update live runtimes.
+
 ## Delegation Boundary
 
 At `implement` or `review`, execution may be delegated, but orchestration stays outside `run-change`.
