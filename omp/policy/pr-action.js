@@ -48,7 +48,11 @@ function pushWord(tokens, word) {
  * deliberately not a shell interpreter: dynamic command names, eval/xargs, and
  * other dispatch mechanisms remain outside the recognizer's contract.
  */
-function tokenize(command) {
+export function tokenizeShellCommand(command) {
+  return tokenize(command, true);
+}
+
+function tokenize(command, splitRedirections = false) {
   const tokens = [];
   const word = { value: "", started: false, dynamic: false };
   let quote;
@@ -126,6 +130,11 @@ function tokenize(command) {
       continue;
     }
 
+    if (splitRedirections && (character === "<" || character === ">")) {
+      pushWord(tokens, word);
+      tokens.push({ value: character, redirection: true });
+      continue;
+    }
     if (character === "$" || character === "`") word.dynamic = true;
     word.value += character;
     word.started = true;

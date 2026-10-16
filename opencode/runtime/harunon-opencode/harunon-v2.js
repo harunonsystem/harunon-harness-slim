@@ -10,6 +10,9 @@ import { workflowToolV2 } from "./harness-workflow-v2.js";
 import { loadPermissionIntent } from "../policy/permission-intent.js";
 import { evaluateRuntimePermission } from "../policy/permission-runtime.js";
 import { normalizePermissionEvent } from "../policy/permission-targets.js";
+import { tokenizeShellCommand } from "../policy/pr-action.js";
+import { normalizeShellCommand } from "../hook-runner/hook-runner.js";
+import { resolveCwd } from "../hook-runner/runtime-mapping.js";
 
 const CATALOG = fileURLToPath(new URL("../model-providers.json", import.meta.url));
 
@@ -19,6 +22,66 @@ function legacyToolName(name) {
 
 function legacyInput(event) {
   return { tool: legacyToolName(event.tool), args: event.input };
+}
+
+const SEARCH_SCALAR_OPTIONS = new Set([
+  "--after-context", "--before-context", "--context", "--context-separator", "--color", "--colors",
+  "--encoding", "--engine", "--field-context-separator", "--field-match-separator", "--hyperlink-format",
+  "--label", "--max-count", "--max-depth", "--max-filesize", "--path-separator", "--pre-glob",
+  "--replace", "--sort", "--sortr", "--threads", "--type", "--type-add", "--type-clear", "--type-not",
+]);
+const SEARCH_FILE_OPTIONS = new Set(["--file", "--glob", "--iglob", "--ignore-file"]);
+
+function shellFileTokens(tokens) {
+  const files = [];
+  let program, patternPending, filePending, scalarPending, optionsEnded;
+  for (const token of tokens) {
+    const value = token.value;
+    if (token.separator) { program = undefined; patternPending = filePending = scalarPending = optionsEnded = false; continue; }
+    if (token.redirection) { filePending = true; continue; }
+    if (filePending) { files.push(token); filePending = false; continue; }
+    if (scalarPending) { scalarPending = false; continue; }
+    if (!program) {
+      if (["rtk", "command", "env", "exec", "sudo", "nice", "time", "nohup"].includes(value) ||
+          value.startsWith("-") || /^[A-Za-z_][A-Za-z0-9_]*=/.test(value)) continue;
+      program = value.split("/").at(-1);
+      patternPending = ["rg", "grep", "egrep", "fgrep"].includes(program);
+      files.push({ ...token, program: true });
+      continue;
+    }
+    if (["rg", "grep", "egrep", "fgrep"].includes(program)) {
+      if (value === "--" && !optionsEnded) { optionsEnded = true; continue; }
+      if (!optionsEnded) {
+        const [option, ...attached] = value.split("=");
+        if (option === "--regexp") { patternPending = !attached.length; continue; }
+        if (SEARCH_FILE_OPTIONS.has(option)) {
+          if (option === "--file") patternPending = false;
+          if (attached.length) files.push({ ...token, value: attached.join("=") });
+          else filePending = true;
+          continue;
+        }
+        if (SEARCH_SCALAR_OPTIONS.has(option)) { scalarPending = !attached.length; continue; }
+        if (program === "rg" && value.startsWith("-r") && !value.startsWith("--")) {
+          scalarPending = value === "-r"; continue;
+        }
+        const short = /^-[A-Za-z]*?([efgABCmjtTE])(.*)$/.exec(value);
+        if (short) {
+          const [, flag, argument] = short;
+          if (flag === "e") patternPending = !argument;
+          else if (flag === "f" || flag === "g") {
+            if (flag === "f") patternPending = false;
+            if (argument) files.push({ ...token, value: argument });
+            else filePending = true;
+          } else scalarPending = !argument;
+          continue;
+        }
+        if (patternPending && value.startsWith("-")) continue;
+      }
+      if (patternPending) { patternPending = false; continue; }
+    }
+    files.push(token);
+  }
+  return files;
 }
 
 export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, invokeKernel } = {}) {
@@ -31,6 +94,53 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
 
   const base = ctx.location.directory;
   const intent = loadPermissionIntent();
+  const danger = JSON.parse(readFileSync(new URL("../policy/danger-rules.json", import.meta.url), "utf8"));
+  const shellRules = danger.rules.flatMap((rule) => {
+    if (!rule.targets.includes("opencode")) return [];
+    const action = rule.overrides?.opencode?.action ?? rule.action;
+    if (!["block", "confirm"].includes(action)) return [];
+    return (rule.match?.globs?.opencode ?? []).map((glob) => ({
+      effect: action === "block" ? "deny" : "ask",
+      reason: rule.id,
+      pattern: new RegExp(danger.constants.originJs + "(?:rtk\\s+)?" + glob.split("*").map(
+        (part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      ).join(".*") + "(?=$|[;&|\\n])"),
+    }));
+  });
+  const shellSafety = (commands, cwd = base) => {
+    let pending;
+    for (const command of commands) {
+      const tokens = tokenizeShellCommand(command);
+      const files = shellFileTokens(tokens ?? []);
+      const inlineCode = files.some((token) => token.program &&
+        /(?:^|\/)(?:python[0-9.]*|node|bash|sh|zsh|ruby|perl)$/.test(token.value)) &&
+        tokens.some((token) => /^(?:-[cep]|--eval(?:=|$))/.test(token.value));
+      if (!tokens || inlineCode || tokens.some((token) => token.dynamic ||
+          ["cd", "eval"].includes(token.value)) || files.some((token) => /[*?\[\]{}]/.test(token.value))) {
+        pending = { effect: "ask", reason: "dynamic shell command" };
+      }
+      const paths = files.flatMap(
+        (token) => [token.value, ...token.value.split(/[\s"'()<>=;&|/]+/)]
+      ).filter(Boolean);
+      if (paths.length) {
+        const files = evaluateRuntimePermission("opencode", { action: "read", resources: paths },
+          { cwd, project: ctx.location.project?.canonical ?? base }, { intent, channel: "permission-v2" });
+        if (files?.effect === "deny") return files;
+      }
+      let normalized;
+      try { normalized = normalizeShellCommand(command).replace(/[ \t]+/g, " ").trim(); }
+      catch { return { effect: "deny", reason: "shell normalization unavailable" }; }
+      if (normalized.split(/[;&|\n]+/).some((statement) => /^(?:-|(?:rtk )?git -)/.test(statement.trim()))) {
+        pending = { effect: "ask", reason: "unresolved shell wrapper" };
+      }
+      for (const rule of shellRules) {
+        if (!normalized.split(/[;&|\n]+/).some((statement) => rule.pattern.test(statement.trim()))) continue;
+        if (rule.effect === "deny") return rule;
+        pending = rule;
+      }
+    }
+    return pending;
+  };
   const policy = await createHarnessPolicy(authorizePr)({ directory: base });
   const bridge = await ClaudeHooksBridge({ directory: base, hooksDir, tablePath });
   const scan = await ScanNewSkills({});
@@ -41,6 +151,14 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
 
   await ctx.permission.hook("evaluate", (event) => {
     const location = { cwd: base, project: ctx.location.project?.canonical ?? base };
+    if (event.action === "shell") {
+      const safety = shellSafety(event.resources ?? []);
+      if (safety && event.effect !== "deny") {
+        event.effect = safety.effect;
+        event.message = safety.reason;
+        return;
+      }
+    }
     if (normalizePermissionEvent("opencode", event, location).action === "publication") return;
     const verdict = evaluateRuntimePermission("opencode", event, {
       ...location,
@@ -51,7 +169,9 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
       event.message = verdict.reason;
       return;
     }
-    if (verdict.effect === "deny" || (verdict.effect === "ask" && event.effect === "allow")) {
+    // Native rules own ordinary shell and external-directory approvals; the shared
+    // fallback is not a veto of those rules. File denials still tighten native policy.
+    if (verdict.effect === "deny") {
       event.effect = verdict.effect;
       event.message = verdict.reason;
     }
@@ -60,6 +180,10 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
   await ctx.tool.hook("execute.before", async (event) => {
     if (event.tool === "shell" && (!event.input || typeof event.input.command !== "string")) {
       throw new Error("OpenCode shell call has no command for harness guards");
+    }
+    if (event.tool === "shell") {
+      const safety = shellSafety([event.input.command], resolveCwd(event.input, base));
+      if (safety?.effect === "deny") throw new Error(safety.reason);
     }
     const input = legacyInput(event);
     const output = { args: event.input };

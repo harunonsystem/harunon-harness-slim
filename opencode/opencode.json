@@ -6,6 +6,11 @@
       "effect": "ask"
     },
     {
+      "action": "opencode_list_mcp_resources",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
       "action": "read",
       "resource": "*",
       "effect": "allow"
@@ -69,6 +74,21 @@
       "action": "external_directory",
       "resource": "*",
       "effect": "ask"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "/tmp/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "/private/tmp/**",
+      "effect": "allow"
     },
     {
       "action": "read",
@@ -194,6 +214,486 @@
       "action": "shell",
       "resource": "*",
       "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "alias *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": ".venv/bin/python3 *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "basename *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "bash *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "brew *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "bun --version *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "bunx difit *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "cargo *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "cat *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "cd *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "chezmoi *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "chmod *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "claude config *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "claude mcp *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "code *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "codex-review-bypass *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "codex-review-reset *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "colima *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "comm *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "cmp *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "cp *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "cut *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "date *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "diff *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "dirname *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "command *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "curl *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "defaults read *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "devpod *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "docker *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "du *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "echo *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "env *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "exec zsh",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "fc-list *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "fc-match *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "find *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "file *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "gh *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "ghostty *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git -C *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git add *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git branch *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git diff *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git fetch *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git log *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git ls-tree *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git show *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git stash *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git status *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git tag *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git worktree list *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "grep *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "gwm *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "head *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "jq *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "ls *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "lsof *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "mdfind *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "mdschema help *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "mise *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "mkdir *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "mktemp *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "mv *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "node --version *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "node --test *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "npm *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "npx *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "open *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "osascript *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "pbcopy",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "pbpaste",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "pgrep *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "pnpm *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "podman *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "portless *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "printf *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "ps *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "python3 *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "pwd *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "readlink *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "realpath *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "rg *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "rtk *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "sh *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "source *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "sort *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "stat *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "tail *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "test *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "tree *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "uname *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "uniq *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "wc *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "which docker *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "xargs *",
+      "effect": "allow"
     },
     {
       "action": "shell",
