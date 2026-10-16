@@ -53,7 +53,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/harness-publication-gate.sh"
+            "command": "~/.claude/hooks/harness-publication-gate.sh",
+            "onFailure": "block"
           }
         ]
       },
@@ -62,11 +63,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/block-japanese-tech-writing.sh"
+            "command": "~/.claude/hooks/block-japanese-tech-writing.sh",
+            "onFailure": "block"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/harness-publication-gate.sh"
+            "command": "~/.claude/hooks/harness-publication-gate.sh",
+            "onFailure": "block"
           },
           {
             "type": "command",
@@ -78,7 +81,8 @@
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/block-grep-in-bash.sh"
+            "command": "~/.claude/hooks/block-grep-in-bash.sh",
+            "onFailure": "block"
           },
           {
             "type": "command",
@@ -86,7 +90,8 @@
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/block-dangerous-in-bash.sh"
+            "command": "~/.claude/hooks/block-dangerous-in-bash.sh",
+            "onFailure": "block"
           },
           {
             "type": "command",
@@ -94,11 +99,13 @@
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/block-secrets-in-commit.sh"
+            "command": "~/.claude/hooks/block-secrets-in-commit.sh",
+            "onFailure": "block"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/verify-before-commit.sh"
+            "command": "~/.claude/hooks/verify-before-commit.sh",
+            "onFailure": "block"
           },
           {
             "type": "command",
@@ -111,7 +118,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/block-edit-on-main.sh"
+            "command": "~/.claude/hooks/block-edit-on-main.sh",
+            "onFailure": "block"
           }
         ]
       },
