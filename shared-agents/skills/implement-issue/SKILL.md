@@ -115,6 +115,15 @@ git -C "$main_repo" worktree add -b <branch-name> <worktree-path> <base>
 
 worktree が解決済みなら、その task・worktree・受入条件・base・branch・repo の検証コマンドを保持して常駐指示の Routing に従って実装を開始する。方針が明確なら担当自身で進め、Issue 起点という理由だけで `poteto-mode` を呼ばない。同じ task の既存 state があれば再開し、別 task の state は上書きしない。Phase 1〜2 で確定した issue 情報や worktree を取り直さない。
 
+### cwd と handoff
+
+選定済み worktree を渡す委譲は、調査・レビューだけの場合も次の順で行う。
+
+1. handoff packet に選定済み worktree の絶対パス、branch、base を入れる。パスを prompt に書くだけでは runtime の cwd は変わらない。
+2. 子の起動前に、runtime の cwd と git root・branch がその worktree と一致することを確認する。Claude の `Agent` は親の cwd を引き継ぐので、不一致なら親で `EnterWorktree(path: <選定済みの絶対パス>)` を完了してから確認する。Bash の `cd` や `git -C` はセッション移動の代わりにならない。
+3. 子への最初の指示は、プロジェクトの Read/Edit/Write より前に自分の `pwd`、`git rev-parse --show-toplevel`、`git branch --show-current` を確認し、実パスと branch を packet と照合して報告すること。不一致ならファイルを読まず親に差し戻す。
+4. cwd の移動が未完了、または runtime に移動手段が無い場合は、その作業を保留として報告する。選定した既存 worktree を新しい `isolation: worktree` で置き換えたり、別 worktree の一括許可で解決したりしない。
+
 実装側に渡す情報：目的、受け入れ条件、task URL / ID、対象 repo、worktree、base と branch、repo の検証コマンド、既存の公開承認。stacked PR では親 PR 番号と保持した親 head SHA も渡し、親の変更を子へ取り込んだら境界 SHA を更新する。設定済みなら `pr_template` と `lint_fix_cmd` も渡す。
 
 1 つの task が複数 repo に触れる場合は、task を分けずに、Phase 2 で用意した repo ごとの worktree を全部渡し、repo ごとに PR を出す。PR を出す順は `rules/issue-tracker.md` に従う。
