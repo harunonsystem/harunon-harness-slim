@@ -1,5 +1,5 @@
 /** Semantic permission intent. Adapters must not treat this module as a live guard. */
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -62,11 +62,18 @@ const homePath = (path) => path === "~" ? homedir() : path.startsWith("~/") ? `$
 
 function canonicalPath(absolute) {
   let ancestor = absolute;
-  while (!existsSync(ancestor)) {
-    const parent = dirname(ancestor);
-    if (parent === ancestor) throw new Error(`permission intent: no existing ancestor: ${absolute}`);
-    ancestor = parent;
+  while (true) {
+    try {
+      lstatSync(ancestor);
+      break;
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      const parent = dirname(ancestor);
+      if (parent === ancestor) throw error;
+      ancestor = parent;
+    }
   }
+  // A dangling symlink is an existing boundary, never an uncreated directory.
   return resolve(realpathSync.native(ancestor), relative(ancestor, absolute));
 }
 
