@@ -13,7 +13,7 @@ paths:
 workflow / reusable workflow / composite action を変更したら、既存の project tool 管理と検証入口を使い、次を満たしてから完了とする。
 
 - workflow は `jactionlint` で検証する。既存設定の SHA pin・permissions・timeout・local action の checkout 要件を緩めない。既に jactionlint があれば actionlint を重ねて追加しない。
-- 外部 action / reusable workflow は full commit SHA と version コメントを付け、`pinact run --fix=false --no-api` で検証する。composite action と配布用 CI template も対象に含める。
+- 外部 action / reusable workflow は full commit SHA と version コメントを付け、`jactionlint`（`unpinned-uses` / `missing-version-comment` / `ref-version-mismatch`）で検証する。composite action と配布用 CI template も対象に含める。
 - action の追加・更新時は `pinact run --fix=false --verify-comment` で SHA と version コメントの対応も照合する。offline 検査を照合済みと報告しない。API が使えなければ未確認とする。
 - pin の編集は pinact を使う。既存 action の version 更新は依頼範囲内だけに限定し、lint を通すための無関係な更新や除外を追加しない。
 - 同じ検証をローカルと CI の共通入口へ配線する。token は API が必要なコマンドだけへ渡し、commit / push / PR / 配布の承認範囲は拡張しない。
