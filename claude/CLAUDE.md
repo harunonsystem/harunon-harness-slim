@@ -43,7 +43,7 @@
 | テスト追加・監査 | `test-audit` skill |
 | 実装後の簡素化 | `simplify` skill |
 | 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`。判定は `rules/review-policy.md` |
-| 開発・Issue・spec 整理 | 着手判定・worktree は `implement-issue`、tracker 前に `rules/issue-tracker.md`。原因不明は `how`、比較は `architect`、委譲は `poteto-mode`。明確なら委譲せず main で完結 |
+| 開発・Issue・spec 整理 | 着手判定・worktree は `implement-issue`、tracker 前に `rules/issue-tracker.md`。trivial な局所変更は main で直接実装。non-trivial な実装は `poteto-mode` を親 workflow にする。独立した原因調査だけなら `how`、独立した設計比較だけなら `architect` |
 | 公開証跡（登録 repo のみ） | `run-change`（`policy/verification-repos.json` 登録外は不可） |
 | skill/指示の変更 | `skill-improvement` skill |
 | Figma からの実装（Claude のみ） | `figma-implement` skill |
@@ -51,7 +51,11 @@
 | 外部 OSS 貢献 | `rules/oss-contribution.md` |
 | PR 作成・更新 | `rules/pr-body.md`。既存 PR は `pr-body-sync` |
 
-pstack 自動 routing より本選択を優先。ファイル数・関数境界だけで並列化せず main で検証する。
+trivial は、局所的で解法が明白、単一の変更・検証で完結し、設計判断・原因調査・独立した複数 slice が不要な変更。non-trivial は、複数の独立調査、cross-module / cross-cutting change、複数の実装 slice、設計判断と実装の往復、複数の検証・review lane のいずれかを必要とする変更。ファイル数・関数境界だけでは判定しない。
+
+non-trivial で `poteto-mode` を選んだら、親が受入条件・現在 step・done condition を保持し、並列化は step 内の独立 slice に限定する。read-only 調査・review は同じ checkout を共有できるが、書き込みを並列化するなら独立 worktree または明確な ownership boundary を使い、同じ変更領域を複数 agent に同時編集させない。
+
+pstack の SessionStart 自動 mandate は使わず、本 Routing を優先する。`poteto-mode` を選んだ後は上流 playbook の順序・skip 条件・完了条件を黙って省略しない。runtime に必要な subagent surface が無ければ存在しない並列性を装わず、同じ playbook を逐次実行する。
 
 ブラウザ操作は `agent-browser`（headless。ユーザーの画面にウィンドウを出さない）を使う。ログイン済みタブ・拡張機能など、ユーザーの実ブラウザの状態が必要な確認は `agent-browser` で代替せず、確認できない旨を伝える。
 

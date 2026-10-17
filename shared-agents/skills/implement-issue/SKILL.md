@@ -113,7 +113,7 @@ git -C "$main_repo" worktree add -b <branch-name> <worktree-path> <base>
 
 ### Phase 3: 実装への引き継ぎ
 
-worktree が解決済みなら、その task・worktree・受入条件・base・branch・repo の検証コマンドを保持して常駐指示の Routing に従って実装を開始する。方針が明確なら担当自身で進め、Issue 起点という理由だけで `poteto-mode` を呼ばない。同じ task の既存 state があれば再開し、別 task の state は上書きしない。Phase 1〜2 で確定した issue 情報や worktree を取り直さない。
+worktree が解決済みなら、その task・worktree・受入条件・base・branch・repo の検証コマンドを保持して常駐指示の Routing に従って実装を開始する。Issue 起点という理由だけでは `poteto-mode` を選ばず、Routing の trivial / non-trivial 判定を使う。trivial なら担当自身で直接進め、non-trivial なら `poteto-mode` を親 workflow にして、受入条件・現在 step・done condition を一箇所で保持する。同じ task の既存 state があれば再開し、別 task の state は上書きしない。Phase 1〜2 で確定した issue 情報や worktree を取り直さない。
 
 ### cwd と handoff
 
