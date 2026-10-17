@@ -76,4 +76,4 @@ MSW、Storybook、CSS Modules、props分割代入禁止などを全プロジェ�
 - `PASSED`: 必要な検証が済み、`critical` / `major` がない。`minor` は改善提案として残せる。
 
 [report](references/report.md) の短い形式で、対象、判定、Finding、11カテゴリの結果、検証と未確認、次の行動を報告する。
-`/codex:review` の実行・回数・承認は [codex-review-policy](../../rules/codex-review-policy.md) に従い、このスキル内では起動しない。
+`/codex:review` の実行・回数・承認は [codex-review-policy](../../rules/codex-review-policy.md) に従い、このスキル内では起動しない。`PASSED` は自己チェックの合格であり、対象変更で必須の独立 AI レビューを代替しない。

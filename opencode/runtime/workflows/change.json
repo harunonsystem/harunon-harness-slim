@@ -51,15 +51,15 @@
     },
     "pr.create": {
       "allowedStates": ["publish", "complete"],
-      "requires": ["repository-verification-current", "local-review-covers-head", "publication-body-current"]
+      "requires": ["repository-verification-current", "pre-review-check-covers-head", "independent-review-when-required", "publication-body-current"]
     },
     "pr.update-body": {
       "allowedStates": ["publish", "complete"],
-      "requires": ["repository-verification-current", "local-review-covers-head", "publication-body-current"]
+      "requires": ["repository-verification-current", "pre-review-check-covers-head", "independent-review-when-required", "publication-body-current"]
     },
     "pr.comment": {
       "allowedStates": ["publish", "complete"],
-      "requires": ["repository-verification-current", "local-review-covers-head"]
+      "requires": ["repository-verification-current", "pre-review-check-covers-head", "independent-review-when-required"]
     },
     "pr.merge": {
       "allowedStates": ["publish", "complete"],

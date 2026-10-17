@@ -87,7 +87,7 @@ Use the returned revision; verification records both the attempt and its result.
 
 ## Complete without publication
 
-After the native loop has met the requested outcomes, attach the mandatory self-check below and advance its decision to `publish`. This phase is only gate-ready; no PR is required. With mandatory verification current, read status and record completion:
+After the native loop has met the requested outcomes, attach the mandatory self-check and any required independent review below, then advance the decision to `publish`. This phase is only gate-ready; no PR is required. With mandatory verification current, read status and record completion:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py complete --revision <revision>
@@ -101,7 +101,7 @@ OpenCode uses operation `complete`. This only completes the local task; it grant
 
 Before completion, push or PR creation, run `pre-review-check` over the whole branch diff, not just the last commit. Resolve its critical and major findings and run the required deterministic checks. `BLOCKED` or `INCOMPLETE` is not completion/publication-ready. Save the complete `PASSED` report, including the base/head, findings, check results, and unavailable optional checks, as a temporary artifact.
 
-The default evidence is this self-check, not an independent external review. Attach the actual report explicitly:
+The self-check and independent AI review are separate requirements. Attach the actual passed self-check report first:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py attach-review \
@@ -109,13 +109,19 @@ python3 <skill-dir>/scripts/harness.py attach-review \
   --artifact <self-check-report-file>
 ```
 
-The kernel refuses a missing artifact, a stale HEAD, an invalid phase, or an unapproved second attachment. Local evidence is explicitly `audit-only`: it prevents accidental PR creation but is not a security boundary. The agent must verify the report's `PASSED` status; the kernel does not interpret its findings. Use `advance accepted` to reach `publish`. Never describe this evidence as an independent review or use it to authorize a merge.
+The kernel refuses a missing artifact, a stale HEAD, an invalid phase, or an unapproved second independent review. Self-check attachments do not consume reviewer attempts. Local evidence is explicitly `audit-only`: it prevents accidental PR creation but is not a security boundary. The agent must verify the report's `PASSED` status; the kernel does not interpret its findings. For review-required changes, the self-check leaves the phase at `review`; attach the independent output before advancing the decision. For exempt changes, it enters `decide`. Use `advance accepted` to reach `publish` when no findings need fixing. Never describe this evidence as an independent review or use it to authorize a merge.
 
-Pstack design critics and internal review panels run within the authorized implementation scope; their findings do not replace the mandatory publication self-check or authorize publishing. Invoke a separate external review service only when the user explicitly requests one. In Codex, use the active runtime's reviewer with the configured `review_model`; when the reviewer subagent is available, spawn the `reviewer` agent. Other runtimes must use an available independent review surface. Do not shell out to `codex review` and do not use a plugin process to start another Codex session. Follow `rules/codex-review-policy.md`, save the complete reviewer output, and attach it with the actual provider instead of `self-check`.
+Pstack design critics and internal review panels run within the authorized implementation scope; their findings do not replace the mandatory publication self-check or authorize publishing. Run one independent AI review for code, scripts, hooks, or configuration changes. Preserve the Markdown/text and router exemptions in `rules/codex-review-policy.md`; exemptions never remove verification or pre-review-check. A design panel does not replace this review. In Codex, use the active runtime's reviewer with the configured `review_model`; when the reviewer subagent is available, spawn the `reviewer` agent. If the active provider is `openai-codex` (including Pi / omp), use an available independent runtime-native reviewer or explicit review surface; do not invoke the companion. Other providers follow `/codex:review` through codex-companion, including Claude. Stop if the required reviewer is unavailable. Do not shell out to `codex review` and do not use a plugin process to start another Codex session. Follow `rules/codex-review-policy.md`, save the complete reviewer output, and attach it separately with the actual provider (for example `runtime-native` or `codex-companion`):
+
+```bash
+python3 <skill-dir>/scripts/harness.py attach-review \
+  --revision <revision> --provider <actual-provider> --subject-sha "$(git rev-parse HEAD)" \
+  --artifact <independent-review-output-file>
+```
 
 After the findings are presented, fix every P0 / P1 / P2 on the branch and record `findings_fixed` with `advance` (no second review; the PR gate accepts the reviewed commit as an ancestor of HEAD). P3 and out-of-scope findings go to the PR body as 残件. Use `accepted` when there is nothing to fix, `findings_deferred` when the user explicitly defers, and `fix_selected` only when the user asks for a fix loop with a second review.
 
-If an explicitly requested reviewer did not return because of quota / credit exhaustion, record the skip instead of an attach only after the mandatory self-check has passed; the PR body must say the external review was skipped:
+If a required or requested reviewer did not return because of quota / credit exhaustion, record the skip instead of an attach only after the mandatory self-check has passed; the PR body must say the external review was skipped:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py skip-review --revision <revision> --provider <provider> --reason "<reviewer error summary>"
@@ -155,7 +161,7 @@ Before PR creation, reconcile as above and reuse an existing matching PR instead
 python3 <skill-dir>/scripts/harness.py authorize pr.create --body-file <final-body.md>
 ```
 
-In a repository that has adopted the gates, missing tasks and stale workflow versions return `TASK_REQUIRED`: use `start --publish-only`, kernel verification, and the passed self-check before publishing. An untouched `intake` task must enter the gates; a completed task still requires current verification and local review evidence. Legacy flags and inactive-task status never substitute for either requirement.
+In a repository that has adopted the gates, missing tasks and stale workflow versions return `TASK_REQUIRED`: use `start --publish-only`, kernel verification, the passed self-check, and the independent review when required before publishing. An untouched `intake` task must enter the gates; a completed task still requires current verification and local review evidence. Legacy flags and inactive-task status never substitute for either requirement.
 
 An explicit user request to create the PR is the publication confirmation. Do not ask for the same confirmation again; only surface a platform permission prompt when the runtime itself requires one.
 

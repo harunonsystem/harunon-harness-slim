@@ -337,6 +337,46 @@ def task_is_active(state: JsonObject) -> bool:
     return state["phase"] != "complete" and state["revision"] > 0
 
 
+def independent_review_required(repo: Path) -> bool:
+    """Classify the whole branch and checkout using the existing router exemptions.
+
+    Unresolvable bases, empty diffs and ambiguous path transport fail closed.
+    --no-renames retains a deleted code path when it is renamed to a document.
+    """
+    try:
+        default = subprocess.run(
+            ["git", "-C", str(repo), "symbolic-ref", "refs/remotes/origin/HEAD"],
+            capture_output=True, text=True,
+        ).stdout.strip()
+        candidates = [default] if default else []
+        candidates += ["refs/remotes/origin/main", "refs/heads/main", "refs/remotes/origin/master", "refs/heads/master"]
+        base = None
+        for candidate in candidates:
+            result = subprocess.run(["git", "-C", str(repo), "merge-base", candidate, "HEAD"], capture_output=True, text=True)
+            if result.returncode == 0:
+                base = result.stdout.strip()
+                break
+        if base is None:
+            return True
+        paths = set()
+        for args in (("diff", "--name-only", "--no-renames", "-z", base, "HEAD", "--"),
+                     ("diff", "--name-only", "--no-renames", "-z", base, "--"),
+                     ("diff", "--cached", "--name-only", "--no-renames", "-z", base, "--"),
+                     ("ls-files", "--others", "--exclude-standard", "-z")):
+            paths.update(os.fsdecode(path) for path in verification.git(repo, *args).split(b"\0") if path)
+        if any("\n" in path or "\t" in path or "\r" in path for path in paths):
+            return True
+        # Revert exemption only applies to a clean branch, never to added work.
+        subjects = "" if verification.git(repo, "status", "--porcelain") else verification.git(repo, "log", "--format=%s", f"{base}..HEAD").decode()
+        result = subprocess.run(
+            ["bash", "-c", 'source "$1"; review_route 0 "$2"', "review-route", str(Path(__file__).with_name("review-router.sh")), subjects],
+            cwd=repo, input="".join(f"M\t{path}\n" for path in sorted(paths)), capture_output=True, text=True,
+        )
+        return result.returncode != 0 or result.stdout.strip() not in ("none", "bypass")
+    except (OSError, UnicodeError, verification.VerificationError):
+        return True
+
+
 def _apply_review_report(
     state: JsonObject,
     request: JsonObject,
@@ -350,16 +390,22 @@ def _apply_review_report(
     使わない従来の review.attach 呼び出し）。
     """
     evidence = request.get("evidence")
+    self_check = isinstance(evidence, dict) and evidence.get("provider") == "self-check"
     quota_self_check = (
         state["phase"] == "publish"
-        and isinstance(evidence, dict)
-        and evidence.get("provider") == "self-check"
+        and self_check
         and any(entry["kind"] == "review-skipped" for entry in state["evidence"])
     )
-    if state["phase"] != "review" and not quota_self_check:
+    first_independent = (
+        not self_check and state["reviewAttempts"] == 0
+        and state["phase"] in ("decide", "publish")
+        and any(entry["kind"] == "local-review" and entry.get("provider") == "self-check" for entry in state["evidence"])
+        and not any(entry["kind"] == "review-skipped" for entry in state["evidence"])
+    )
+    if state["phase"] != "review" and not (self_check and state["phase"] in ("decide", "publish")) and not first_independent:
         raise KernelError("INVALID_REVIEW_PHASE", exit_code=2, phase=state["phase"])
     approval = state.get("rereviewApproval")
-    if state["reviewAttempts"] >= 1 and approval is None:
+    if not self_check and state["reviewAttempts"] >= 1 and approval is None:
         raise KernelError(
             "REVIEW_LIMIT_REACHED",
             exit_code=2,
@@ -379,6 +425,13 @@ def _apply_review_report(
     validate_review_evidence(evidence, repo)
     if evidence.get("subjectSha") != git_value(repo, "HEAD"):
         raise KernelError("REVIEW_SUBJECT_STALE", exit_code=2)
+    if self_check:
+        if assignment_index is not None:
+            raise KernelError("INVALID_REVIEW_EVIDENCE", reason="a self-check cannot report an independent reviewer assignment")
+        state["evidence"].append(evidence)
+        if quota_self_check or (state["phase"] == "review" and not independent_review_required(repo)):
+            state["phase"] = workflow["states"]["review"]["review_attached"]
+        return
     if approval is not None:
         evidence["rereviewReason"] = approval["reason"]
         state.pop("rereviewApproval")
@@ -546,9 +599,9 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
 
     if event_type == "task.complete" or (event_type == "phase.advance" and request.get("event") == "published" and state["phase"] == "publish"):
         verification.require_current(state["evidence"], repo)
-        decision = self_check_decision(state, repo, ctx)
+        decision = review_decision(state, repo, ctx)
         if not decision["allowed"]:
-            raise KernelError(decision["code"], exit_code=2, reason="complete the mandatory self-check and decision before finishing")
+            raise KernelError(decision["code"], exit_code=2, reason="complete pre-review-check, required independent review and the decision before finishing")
         if event_type != "task.complete":
             publication_body.require(state, repo, {**request, "action": "pr.create"}, CORE_DIR)
     if event_type == "task.complete":
@@ -608,6 +661,7 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
             if current is not None
             and current["role"] == "review"
             and current["status"] in ("assigned", "dispatched")
+            and not (isinstance(request.get("evidence"), dict) and request["evidence"].get("provider") == "self-check")
             else None
         )
         _apply_review_report(state, request, repo, workflow, assignment_index)
@@ -702,27 +756,36 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
     return state
 
 
-def self_check_decision(state: JsonObject, repo: Path, ctx: WorkflowContext) -> JsonObject:
+def review_decision(state: JsonObject, repo: Path, ctx: WorkflowContext) -> JsonObject:
     """Shared completion/publication readiness, without authorizing network egress."""
     if state["phase"] not in ctx.workflow["actions"]["pr.create"]["allowedStates"]:
         return {"allowed": False, "code": "WORKFLOW_NOT_READY", "phase": state["phase"]}
     head = git_value(repo, "HEAD")
-    # Review covers its commit and remediation descendants; quota SKIP is not a self-check.
+    # Both checks cover remediation descendants; quota SKIP never replaces a self-check.
     code = None
+    self_check = False
+    independent = False
     for evidence in state["evidence"]:
-        if evidence["kind"] != "local-review":
+        if evidence["kind"] not in ("local-review", "review-skipped"):
             continue
         subject = evidence.get("subjectSha")
         if not isinstance(subject, str):
             continue
-        if subject == head:
-            code = "LOCAL_REVIEW_CURRENT"
-            break
-        if git_is_ancestor(repo, subject, head):
-            code = "LOCAL_REVIEW_ANCESTOR"
-    if code is not None:
-        return {"allowed": True, "code": code, "trust": "audit-only"}
-    return {"allowed": False, "code": "REVIEW_STALE"}
+        if subject != head and not git_is_ancestor(repo, subject, head):
+            continue
+        if evidence["kind"] == "local-review":
+            code = "LOCAL_REVIEW_CURRENT" if subject == head else code or "LOCAL_REVIEW_ANCESTOR"
+            self_check |= evidence.get("provider") == "self-check"
+            independent |= bool(evidence.get("provider")) and evidence["provider"] != "self-check"
+        elif evidence.get("skipReason") == "quota" and evidence.get("provider") != "self-check":
+            independent = True
+    if code is None:
+        return {"allowed": False, "code": "REVIEW_STALE"}
+    if not self_check:
+        return {"allowed": False, "code": "PRE_REVIEW_CHECK_REQUIRED"}
+    if not independent and independent_review_required(repo):
+        return {"allowed": False, "code": "INDEPENDENT_REVIEW_REQUIRED"}
+    return {"allowed": True, "code": code, "trust": "audit-only"}
 
 
 def check_pr_create_target(repo: Path, request: JsonObject) -> None:
@@ -774,13 +837,15 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
         }
     verification.require_current(state["evidence"], repo)
     if action == "task.report":
-        # complete already required the self-check; reporting needs it to stay verified.
-        return {"action": action, "allowed": True, "code": "TASK_COMPLETE_CURRENT"}
+        decision = review_decision(state, repo, ctx)
+        if decision["allowed"]:
+            decision["code"] = "TASK_COMPLETE_CURRENT"
+        return {"action": action, **decision}
     if action == "pr.comment":
-        return {"action": action, **self_check_decision(state, repo, ctx)}
+        return {"action": action, **review_decision(state, repo, ctx)}
     if action in ("pr.create", "pr.update-body"):
         check_pr_create_target(repo, request)
-        decision = self_check_decision(state, repo, ctx)
+        decision = review_decision(state, repo, ctx)
         if decision["allowed"]:
             publication_body.require(state, repo, request, CORE_DIR)
         return {"action": action, **decision}
