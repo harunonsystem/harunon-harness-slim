@@ -20,6 +20,7 @@ branch / PR の base・head・merge-base の決め方は review-policy の「dif
 `main` や現在の `HEAD` をレビュー対象と決めつけない。
 比較範囲・対象ファイルを一度確定して記録し、その差分を後続で共有する。
 依頼・会話・Issue にある受入条件と、対象に適用されるローカル規約を集める。
+repo root に `REVIEW.md` があれば必ず読み、repo 固有の重点観点・既知ノイズ・risk hint を適用する。`REVIEW.md` の内容を全 project 共通ルールへ一般化しない。
 
 ## 2. 適用するカテゴリを選ぶ
 
