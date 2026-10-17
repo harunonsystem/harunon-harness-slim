@@ -162,8 +162,9 @@ export function destructiveReason(command: string): string | undefined {
 		if (rule.id === "sql-drop") {
 			for (const unit of shellUnits(command)) {
 				let rendered: string;
+				// 全体の正規化は成功済み。失敗するのは `env | sort` の `env ` のような wrapper 語だけの断片で、SQL client ではない。
 				try { rendered = normalizeShellCommand(unit.text); }
-				catch { return "コマンドの安全判定に必要な正規化が利用できません"; }
+				catch { continue; }
 				const sqlClient = /(?:^|[;&|\n])\s*(?:[^\s;|&]*\/)?(?:psql|mysql|sqlite3)(?=\s|$)/.test(rendered);
 				if (sqlClient && rule.pattern.test(`${unit.stdin}\n${unit.text}`)) return rule.reason;
 			}

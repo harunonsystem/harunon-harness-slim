@@ -208,14 +208,6 @@ bash:
     approval: prompt
   - match: rtk git push
     approval: prompt
-  - match: git commit *
-    approval: prompt
-  - match: rtk git commit *
-    approval: prompt
-  - match: git commit
-    approval: prompt
-  - match: rtk git commit
-    approval: prompt
   - match: rm -*r*f*
     approval: prompt
   - match: rm -*f*r*

@@ -312,9 +312,12 @@ my $value_wrapper = $ENV{NORMALIZE_KEEP_SUDO} ? qr/env/ : qr/(?:env|sudo)/;
 for (1 .. 4) {
     $s =~ s/$origin([ \t]*)$value_wrapper[ \t]+(?:-u|--unset)(?:[ \t]+|=)[^ \t;&|]+[ \t]*/$1$2/g;
 }
+# `command -v/-V X` は X を実行せず場所を表示するだけなので wrapper として落とさない
+# （落とすと `-v X` が残り、OpenCode で未解決 wrapper として確認待ちになっていた）。
+my $command_wrapper = qr/command(?![ \t]+-[vV](?:[ \t]|\z))/;
 my $wrapper = $ENV{NORMALIZE_KEEP_SUDO}
-    ? qr/(?:then|do|else|elif|!|command|exec|env|time|nohup)/
-    : qr/(?:then|do|else|elif|!|command|exec|env|time|nohup|sudo)/;
+    ? qr/(?:then|do|else|elif|!|$command_wrapper|exec|env|time|nohup)/
+    : qr/(?:then|do|else|elif|!|$command_wrapper|exec|env|time|nohup|sudo)/;
 for (1 .. 4) {
     $s =~ s/$origin([ \t]*)(?:[A-Za-z_][A-Za-z0-9_]*=\S*[ \t]+)+/$1$2/g;
     $s =~ s/$origin([ \t]*)$wrapper[ \t]+/$1$2/g;

@@ -477,6 +477,41 @@
     },
     {
       "action": "shell",
+      "resource": "git rev-parse *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git merge-base *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git ls-files *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git symbolic-ref -q HEAD",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git symbolic-ref --short HEAD",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git config --get *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git config --show-origin --get *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
       "resource": "grep *",
       "effect": "allow"
     },
@@ -537,12 +572,7 @@
     },
     {
       "action": "shell",
-      "resource": "node --version *",
-      "effect": "allow"
-    },
-    {
-      "action": "shell",
-      "resource": "node --test *",
+      "resource": "node *",
       "effect": "allow"
     },
     {
@@ -687,7 +717,7 @@
     },
     {
       "action": "shell",
-      "resource": "which docker *",
+      "resource": "which *",
       "effect": "allow"
     },
     {
@@ -759,11 +789,6 @@
       "action": "shell",
       "resource": "git push origin master *",
       "effect": "deny"
-    },
-    {
-      "action": "shell",
-      "resource": "git commit *",
-      "effect": "ask"
     },
     {
       "action": "shell",

@@ -28,6 +28,9 @@ def _body_from_command(command: str) -> tuple[str | None, str | None]:
         lexer.whitespace_split = True
         tokens = list(lexer)
     except ValueError as exc:
+        # PR 本文の更新でなければ検査対象外。前段の絞り込みは `gh` の有無しか見ていない。
+        if not re.search(r"\bgh\s+pr\s+(?:create|edit)\b", command):
+            return None, None
         return None, f"PR コマンドを解析できません: {exc}"
 
     segments: list[list[str]] = [[]]

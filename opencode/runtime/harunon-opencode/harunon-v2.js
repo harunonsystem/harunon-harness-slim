@@ -116,7 +116,9 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
         /(?:^|\/)(?:python[0-9.]*|node|bash|sh|zsh|ruby|perl)$/.test(token.value)) &&
         tokens.some((token) => /^(?:-[cep]|--eval(?:=|$))/.test(token.value));
       if (!tokens || inlineCode || tokens.some((token) => token.dynamic ||
-          ["cd", "eval"].includes(token.value)) || files.some((token) => /[*?\[\]{}]/.test(token.value))) {
+          // 引用符内の [] {} は jq 式やテンプレートで shell は展開しない。* と ? はツール自身が
+          // 展開しうるので引用符内でも確認する。
+          ["cd", "eval"].includes(token.value)) || files.some((token) => token.glob || /[*?]/.test(token.value))) {
         pending = { effect: "ask", reason: "dynamic shell command" };
       }
       const paths = files.flatMap(

@@ -51,8 +51,15 @@ if echo "$GREP_FLAGS" | command grep -qE '(^|\||&&|;)[[:space:]]*(e|f)?grep\b[^|
   exit 2
 fi
 
-if echo "$NORMALIZED" | command grep -qE '(^|\||&&|;)[[:space:]]*sed\b[^|;&]*[[:space:]](-[A-Za-z]*i|--in-place)'; then
-  echo "sed -i ではなく Edit ツールまたは perl を使ってください。例: perl -pi -e 's/old/new/g' file.txt（読み取りの sed -n は使えます）" >&2
+# BSD 形の `sed -i ''` / `sed -i ""` は通す。auto mode が小さな機械的編集に sed を使うよう
+# 指示しており、止めると週 19 回まで deny が増えた（cclens 2026-10-18）。正規化は '' を
+# 消すため、quote が残る正規化前のコマンドから落とす。GNU 形の `-i`・`-i.bak` は止めたまま。
+SED_FLAGS=$(echo "$COMMAND" | command sed -E "s/(^|[[:space:]])-i[[:space:]]+(''|\"\")([[:space:]]|\$)/\\1\\3/g")
+if declare -f normalize_command_available >/dev/null 2>&1 && normalize_command_available; then
+  SED_FLAGS=$(normalize_command "$SED_FLAGS") || SED_FLAGS="$NORMALIZED"
+fi
+if echo "$SED_FLAGS" | command grep -qE '(^|\||&&|;)[[:space:]]*sed\b[^|;&]*[[:space:]](-[A-Za-z]*i|--in-place)'; then
+  echo "sed -i は BSD 形の sed -i '' だけ使えます。それ以外は Edit ツールまたは perl を使ってください。例: perl -pi -e 's/old/new/g' file.txt" >&2
   declare -f record_denial >/dev/null 2>&1 && record_denial "block-grep-in-bash" "sed-in-bash" "$COMMAND" || true
   exit 2
 fi

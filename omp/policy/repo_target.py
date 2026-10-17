@@ -154,6 +154,19 @@ def _env_prefix_names(tokens: list[str], names: tuple[str, ...]) -> bool:
     )
 
 
+def _process_env_overrides_git(name: str) -> bool:
+    value = os.environ.get(name)
+    if not value or name != "GIT_CONFIG_PARAMETERS":
+        return bool(value)
+    # Claude の sandbox は Bash に proxy 用の http.* / credential.* を注入する。送信先を
+    # 変えない設定なので、これだけなら承認対象の判定を止めない（2026-10 に approve-push が全滅）。
+    try:
+        keys = [entry.split("=", 1)[0].lower() for entry in shlex.split(value)]
+    except ValueError:
+        return True
+    return not all(key.startswith(("http.", "credential.")) for key in keys)
+
+
 def unresolvable_reason(command: str) -> str | None:
     """対象 repo を一意に決められないグローバルオプション/env prefix を検出する。
 
@@ -487,7 +500,7 @@ def push_target(repo: Path, command: str) -> dict:
     """
     tokens = _tokenize(command)
     sensitive_env = ("GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_NAMESPACE", "GIT_COMMON_DIR", "GIT_DIR", "GIT_WORK_TREE")
-    if _env_prefix_names(tokens, sensitive_env) or any(os.environ.get(name) for name in sensitive_env):
+    if _env_prefix_names(tokens, sensitive_env) or any(_process_env_overrides_git(name) for name in sensitive_env):
         raise UnresolvableTarget("Git 環境の上書きは承認対象を確定できません")
     starts = [i for i, token in enumerate(tokens) if token == "git" and _is_git_start(tokens, i)]
     if len(starts) != 1:

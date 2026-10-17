@@ -32,25 +32,41 @@ function currentScratchpad(event, session) {
   }
 }
 
-function currentToolResults(event, session, cwd) {
-  if (event.tool_name !== "Read") return undefined;
+function transcriptProject(event, session) {
   const transcript = absoluteMetadataPath(event.transcript_path);
   const config = absoluteMetadataPath(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude"));
   if (!transcript || !config || basename(transcript) !== `${session}.jsonl` ||
       dirname(dirname(transcript)) !== join(config, "projects")) return undefined;
   const project = dirname(transcript);
-  const directory = join(project, session, "tool-results");
   try {
     // The runtime's transcript anchors ownership; a lookalike tree or symlink cannot relocate it.
-    if (!lstatSync(transcript).isFile() ||
-        realpathSync.native(project) !== join(realpathSync.native(config), "projects", basename(project)) ||
-        ![project, dirname(directory), directory].every((path) => lstatSync(path).isDirectory()) ||
-        !lstatSync(resolve(cwd, event.tool_input.file_path)).isFile()) return undefined;
-    return directory;
+    return lstatSync(transcript).isFile() && lstatSync(project).isDirectory() &&
+      realpathSync.native(project) === join(realpathSync.native(config), "projects", basename(project)) ? project : undefined;
   } catch {
     return undefined; // Missing or unresolvable runtime metadata keeps the original decision.
   }
 }
+
+function ownedDirectory(directory, ...ancestors) {
+  try {
+    return [...ancestors, directory].every((path) => lstatSync(path).isDirectory()) ? directory : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function currentToolResults(event, session, cwd, project) {
+  if (event.tool_name !== "Read" || !project) return undefined;
+  const directory = ownedDirectory(join(project, session, "tool-results"), join(project, session));
+  try {
+    return directory && lstatSync(resolve(cwd, event.tool_input.file_path)).isFile() ? directory : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// Claude's auto memory for this transcript's project. Edits stay subject to Claude's native rules.
+const currentMemory = (project) => project && ownedDirectory(join(project, "memory"));
 
 try {
   const event = JSON.parse(readFileSync(0, "utf8"));
@@ -59,7 +75,9 @@ try {
   let result = evaluateRuntimePermission("claude", event, { cwd, project: cwd }, options);
   if (result?.effect === "ask") {
     const session = currentFileSession(event);
-    const directories = session ? [currentScratchpad(event, session), currentToolResults(event, session, cwd)] : [];
+    const project = session && transcriptProject(event, session);
+    const directories = session ?
+      [currentScratchpad(event, session), currentToolResults(event, session, cwd, project), currentMemory(project)] : [];
     if (directories.some((directory) => directory &&
         evaluateRuntimePermission("claude", event, { cwd, project: directory }, options)?.effect === "allow")) {
       // Silence preserves Claude's native rules; emitting allow would override them.

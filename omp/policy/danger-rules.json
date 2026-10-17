@@ -126,15 +126,13 @@
       "id": "git-commit",
       "action": "confirm",
       "impl": "table",
-      "targets": ["claude", "opencode", "omp", "pi"],
+      "targets": ["claude"],
       "message": "git commit（COMMIT前チェック: 意図したブランチか / 同種の問題を grep したか / 動作を実物で確認したか / 独立した変更を分割したか）",
       "match": {
         "js": "(?:rtk\\s+)?git\\s+commit\\b",
         "origin": "default",
         "globs": {
-          "claude": ["Bash(git commit)"],
-          "opencode": ["git commit *"],
-          "omp": ["git commit *"]
+          "claude": ["Bash(git commit)"]
         }
       },
       "overrides": {

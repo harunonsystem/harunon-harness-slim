@@ -42,6 +42,7 @@ function pushWord(tokens, word) {
   word.value = "";
   word.started = false;
   word.dynamic = false;
+  word.glob = false;
 }
 
 /**
@@ -57,7 +58,8 @@ export function tokenizeShellCommand(command) {
 
 function tokenize(command, splitRedirections = false) {
   const tokens = [];
-  const word = { value: "", started: false, dynamic: false };
+  // glob: 引用符・エスケープの外に shell が展開する glob 文字がある
+  const word = { value: "", started: false, dynamic: false, glob: false };
   let quote;
 
   for (let index = 0; index < command.length; index += 1) {
@@ -139,6 +141,7 @@ function tokenize(command, splitRedirections = false) {
       continue;
     }
     if (character === "$" || character === "`") word.dynamic = true;
+    if ("*?[]{}".includes(character)) word.glob = true;
     word.value += character;
     word.started = true;
   }

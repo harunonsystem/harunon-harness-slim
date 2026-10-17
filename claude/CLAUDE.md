@@ -65,7 +65,7 @@ pstack の SessionStart 自動 mandate は使わず、本 Routing を優先す�
 - 「理想的に」「整理して」のような曖昧な依頼でも、依頼外の変更（設定の形式変換・スケジュール変更など）は加えず、最後に候補として挙げる。
 - 文章を書き直す前に、各用語の意味を repo で確かめる。説明のない造語・略語・内部 ID は平易な語に置き換えるか一言の説明を添える。
 - 委譲時、skill が専用 agent を指定する場合はその指定を使う。それ以外の調査は `Explore`、実装は `fast-worker`（仕様が具体的なもの）、確認コマンドの実行だけなら `command-runner`、難しい原因分析・設計は `deep-reasoner`、レビューは `reviewer`。利用可能なモデルと effort は runtime の設定で選ぶ。別 worktree への委譲は `implement-issue` の「cwd と handoff」に従う。
-- 新規 worktree は `EnterWorktree(name: <branch>)`。作成方式は runtime の設定に従う。
+- 新規 worktree は `EnterWorktree(name: <branch>)`。作成方式は runtime の設定に従う。隔離中の Bash は git を `-C`・`$VAR`・`$(…)`・`;` / `&&` 連結なしで 1 コマンドずつ実行する（複雑な形は隔離検査が拒否する）。
 - skill の「ユーザー確認機能」は `AskUserQuestion`。承認済みの操作に再確認は不要。
 - Edit / Write する既存ファイルは Bash の `cat` ではなく `Read` で先に読む。Edit は Read 済みを要求し、`File has not been read yet` は同じ引数の retry では消えない。
 - 長時間のバックグラウンド監視（CI 完了待ち、Dev サーバーエラー監視、テスト進捗）は Bash でセッションを停止させず `Monitor` ツールを使う。pnpm 環境では `-s` / `--silent`、`--stream`、`FORCE_COLOR=0`、`pnpm -C` を徹底する（定型は `/claude-monitor` 参照）。

@@ -246,7 +246,7 @@ main への push は通らないので、ローカル main に commit してし�
 ### トークン消費を無駄にしない姿勢
 
 - Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode の classifier に拒否される。`git -C` / `pnpm -C` / 絶対パス起動を使い、cwd が要るなら subshell に入れる。hook でブロック）
-- 検索は ripgrep（`rg`）を使う（Bash の再帰 grep と `sed -i` は hook でブロック。`sed -n` での読み取りやパイプ内の grep / awk は通る）
+- 検索は ripgrep（`rg`）を使う（Bash の再帰 grep と `sed -i` は hook でブロック。`sed -n` での読み取り、パイプ内の grep / awk、BSD 形の `sed -i ''` は通る）
 - 出力を削るプロキシを挟んでいる環境では hook が Bash コマンドを自動で書き換えるので、こちらから経由先を指定しない
 - パスは推測して Read しない（Glob / ls で確認してから）。cloud セッション由来の `/home/user/...` パスをローカルで使い回さない（ローカルは `~` 配下）
 - 既存ファイルへの Write / Edit は同じセッション内で Read 済みの内容にだけ行い、`File has not been read yet` / `modified since read` の precondition エラーは同じ引数の retry では解消しないので対象範囲を Read し直してから再実行する
