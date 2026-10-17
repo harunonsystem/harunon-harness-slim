@@ -247,7 +247,7 @@ async function evaluate(table, runtime, hooksDir, timeoutMs, toolName, toolInput
       stdin: JSON.stringify({ hook_event_name: "PreToolUse", tool_name: toolName, tool_input: input, cwd })
     });
     if (signal?.aborted) return deny("hook execution interrupted", input, warnings);
-    if (result.code === 2) return deny(result.stderr.trim(), input, warnings);
+    if (result.code === 2) return deny(result.stderr.trim() || "hook denied without a reason", input, warnings);
     if (result.code !== 0) {
       const error = `hook failed (exit ${result.code}): ${hook.file}: ${result.stderr.trim()}`;
       if (hook.required) return deny(`required security ${error}`, input, warnings);

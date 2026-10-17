@@ -67,13 +67,20 @@ export function resolveCwd(input = {}, baseCwd = process.cwd()) {
   return selected ? resolve(baseCwd, selected) : baseCwd;
 }
 
+// ホストが tool 名の大小を揺らしても（例: `Bash`）guard を無言で skip しないための lookup。
+function claudeToolNameOf(runtime, toolName) {
+  const table = RUNTIME_TOOLS[runtime];
+  const name = typeof toolName === "string" ? toolName : "";
+  return table?.[name] ?? table?.[name.toLowerCase()];
+}
+
 /**
  * Convert one host tool call into the Claude hook protocol shape.
  *
  * @returns {{toolName: string, input: Record<string, unknown>, cwd: string}|undefined}
  */
 export function normalizeToolCall(runtime, toolName, input, baseCwd) {
-  const claudeToolName = RUNTIME_TOOLS[runtime]?.[toolName];
+  const claudeToolName = claudeToolNameOf(runtime, toolName);
   if (!claudeToolName) return undefined;
   if (runtime === "opencode" && (!input || typeof input !== "object" || typeof input.command !== "string")) {
     return undefined;
@@ -133,7 +140,7 @@ function patchTargets(envelope, includeRemoved = false) {
  */
 export function editedPaths(toolName, input, baseCwd, { includeRemoved = false } = {}) {
   if (!input || typeof input !== "object") return [];
-  const claudeToolName = RUNTIME_TOOLS.pi[toolName] ?? RUNTIME_TOOLS.omp[toolName];
+  const claudeToolName = claudeToolNameOf("pi", toolName) ?? claudeToolNameOf("omp", toolName);
   let paths = [];
   if (claudeToolName === "Write" || claudeToolName === "Edit") {
     if (typeof input.path === "string") paths = [input.path];

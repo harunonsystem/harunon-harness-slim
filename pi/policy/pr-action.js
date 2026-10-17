@@ -24,6 +24,7 @@ const SIMPLE_WRAPPERS = new Set([
   "until",
   "while",
 ]);
+const SHELL_COMMAND_WRAPPERS = new Set(["bash", "sh", "zsh", "dash", "ksh"]);
 const WRAPPER_OPTIONS_WITH_VALUES = new Map([
   ["env", new Set(["-C", "--chdir", "-u", "--unset"])],
   ["nice", new Set(["-n", "--adjustment"])],
@@ -47,6 +48,8 @@ function pushWord(tokens, word) {
  * Tokenize just enough shell syntax to identify direct command positions. This is
  * deliberately not a shell interpreter: dynamic command names, eval/xargs, and
  * other dispatch mechanisms remain outside the recognizer's contract.
+ * A literal `bash/sh -c` script is classified recursively; dynamic scripts
+ * (`$` expansion), heredocs and eval/xargs stay outside the contract.
  */
 export function tokenizeShellCommand(command) {
   return tokenize(command, true);
@@ -163,7 +166,22 @@ function skipWrapperOptions(tokens, index, wrapper) {
   return index;
 }
 
-function directPrTokens(tokens) {
+// `bash -c SCRIPT` の SCRIPT token。script は必ずオプション（-c / -lc / -ec 等）の後ろ。
+function shellScriptToken(tokens, index) {
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (token.separator) return undefined;
+    const value = token.value;
+    if (value === "--") return undefined;
+    if (!value.startsWith("-")) return undefined;
+    index += 1;
+    if (/^-[A-Za-z]*c[A-Za-z]*$/.test(value)) return tokens[index];
+  }
+  return undefined;
+}
+
+// env 代入と単純 wrapper を飛ばした command 位置。separator に当たれば undefined。
+function commandIndex(tokens) {
   let index = 0;
   while (index < tokens.length) {
     const token = tokens[index];
@@ -177,7 +195,29 @@ function directPrTokens(tokens) {
     index += 1;
     index = skipWrapperOptions(tokens, index, wrapper);
   }
+  return index;
+}
 
+// literal な `bash -c SCRIPT` の SCRIPT 文字列。shell wrapper でなければ undefined、dynamic なら null。
+function literalShellScript(tokens, index) {
+  if (!SHELL_COMMAND_WRAPPERS.has(tokens[index]?.value)) return undefined;
+  const script = shellScriptToken(tokens, index + 1);
+  return script && !script.dynamic ? script.value : null;
+}
+
+function directPrTokens(tokens) {
+  const index = commandIndex(tokens);
+  if (index === undefined) return undefined;
+  const script = literalShellScript(tokens, index);
+  if (script !== undefined) {
+    // 本文を取り出せるのは区切りのない単独の gh pr だけ。分類は classifyPrCommand が再帰で行う。
+    const inner = script === null ? undefined : tokenize(script);
+    return inner && !inner.some((token) => token.separator) ? directPrTokens(inner) : undefined;
+  }
+  return directPrTokensAt(tokens, index);
+}
+
+function directPrTokensAt(tokens, index) {
   if (tokens[index]?.value === "rtk") {
     index += 1;
   }
@@ -188,6 +228,9 @@ function directPrTokens(tokens) {
 const BODY_OPTION = /^(?:--body(?:-file)?(?:=|$)|-[bF])/;
 
 function actionForCommand(tokens) {
+  const index = commandIndex(tokens);
+  const script = index === undefined ? undefined : literalShellScript(tokens, index);
+  if (script) return classifyPrCommand(script);
   const args = directPrTokens(tokens);
   const action = args?.[0]?.value;
   if (action === "create") return "pr.create";
@@ -240,7 +283,7 @@ export function classifyPrCommand(command) {
     if (token.separator && SEPARATOR_VALUES.has(token.value)) {
       const action = actionForCommand(segment);
       if (action) {
-        actionCount += 1;
+        actionCount += action === AMBIGUOUS_PR_ACTION ? 2 : 1;
         onlyAction = action;
       }
       segment = [];
@@ -251,7 +294,7 @@ export function classifyPrCommand(command) {
 
   const action = actionForCommand(segment);
   if (action) {
-    actionCount += 1;
+    actionCount += action === AMBIGUOUS_PR_ACTION ? 2 : 1;
     onlyAction = action;
   }
   if (actionCount > 1) return AMBIGUOUS_PR_ACTION;

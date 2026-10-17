@@ -7,13 +7,15 @@
  * policy/ は全 runtime に丸ごと配られるので、hook-runner/ に依存しない（claude には無い）。
  */
 import { spawn } from "node:child_process";
-import { readFileSync, statSync } from "node:fs";
+import { closeSync, constants, fstatSync, openSync, readFileSync } from "node:fs";
+import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { AMBIGUOUS_PR_ACTION, classifyPrCommand, publicationInput } from "./pr-action.js";
 
 const KERNEL = fileURLToPath(new URL("./harnessctl.py", import.meta.url));
 const KERNEL_TIMEOUT_MS = 60_000;
+const OUTPUT_CAP = 1024 * 1024;
 
 /** GitHub MCP の tool 名、または shell command から PR action を返す。 */
 export function classifyToolCall(toolName, command, input) {
@@ -24,21 +26,63 @@ export function classifyToolCall(toolName, command, input) {
   return classifyPrCommand(command);
 }
 
-/** kernel の authorize を 1 回呼ぶ。code 0 が許可。 */
+/**
+ * kernel の authorize を 1 回呼ぶ。code 0 が許可。
+ * 出力は合計 1 MiB で打ち切り、timeout では process group ごと殺す
+ * （hook-runner.ts の runProcess と同形。policy/ は hook-runner に依存できないため移植）。
+ */
 export function authorize(action, cwd, command, publication, kernel = KERNEL) {
   return new Promise((done) => {
-    let output = "";
     let child;
     try {
-      child = spawn("python3", [kernel, "authorize"], { cwd, timeout: KERNEL_TIMEOUT_MS });
+      child = spawn("python3", [kernel, "authorize"], { cwd, detached: process.platform !== "win32" });
     } catch (error) {
       done({ code: 1, reason: `harnessctl を起動できません: ${error.message}` });
       return;
     }
-    child.stdout.on("data", (chunk) => { output += chunk; });
-    child.stderr.on("data", (chunk) => { output += chunk; });
-    child.on("error", (error) => done({ code: 1, reason: `harnessctl を起動できません: ${error.message}` }));
-    child.on("close", (code) => done({ code: code ?? 1, reason: output.trim() || `harnessctl exited ${code}` }));
+    const decoder = new StringDecoder("utf8");
+    let output = "";
+    let captured = 0;
+    let settled = false;
+    const kill = () => {
+      if (!child.pid) return;
+      try {
+        if (process.platform === "win32") child.kill("SIGKILL");
+        else process.kill(-child.pid, "SIGKILL");
+      } catch {
+        try { child.kill("SIGKILL"); } catch { /* already exited */ }
+      }
+    };
+    const finish = (code, diagnostic = "") => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      output += decoder.end();
+      if (diagnostic) {
+        if (output && !output.endsWith("\n")) output += "\n";
+        output += diagnostic;
+      }
+      done({ code, reason: output.trim() || `harnessctl exited ${code}` });
+    };
+    const timer = setTimeout(() => {
+      kill();
+      finish(1, `harnessctl timed out after ${KERNEL_TIMEOUT_MS}ms`);
+    }, KERNEL_TIMEOUT_MS);
+    const capture = (chunk) => {
+      if (settled) return;
+      const remaining = OUTPUT_CAP - captured;
+      const accepted = chunk.subarray(0, Math.max(remaining, 0));
+      captured += accepted.length;
+      output += decoder.write(accepted);
+      if (accepted.length < chunk.length) {
+        kill();
+        finish(1, `harnessctl output exceeded ${OUTPUT_CAP} bytes`);
+      }
+    };
+    child.stdout.on("data", capture);
+    child.stderr.on("data", capture);
+    child.on("error", (error) => finish(1, `harnessctl を起動できません: ${error.message}`));
+    child.on("close", (code) => finish(code ?? 1));
     child.stdin.on("error", () => {});
     child.stdin.end(JSON.stringify({ repo: cwd, action, command, publication }));
   });
@@ -62,12 +106,17 @@ export async function gateToolCall({ toolName, command, cwd, input }, run = auth
     if (typeof command === "string") {
       publication = publicationInput(command);
       if (publication.bodyFile !== undefined) {
+        let fd;
         try {
           const path = resolve(cwd, publication.bodyFile);
-          if (!statSync(path).isFile()) throw new Error("regular final body file required");
-          publication.body = readFileSync(path, "utf8");
+          // FIFO は書き手が来るまで open が戻らないので、非ブロッキングで開いてから種類を確かめる。
+          fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK);
+          const info = fstatSync(fd);
+          if (!info.isFile() || info.size > 1024 * 1024) throw new Error("body file size or type rejected");
+          publication.body = readFileSync(fd, "utf8");
         }
         catch { publication.bodyError = "Final body file is missing or not readable"; }
+        finally { if (fd !== undefined) closeSync(fd); }
         delete publication.bodyFile;
       }
     } else {
