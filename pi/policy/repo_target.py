@@ -156,15 +156,24 @@ def _env_prefix_names(tokens: list[str], names: tuple[str, ...]) -> bool:
 
 def _process_env_overrides_git(name: str) -> bool:
     value = os.environ.get(name)
-    if not value or name != "GIT_CONFIG_PARAMETERS":
-        return bool(value)
-    # Claude の sandbox は Bash に proxy 用の http.* / credential.* を注入する。送信先を
-    # 変えない設定なので、これだけなら承認対象の判定を止めない（2026-10 に approve-push が全滅）。
-    try:
-        keys = [entry.split("=", 1)[0].lower() for entry in shlex.split(value)]
-    except ValueError:
+    if not value:
+        return False
+    # Claude の sandbox は Bash に proxy 用の http.* / credential.* を GIT_CONFIG_PARAMETERS で、
+    # worktree 用の safe.directory を GIT_CONFIG_COUNT で注入する。どれも送信先を変えないので、
+    # これだけなら承認対象の判定を止めない（2026-10 に sandbox 内の approve-push が全滅）。
+    if name == "GIT_CONFIG_PARAMETERS":
+        try:
+            keys = [entry.split("=", 1)[0] for entry in shlex.split(value)]
+        except ValueError:
+            return True
+    elif name == "GIT_CONFIG_COUNT":
+        if not value.isdigit():
+            return True
+        keys = [os.environ.get(f"GIT_CONFIG_KEY_{index}", "") for index in range(int(value))]
+    else:
         return True
-    return not all(key.startswith(("http.", "credential.")) for key in keys)
+    return not all(key.lower() == "safe.directory" or key.lower().startswith(("http.", "credential."))
+                   for key in keys)
 
 
 def unresolvable_reason(command: str) -> str | None:
@@ -500,7 +509,11 @@ def push_target(repo: Path, command: str) -> dict:
     """
     tokens = _tokenize(command)
     sensitive_env = ("GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_NAMESPACE", "GIT_COMMON_DIR", "GIT_DIR", "GIT_WORK_TREE")
-    if _env_prefix_names(tokens, sensitive_env) or any(_process_env_overrides_git(name) for name in sensitive_env):
+    # 引き継いだ GIT_CONFIG_COUNT を許容するので、コマンド側の GIT_CONFIG_KEY_n / VALUE_n 上書きは別に止める。
+    indexed_config = any(re.match(r"GIT_CONFIG_(?:KEY|VALUE)_[0-9]+=", token) and _is_env_prefix_position(tokens, index)
+                         for index, token in enumerate(tokens))
+    if indexed_config or _env_prefix_names(tokens, sensitive_env) or \
+            any(_process_env_overrides_git(name) for name in sensitive_env):
         raise UnresolvableTarget("Git 環境の上書きは承認対象を確定できません")
     starts = [i for i, token in enumerate(tokens) if token == "git" and _is_git_start(tokens, i)]
     if len(starts) != 1:
