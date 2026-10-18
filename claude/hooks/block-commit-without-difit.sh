@@ -36,17 +36,8 @@ case $origin_rc in
 esac
 
 # hook は Claude Code の CWD で実行されるため、CMD 内の --cwd / cd 先に移動して正しい git context を解決する。
-# 解決不能なら対象 repo の difit 状態を確定できないため deny する。
-if ! review_gate_resolve_target_repo "$CMD"; then
-  jq -n --arg reason "$REVIEW_GATE_UNRESOLVABLE_REASON" '{
-    "hookSpecificOutput": {
-      "hookEventName": "PreToolUse",
-      "permissionDecision": "deny",
-      "permissionDecisionReason": ("BLOCKED: commit 対象 repo を確定できません（" + $reason + "）。`git -C <リテラル絶対パス>` を 1 回だけ付けた単独の commit で実行してください（変数・他コマンドとのチェイン不可）。")
-    }
-  }'
-  exit 0
-fi
+# 解決不能なら通す。difit はレビュー導線で、秘密情報の検査は block-secrets-in-commit が fail-closed で持つ。
+review_gate_resolve_target_repo "$CMD" || exit 0
 
 git rev-parse --show-toplevel > /dev/null 2>&1 || exit 0
 
@@ -54,6 +45,14 @@ git rev-parse --show-toplevel > /dev/null 2>&1 || exit 0
 # 判定する（session cwd 基準だと git -C / --cwd 経由の commit と flag キーの
 # 基準 repo がズレる。判定順は load-bearing）。
 [ "$(rigor_profile)" = "casual" ] && exit 0
+
+# add 連結・-a・pathspec の commit は、staged ではなく commit される index で分類と fingerprint を取る
+# （Claude で許した連結が空の staged で素通りしないように）。作れなければ従来どおり staged で判定する。
+SCOPE_INDEX=$(review_gate_commit_scope_index "$(pwd)" "$CMD") || SCOPE_INDEX=""
+if [ -n "$SCOPE_INDEX" ]; then
+  trap 'rm -f "$SCOPE_INDEX"' EXIT
+  export GIT_INDEX_FILE="$SCOPE_INDEX"
+fi
 
 DIFF_NAME_STATUS=$(git diff --cached --name-status 2>/dev/null || echo "")
 NUMSTAT_TOTAL=$(git diff --cached --numstat 2>/dev/null | awk '{add+=$1; del+=$2} END {print add+del+0}')

@@ -16,7 +16,8 @@ source "$HOOK_DIR/lib/review-gate.sh"
 
 usage() {
   echo "Usage: approve-push \"理由\" [\"git push <remote> <refspec>\"]"
-  echo '継続許可の照合: approve-push --standing-consent "git push <remote> <refspec>"'
+  echo '継続許可の照合: approve-push --standing-consent ["git push <remote> <refspec>"]'
+  echo "送信先を省略すると、upstream が同名 branch ならその upstream、違えば origin/<現在の branch> が対象"
   echo "例: approve-push \"ユーザーがpushを明示的に許可\""
   echo "削除: approve-push \"理由\" \"git push origin --delete refs/heads/old-branch\"（単独の完全修飾 branch ref のみ）"
 }
@@ -24,6 +25,17 @@ usage() {
 REASON="${1:-}"
 PUSH_COMMAND="${2:-git push}"
 SOURCE="local-agent-record"
+# 送信先を省略したとき、素の `git push` を送信先 resolver が解決できればそれを使う（pushRemote /
+# pushDefault の設定を尊重する）。解決できないとき（worktree が origin/main を追跡して作られた直後の
+# upstream 不一致など）だけ、初回 push の形 `git push origin <branch>` を対象にする
+# （Claude の worktree 隔離は `git push` を含む引数を拒否するので、省略で済ませたい）。
+if [ $# -lt 2 ] && ! printf '%s' "$PUSH_COMMAND" | python3 "$_REPO_TARGET_CLI" push-target >/dev/null 2>&1; then
+  _current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+  if [ -n "$_current_branch" ] && [ "$_current_branch" != "HEAD" ]; then
+    # branch 名の ( ) などを resolver の tokenizer が演算子として割らないよう quote する
+    PUSH_COMMAND="git push origin $(python3 -c 'import shlex, sys; print(shlex.quote(sys.argv[1]))' "$_current_branch")"
+  fi
+fi
 
 # 第 1 引数は無条件に理由として記録されるため、--help を素通しすると
 # 「理由: --help」で承認が成立する（2026-09-10 に実際に発生）。先に弾く。

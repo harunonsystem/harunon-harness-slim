@@ -24,6 +24,19 @@ if [ -z "$CMD" ]; then
   exit 0
 fi
 
+# Claude の sandbox.excludedCommands は書き換え後の文字列と照合される。`rtk gh ...` /
+# `rtk git push ...` にすると一致せず、sandbox 内で credential や .git/config に当たって
+# 失敗する（2026-10-18 実測）。除外対象は素のまま通す。
+SETTINGS="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+if [ "${HARNESS_RUNTIME:-}" = "claude" ] && [ -f "$SETTINGS" ]; then
+  while IFS= read -r pattern; do
+    # shellcheck disable=SC2053 # pattern は glob として照合する
+    if [[ -n "$pattern" && ( "$CMD" == $pattern || "$CMD " == $pattern ) ]]; then
+      exit 0
+    fi
+  done < <(jq -r '.sandbox.excludedCommands[]? // empty' "$SETTINGS" 2>/dev/null)
+fi
+
 # heredoc: `rtk hook claude` は制御文字を含む JSON のパースに失敗してエラーを
 # stdout に出す。書き換える価値も無いので手前で降りる。
 case "$CMD" in

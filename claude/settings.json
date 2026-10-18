@@ -81,15 +81,6 @@
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/block-grep-in-bash.sh",
-            "onFailure": "block"
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/block-cd-prefix-in-bash.sh"
-          },
-          {
-            "type": "command",
             "command": "~/.claude/hooks/block-dangerous-in-bash.sh",
             "onFailure": "block"
           },
@@ -216,6 +207,15 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/scan-new-skills.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "EnterWorktree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/worktree-isolation-context.sh"
           }
         ]
       }

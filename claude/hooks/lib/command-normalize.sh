@@ -375,3 +375,16 @@ command_origin_matches() {
   fi
   ere_matches "$normalized" "(^|;|&&|\|\||\||&)[[:space:]]*($2)"
 }
+
+# Claude だけが連結を許す `git add <literal path...> && git commit ...` の 1 形なら、add のパスを 1 行ずつ出す。
+#   add_then_commit_paths <command>   戻り値: 0 = この形、1 = それ以外
+# path は option・空白・quote・展開を含まない文字に限る（検査後の書き込み・force add・-C による
+# 対象 repo のずれ・置換を形で除く）。normalize は git の -C を剥がすので、生のコマンドで照合する。
+add_then_commit_paths() {
+  local _path='[A-Za-z0-9_./@+=,:%][A-Za-z0-9_./@+=,:%-]*'
+  local _re="^(rtk )?git add(( ${_path})+) && (rtk )?git commit( [^;&|<>\`\$"$'\n'"]*)?$"
+  local -a _paths
+  [[ "$1" =~ $_re ]] || return 1
+  read -r -a _paths <<< "${BASH_REMATCH[2]}"
+  printf '%s\n' "${_paths[@]}"
+}

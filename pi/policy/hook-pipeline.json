@@ -56,12 +56,14 @@
 				"commandEre": "(?:^|[;&|\\n]\\s*)(?:e?grep|fgrep|sed|awk)\\b"
 			},
 			"runtimes": [
-				"claude",
 				"pi",
 				"opencode",
 				"codex",
 				"omp"
-			]
+			],
+			"absent": {
+				"claude": "style guard で可逆操作を止めない。2026-10 の実測で deny 後 100% が言い換え再実行で、防いだ操作が無かった"
+			}
 		},
 		{
 			"id": "block-japanese-tech-writing",

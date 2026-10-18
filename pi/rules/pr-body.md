@@ -83,3 +83,10 @@ PR本文が英語のみの場合はこの工程を省略してよい。`yomiyasu
 - P3 / scope外 finding は Notes の「残件」に finding 単位で書く。
 - reviewer が quota / credit 切れでskipされた場合は Notes に `Review: SKIP (quota)` と理由を1行で書く。
 - 小さいPRは短くする。大きいPRでも本文をlab notebook化せず、詳細ログはartifactやリンクへ逃がす。
+
+## 本文の渡し方
+
+本文を検査する hook はコマンド文字列を展開せずに読む。次の形でないと検査できず拒否される。
+
+- `gh pr create` / `gh pr edit` は他のコマンドと `&&`・`;`・パイプで連結せず、単独で実行する。
+- 本文ファイルは先に書き終えてから、`--body-file` に絶対パスをそのまま書く。`$VAR`・`$(...)` を含むパスは展開されない。

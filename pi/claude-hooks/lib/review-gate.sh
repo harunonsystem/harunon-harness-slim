@@ -29,6 +29,40 @@ mkdir -p "$CODEX_REVIEW_FLAG_DIR" 2>/dev/null || true
 _REVIEW_GATE_LIB_DIR="$(cd -P "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 _REPO_TARGET_CLI="$_REVIEW_GATE_LIB_DIR/../../policy/repo_target.py"
 
+# commit が同じ呼び出しの中で stage する範囲（add 連結・-a・pathspec）を、本物の index の一時コピーへ
+# git 自身に add させて作り、その index のパスを出す（呼び出し元が消す）。git が文字コード変換・
+# バイナリ判定・ignore を本番と同じに適用するので、PreToolUse 時点の staged だけでは見えない分を
+# commit される内容で検査できる。stage しない commit なら何も出さず 0、失敗は 1（呼び出し元が扱う）。
+#   許可形の add 連結（add_then_commit_paths）: add のパスだけ。commit 側も stage する形なら追跡済みも
+#   それ以外の add 連結: repo 全体（add -A）
+#   add なしの -a / pathspec: 追跡済みだけ（commit の pathspec は追跡済みしか取れない）
+# 要: command-normalize.sh（command_origin_matches / add_then_commit_paths）を source 済み。
+review_gate_commit_scope_index() {
+  local target="$1" cmd="$2" add_rc=0 update=0 top src tmp path
+  local -a paths=()
+  command_origin_matches "$cmd" '(git|rtk[[:space:]]+git)[[:space:]]+add([^A-Za-z0-9_-]|$)' || add_rc=$?
+  [ "$add_rc" -le 1 ] || return 1
+  printf '%s' "$cmd" | python3 "$_REVIEW_GATE_LIB_DIR/../../policy/commit_args.py" index >/dev/null || update=1
+  { [ "$add_rc" = 0 ] || [ "$update" = 1 ]; } || return 0
+  top=$(git -C "$target" rev-parse --show-toplevel) || return 1
+  src=$(git -C "$target" rev-parse --path-format=absolute --git-path index) || return 1
+  tmp=$(mktemp "${TMPDIR:-/tmp}/commit-scope-index.XXXXXX") || return 1
+  # index がまだ無い repo では一時ファイルを消して git に新規作成させる（空ファイルは index として読めない）
+  if [ -f "$src" ]; then cp "$src" "$tmp"; else rm -f "$tmp"; fi || { rm -f "$tmp"; return 1; }
+  if [ "$add_rc" = 0 ]; then
+    while IFS= read -r path; do paths+=("$path"); done < <(add_then_commit_paths "$cmd" || true)
+    if [ "${#paths[@]}" -gt 0 ]; then
+      GIT_INDEX_FILE="$tmp" git -C "$target" add -- "${paths[@]}" || { rm -f "$tmp"; return 1; }
+    else
+      GIT_INDEX_FILE="$tmp" git -C "$top" add -A || { rm -f "$tmp"; return 1; }
+    fi
+  fi
+  if [ "$update" = 1 ]; then
+    GIT_INDEX_FILE="$tmp" git -C "$top" add -u || { rm -f "$tmp"; return 1; }
+  fi
+  printf '%s\n' "$tmp"
+}
+
 # git repo のルートパスを取得する。repo 外では空文字を返す。
 _codex_review_git_root() {
   git rev-parse --show-toplevel 2>/dev/null || echo ""

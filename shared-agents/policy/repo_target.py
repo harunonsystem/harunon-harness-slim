@@ -285,18 +285,22 @@ def _extract_candidates(command: str) -> tuple[list[str], list[str], list[str]]:
             # ないため、最初の non-option トークン（= subcommand）で探索を打ち切る。
             # 値を取るグローバルオプション（-C/-c/--git-dir 等）は値を読み飛ばす。
             cursor = index + 1
+            invocation_c: list[str] = []
             while cursor < count and tokens[cursor] not in _SEPARATORS:
                 current = tokens[cursor]
                 if not current.startswith("-"):
                     break
                 if current == "-C" and cursor + 1 < count:
-                    git_c_values.append(tokens[cursor + 1])
+                    invocation_c.append(tokens[cursor + 1])
                     cursor += 2
                     continue
                 if current in _GIT_GLOBAL_VALUE_OPTIONS and cursor + 1 < count:
                     cursor += 2
                     continue
                 cursor += 1
+            if invocation_c:
+                # 1 回の git 呼び出し内の -C は git と同じく順に連結する（`-C a -C b` は a/b）
+                git_c_values.append(os.path.join(*(os.path.expanduser(v) for v in invocation_c)))
             index = cursor
             continue
         index += 1
@@ -323,8 +327,14 @@ def resolve_target(base: Path, command: str) -> Path:
     # 確定できないため推測しない。
     if len(cd_values) > 1:
         raise UnresolvableTarget("cd が複数回指定されているため対象 repo を一意に決定できません")
-    if len(git_c_values) > 1:
-        raise UnresolvableTarget("git -C が複数回指定されているため対象 repo を一意に決定できません")
+    # 別の git 呼び出しで同じ絶対パスの -C を繰り返す形だけ 1 つの repo とみなす。相対 -C は
+    # 途中の cd で指す先が変わる（`git -C . status && cd X && git -C . restore`）ので重ねない。
+    if len(git_c_values) > 1 and (
+        not all(os.path.isabs(v) for v in git_c_values)
+        # 字面の normpath は symlink を跨ぐ `..` で git の chdir 先とずれるので、実体へ解決して比べる
+        or len({Path(v).resolve() for v in git_c_values}) > 1
+    ):
+        raise UnresolvableTarget("git -C が同じ絶対パス以外で複数回指定されているため対象 repo を一意に決定できません")
 
     if cwd_values:
         candidate = cwd_values[0]

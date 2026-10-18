@@ -206,7 +206,7 @@ block された場合の責務:
 commit:
 
 - Codex hook はセッション cwd を使う。対象 worktree が異なる場合は `exec_command` の `workdir` を指定していても、`git add/commit/push` を `git -C <worktree の絶対パス> ...` で実行する。PR 作成は GitHub MCP で対象を解決できないので `( cd <worktree の絶対パス> && gh pr create ... )` を使う
-- git add / git commit / git push は 1 コマンドずつ実行し、`git add <path> && git commit` や `git commit && git push` のようにチェインしない。PreToolUse hook は add の実行前に走るため、同じ呼び出しの中で stage すると block-secrets-in-commit の staged 検査が対象を取りこぼして deny される。commit の単独実行は danger-rules の git-commit-chain / git-commit-and-push-same-command も要求する
+- git add / git commit / git push は 1 コマンドずつ実行し、`git add <path> && git commit` や `git commit && git push` のようにチェインしない。PreToolUse hook は add の実行前に走るため、同じ呼び出しの中で stage すると block-secrets-in-commit の staged 検査が対象を取りこぼして deny される。commit の単独実行は danger-rules の git-commit-chain / git-commit-and-push-same-command も要求する。例外は Claude の option なし `git add <path...> && git commit ...` だけで、hook が staged・未 stage・未追跡のファイルまで検査する
 - commit message は subject と必要な body だけで構成し、`Generated with ...` / `Co-Authored-By: ...` の trailer は runtime の既定テンプレートに含まれていても付けない
 - commit message は heredoc で渡さず、`git commit -F <file>` か `-m` の複数指定で渡す。guard は quote 内の文字列（`git commit -m "... git push ..."`）を無視する一方、heredoc 本体はコマンドとして照合するため（`bash <<EOF` 経由の実行を通さない意図的な仕様）、本文に `git push` / `--no-verify` を書くと自分の commit が block される
 
@@ -245,8 +245,8 @@ main への push は通らないので、ローカル main に commit してし�
 
 ### トークン消費を無駄にしない姿勢
 
-- Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode の classifier に拒否される。`git -C` / `pnpm -C` / 絶対パス起動を使い、cwd が要るなら subshell に入れる。hook でブロック）
-- 検索は ripgrep（`rg`）を使う（Bash の再帰 grep と `sed -i` は hook でブロック。`sed -n` での読み取り、パイプ内の grep / awk、BSD 形の `sed -i ''` は通る）
+- Bash はコマンド先頭に `cd <絶対パス> &&` を置かない（auto mode の classifier に拒否される。`git -C` / `pnpm -C` / 絶対パス起動を使い、cwd が要るなら subshell に入れる）
+- 検索は ripgrep（`rg`）を使う（Claude 以外の runtime では Bash の再帰 grep と `sed -i` は hook でブロック。`sed -n` での読み取り、パイプ内の grep / awk、BSD 形の `sed -i ''` は通る）
 - 出力を削るプロキシを挟んでいる環境では hook が Bash コマンドを自動で書き換えるので、こちらから経由先を指定しない
 - パスは推測して Read しない（Glob / ls で確認してから）。cloud セッション由来の `/home/user/...` パスをローカルで使い回さない（ローカルは `~` 配下）
 - 既存ファイルへの Write / Edit は同じセッション内で Read 済みの内容にだけ行い、`File has not been read yet` / `modified since read` の precondition エラーは同じ引数の retry では解消しないので対象範囲を Read し直してから再実行する

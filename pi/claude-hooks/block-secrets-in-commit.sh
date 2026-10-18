@@ -1,5 +1,5 @@
 #!/bin/bash
-# PreToolUse:Bash — staged 差分にシークレットが含まれる commit をブロックする
+# PreToolUse:Bash — commit 対象の差分にシークレットが含まれる commit をブロックする
 #
 # verify-before-commit.sh から分離した。あちらは Claude Code の additionalContext に
 # チェックリストを注入する hook で、hook 移植ポリシー (b)（Claude の仕様補正が目的の
@@ -50,32 +50,39 @@ fi
 # shellcheck source=lib/review-gate.sh
 source "$TARGET_LIB"
 
-# --- 「hook が見る index」と「実際に commit される内容」が食い違う形を先に弾く。
+# --- 「hook が見る index」と「実際に commit される内容」が食い違う形の扱い。
 # PreToolUse は Bash の実行“前”に走るので、同じ呼び出しの中で stage される変更は
 # まだ index に無い。`git add secret.txt && git commit` や `git commit -a` を素通しすると、
-# 検査が空のまま実際にはシークレットごと commit される。
-add_rc=0
-command_origin_matches "$CMD" '(git|rtk[[:space:]]+git)[[:space:]]+add([^A-Za-z0-9_-]|$)' || add_rc=$?
-case $add_rc in
-  0)
-    echo "同じコマンドの中で git add と commit を行っています。" >&2
-    echo "  PreToolUse の時点では add がまだ実行されておらず、staged 差分のシークレット検査が空振りします。" >&2
-    echo "  add と commit を別々のコマンドとして実行してください。" >&2
-    exit 2
-    ;;
-  1) ;;
-  *)
-    echo "commit 前の add 判定に失敗しました（安全側に倒してブロックします）" >&2
-    exit 2
-    ;;
-esac
+# staged だけの検査は空のまま実際にはシークレットごと commit される。
+# Claude ではこの 2 形を拒否せず、review_gate_commit_scope_index が作る「commit される index」を
+# 検査する（形の拒否は deny 後の言い換え再実行しか生まなかった。2026-10 の cclens 実測）。
+# 連結の形は danger-rules の git-commit-chain が option なしの `git add <path...> && git commit`
+# だけに絞る（検査後の書き込み・force add・対象 repo のずれはそちらで止まる）。
+# 他 runtime は従来どおり形を拒否して staged だけを検査する。
+if [ "${HARNESS_RUNTIME:-}" != "claude" ]; then
+  add_rc=0
+  command_origin_matches "$CMD" '(git|rtk[[:space:]]+git)[[:space:]]+add([^A-Za-z0-9_-]|$)' || add_rc=$?
+  case $add_rc in
+    0)
+      echo "同じコマンドの中で git add と commit を行っています。" >&2
+      echo "  PreToolUse の時点では add がまだ実行されておらず、staged 差分のシークレット検査が空振りします。" >&2
+      echo "  add と commit を別々のコマンドとして実行してください。" >&2
+      exit 2
+      ;;
+    1) ;;
+    *)
+      echo "commit 前の add 判定に失敗しました（安全側に倒してブロックします）" >&2
+      exit 2
+      ;;
+  esac
 
-# Inspect actual argv: messages such as "-a" are data, while pathspecs,
-# --only and --include change what Git stages at commit time.
-if ! printf '%s' "$CMD" | python3 "$HOOK_DIR/../policy/commit_args.py" index >/dev/null; then
-  echo "commit 時の stage / pathspec または解決できない引数は検査できません。" >&2
-  echo "  git add で明示的に stage し、pathspec 無しの commit を別々のコマンドで実行してください。" >&2
-  exit 2
+  # Inspect actual argv: messages such as "-a" are data, while pathspecs,
+  # --only and --include change what Git stages at commit time.
+  if ! printf '%s' "$CMD" | python3 "$HOOK_DIR/../policy/commit_args.py" index >/dev/null; then
+    echo "commit 時の stage / pathspec または解決できない引数は検査できません。" >&2
+    echo "  git add で明示的に stage し、pathspec 無しの commit を別々のコマンドで実行してください。" >&2
+    exit 2
+  fi
 fi
 
 # review-gate.sh が policy/repo_target.py で CMD を token 化して解決する。quote / global
@@ -102,18 +109,30 @@ fi
 # required な security hook が黙って allow に倒れる。
 # diff の取得と走査を別々に実行して、それぞれの終了コードを見る（コマンド置換の中で
 # パイプを組むと PIPESTATUS が取れない）。
+SCOPE_INDEX=""
+if [ "${HARNESS_RUNTIME:-}" = "claude" ] && ! SCOPE_INDEX=$(review_gate_commit_scope_index "$TARGET" "$CMD"); then
+  echo "commit される内容を作れませんでした（検査できないため安全側に倒してブロックします）。" >&2
+  echo "  git add を単独で実行してから、commit を別のコマンドで実行してください。" >&2
+  exit 2
+fi
 set +e
-STAGED_DIFF=$(git -C "$TARGET" diff --cached -U0)
-diff_rc=$?
+if [ -n "$SCOPE_INDEX" ]; then
+  SCAN_DIFF=$(GIT_INDEX_FILE="$SCOPE_INDEX" git -C "$TARGET" diff --cached -U0)
+  diff_rc=$?
+  rm -f "$SCOPE_INDEX"
+else
+  SCAN_DIFF=$(git -C "$TARGET" diff --cached -U0)
+  diff_rc=$?
+fi
 set -e
 if [ "$diff_rc" -ne 0 ]; then
-  echo "staged 差分を取得できませんでした（git diff --cached: ${diff_rc}）。" >&2
+  echo "commit 対象の差分を取得できませんでした（git diff --cached: ${diff_rc}）。" >&2
   echo "  検査できていないため安全側に倒してブロックします。" >&2
   exit 2
 fi
 
 set +e
-SECRET_HITS=$(printf '%s\n' "$STAGED_DIFF" | perl -ne '
+SECRET_HITS=$(printf '%s\n' "$SCAN_DIFF" | perl -ne '
   if (/^\+\+\+ b\/(.+)$/) { $file = $1; $line = 0; next; }
   if (/^@@ -\d+(?:,\d+)? \+(\d+)/) { $line = $1; next; }
   next unless /^\+/;
@@ -134,14 +153,14 @@ SECRET_HITS=$(printf '%s\n' "$STAGED_DIFF" | perl -ne '
 scan_rc=$?
 set -e
 if [ "$scan_rc" -ne 0 ]; then
-  echo "staged 差分のシークレット走査に失敗しました（scanner: ${scan_rc}）。" >&2
+  echo "commit 対象の差分のシークレット走査に失敗しました（scanner: ${scan_rc}）。" >&2
   echo "  検査できていないため安全側に倒してブロックします。" >&2
   exit 2
 fi
 
 if [ -n "$SECRET_HITS" ]; then
   {
-    echo "staged 差分にシークレットらしき文字列を検出しました。誤検知に見えてもユーザーの判断を仰いでください:"
+    echo "commit 対象の差分にシークレットらしき文字列を検出しました。誤検知に見えてもユーザーの判断を仰いでください:"
     echo "$SECRET_HITS" | while IFS=$'\t' read -r hit_file hit_line hit_kind; do
       echo "  - ${hit_file}:${hit_line} (${hit_kind})"
     done

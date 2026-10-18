@@ -402,6 +402,11 @@ custom_git_commit_chain() {
   # （`git commit -m x && echo done`。2026-09-13 に PR review で指摘）の両方を見る。
   # quote 内は normalize で中和済みなので message 本文の && / ; は誤検知しない。
   # `2>&1` の & は `&[^&]` で許容し、bare `&`（background）は対象外。
+  # Claude だけ add_then_commit_paths の 1 形を許す（block-secrets-in-commit と difit gate は、
+  # add 後に commit される index を作って検査する）。それ以外の連結は従来どおり拒否する。
+  if [ "$HARNESS_RUNTIME" = "claude" ] && add_then_commit_paths "$COMMAND" >/dev/null; then
+    return 0
+  fi
   local _commit_ere="(git|rtk git)[[:space:]]+commit"
   local _chained=0
   if ere_matches "$NORMALIZED" "${CHAIN_ONLY_ORIGIN}${_commit_ere}"; then
