@@ -153,6 +153,24 @@ After publication, resolve the CI run for the exact published SHA and use `gh ru
 
 ## Publish
 
+### Standing publication consent
+
+Within the currently requested work, check the installed global consent before asking again for commit, ordinary push, or PR creation. A later instruction that forbids or limits publication always takes precedence; do not run the check to override that instruction. Consent does not authorize unrelated changes, merge, release, or distribution.
+
+Pass the exact literal command on stdin from the target worktree (or use `--repo <worktree>`):
+
+For `git -C`, use a literal absolute or relative path; tilde, glob, and brace selectors are outside standing consent, so use the tool's workdir or an absolute path instead.
+
+```bash
+printf '%s' 'git commit -m "task change"' | python3 <skill-dir>/scripts/harness.py consent git.commit
+printf '%s' 'git push origin HEAD:refs/heads/feature' | python3 <skill-dir>/scripts/harness.py consent git.push
+printf '%s' 'gh pr create --repo owner/repo --head feature --base main --body-file final-body.md' | python3 <skill-dir>/scripts/harness.py consent pr.create
+```
+
+Only `allowed: true` means the resolved operation is covered: reuse that user consent without another harness question. Recheck after command, checkout, HEAD, branch, remote, or destination changes. Missing, invalid, mismatched, or unknown configuration means no standing consent; retain the existing explicit-consent route. Never add repository-local consent files. Every runtime reads the shared global declaration at `~/.agents/policy/publication-consent.json`, distributed from the global SSOT by the shared-agents target. It matches the physical common Git directory to an enrolled checkout root, its canonical repository, and the actual publication target. Symlink spelling alone grants nothing; linked worktrees use the enrolled common directory.
+
+For covered pushes, use the installed `approve-push.sh --standing-consent "<exact push command>"` to create the existing HEAD/destination-bound local record before the normal push guard. The record identifies standing consent so the guard rechecks the actual command and global declaration on every use; recording does not execute the push. Use an existing explicit approval normally when standing consent does not apply. Protected heads/refs, force including force-with-lease, deletions, tags, mirror, and ambiguous commands are outside standing consent. PR base `main` is allowed; PR head `main`/`master` is not. A check result, local flag, or kernel `authorize` is not proof of native permission. Keep native/platform prompts and all existing safety, verification, review, and authored-body gates.
+
 Before drafting the PR body, read `rules/pr-body.md`. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, preserve its headings and checklists while applying the readability rules inside each section. After the structure, facts, evidence, and risk statements are fixed, explicitly load the Agent Skill `yomiyasu` and apply its `business` domain before publication; this is not a shell command. Treat it as a wording-only pass: it must not invent, remove, or strengthen technical claims, evidence, risk, or unresolved findings.
 
 Before PR creation, reconcile as above and reuse an existing matching PR instead of creating a duplicate, then authorize the normalized action. In Codex, prefer the GitHub app's pull-request tool when it is available; use `gh` only as a fallback.

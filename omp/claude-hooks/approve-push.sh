@@ -16,12 +16,14 @@ source "$HOOK_DIR/lib/review-gate.sh"
 
 usage() {
   echo "Usage: approve-push \"理由\" [\"git push <remote> <refspec>\"]"
+  echo '継続許可の照合: approve-push --standing-consent "git push <remote> <refspec>"'
   echo "例: approve-push \"ユーザーがpushを明示的に許可\""
   echo "削除: approve-push \"理由\" \"git push origin --delete refs/heads/old-branch\"（単独の完全修飾 branch ref のみ）"
 }
 
 REASON="${1:-}"
 PUSH_COMMAND="${2:-git push}"
+SOURCE="local-agent-record"
 
 # 第 1 引数は無条件に理由として記録されるため、--help を素通しすると
 # 「理由: --help」で承認が成立する（2026-09-10 に実際に発生）。先に弾く。
@@ -38,6 +40,16 @@ if [ -z "$REASON" ]; then
   exit 1
 fi
 
+if [ "$REASON" = "--standing-consent" ]; then
+  # Match the global declaration again; neither this record nor its reason proves native consent.
+  CONSENT=$(printf '%s' "$PUSH_COMMAND" | python3 "$(dirname "$_REPO_TARGET_CLI")/publication_consent.py" git.push)
+  TARGET=$(printf '%s' "$CONSENT" | python3 -c 'import json,sys; target=json.load(sys.stdin)["target"]; target["consentSource"]="standing-consent"; print(json.dumps(target, sort_keys=True))')
+  TARGET_REPO=$(printf '%s' "$CONSENT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["repo"])')
+  cd "$TARGET_REPO"
+  REASON="global standing publication consent"
+  SOURCE="standing-consent"
+fi
+
 GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "ERROR: gitリポジトリ内で実行してください"; exit 1; }
 FLAG=$(push_approved_flag)
 HEAD=$(git rev-parse HEAD 2>/dev/null)
@@ -45,12 +57,14 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 LOG="${PUSH_APPROVE_LOG:-$HOME/.claude/push-approve.log}"
 mkdir -p "$(dirname "$LOG")"
 
-TARGET=$(printf '%s' "$PUSH_COMMAND" | python3 "$_REPO_TARGET_CLI" push-target)
+if [ "$SOURCE" = "local-agent-record" ]; then
+  TARGET=$(printf '%s' "$PUSH_COMMAND" | python3 "$_REPO_TARGET_CLI" push-target)
+fi
 # The record constrains existing user consent; a reason string is not proof of it.
 umask 077
 printf '%s\n' "$TARGET" > "$FLAG"
 
-echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] APPROVE repo=$GIT_ROOT branch=$BRANCH head=${HEAD:0:7} source=local-agent-record native_permission=unobserved scope=$TARGET reason=\"$REASON\"" >> "$LOG"
+echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] APPROVE repo=$GIT_ROOT branch=$BRANCH head=${HEAD:0:7} source=$SOURCE native_permission=unobserved scope=$TARGET reason=\"$REASON\"" >> "$LOG"
 
 echo "✓ push のローカル承認記録を作成しました（native permission は未確認）"
 echo "  理由: $REASON"

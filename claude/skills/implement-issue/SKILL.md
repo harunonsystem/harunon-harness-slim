@@ -135,5 +135,5 @@ worktree が解決済みなら、その task・worktree・受入条件・base・
 ## 作業中の入力と公開
 
 - 状態確認の質問には実測を先に答え、その質問だけを理由に新しい編集を始めない。回答後は承認済みの実装を継続する。「直せる?」など具体的な変更依頼は句読点でなく意図で判定し、元の依頼から実質的に範囲が広がる場合だけ確認する。
-- commit、push、PR 作成、merge の承認範囲は選択した skill と repo の規約に引き継ぐ。merge は明示的な承認がある場合だけ行う。
+- commit、push、PR 作成、merge の承認範囲は選択した skill と repo の規約に引き継ぐ。`run-change` の Standing publication consent に一致する操作は、現在依頼された作業の範囲内で再質問しない。後の公開禁止・範囲制限と native/platform 承認は優先する。merge は明示的な承認がある場合だけ行う。
 - stacked PR の PR 作成・rebase 直前には [core-standards の stacked PR 手順](../../rules/core-standards.md#共有-checkout-と-worktree並行セッションの作業を壊さない) に従い、remote base の存在と親の merge 状態を再確認する。親が merge 済みなら、保持した境界 SHA で親コミットを除外し、子だけの差分を確認して merge 先へ retarget する。

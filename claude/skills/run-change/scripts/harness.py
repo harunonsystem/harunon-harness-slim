@@ -63,6 +63,8 @@ def parse_args() -> argparse.Namespace:
     authorize.add_argument("action", choices=("pr.create", "pr.update-body", "pr.merge"))
     authorize.add_argument("--body-file", type=Path)
     authorize.add_argument("--pr", type=int)
+    consent = commands.add_parser("consent", help="check global standing consent without publishing or changing workflow state")
+    consent.add_argument("operation", choices=("git.commit", "git.push", "pr.create"))
     own_pr = commands.add_parser("own-pr", help="publish a task-related comment/body to the current worktree's own PR")
     own_pr.add_argument("operation", choices=("comment", "update-body"))
     own_pr.add_argument("--hostname", required=True)
@@ -164,6 +166,9 @@ def reconcile_pr(repo: Path, selector: str) -> dict:
 
 def main() -> int:
     args = parse_args()
+    if args.command == "consent":
+        return subprocess.run([sys.executable, str(locate_kernel().with_name("publication_consent.py")),
+                               args.operation, "--repo", str(args.repo.resolve())], input=sys.stdin.read(), text=True).returncode
     if args.command == "own-pr":
         kernel = locate_kernel()
         sys.path.insert(0, str(kernel.parent))

@@ -303,7 +303,7 @@ custom_git_push() {
 
   ere_matches "$NORMALIZED" "${ORIGIN}${ere}" || return 0
 
-  local flag push_count target_reason
+  local flag push_count target_reason target_base
 
   # 承認が効くのは「単独・1 回の push」だけ。チェイン / subshell / 複数 push を
   # 許すと次の 2 つが成立してしまう:
@@ -331,6 +331,7 @@ custom_git_push() {
   # 承認の主体（repo root + branch + HEAD）を対象 repo で確定する。解決不能
   # （--git-dir/--work-tree、複数 cd/-C、存在しないパス等）は推測せず deny する。
   # 解決を怠ると別 repo の承認フラグを流用できる（C-002）。
+  target_base=$(pwd)
   if ! review_gate_resolve_target_repo "$COMMAND"; then
     echo "${message}。承認の対象 repo を確定できません（${REVIEW_GATE_UNRESOLVABLE_REASON}）" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-push" "${COMMAND:-}" || true
@@ -348,7 +349,7 @@ custom_git_push() {
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-push" "${COMMAND:-}" || true
     exit 2
   fi
-  if ! target_reason=$(printf '%s' "$COMMAND" | python3 "$_REPO_TARGET_CLI" push-check --flag "$flag" 2>&1); then
+  if ! target_reason=$(printf '%s' "$COMMAND" | python3 "$_REPO_TARGET_CLI" push-check --base "$target_base" --flag "$flag" 2>&1); then
     echo "${message}。${target_reason:-承認の checkout を確定できません}" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-push" "${COMMAND:-}" || true
     exit 2

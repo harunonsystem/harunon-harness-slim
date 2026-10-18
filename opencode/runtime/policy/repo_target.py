@@ -502,11 +502,8 @@ def approval_key(repo: Path) -> str:
     return hashlib.sha256(json.dumps(value).encode()).hexdigest()
 
 
-def push_target(repo: Path, command: str) -> dict:
-    """Resolve one branch update or fully qualified branch deletion offline.
-
-    Unsupported multi-ref/config override forms fail closed instead of simulating Git.
-    """
+def git_environment_reason(command: str) -> str | None:
+    """Resolve environment overrides consistently for explicit and standing consent."""
     tokens = _tokenize(command)
     sensitive_env = ("GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_NAMESPACE", "GIT_COMMON_DIR", "GIT_DIR", "GIT_WORK_TREE")
     # 引き継いだ GIT_CONFIG_COUNT を許容するので、コマンド側の GIT_CONFIG_KEY_n / VALUE_n 上書きは別に止める。
@@ -514,7 +511,19 @@ def push_target(repo: Path, command: str) -> dict:
                          for index, token in enumerate(tokens))
     if indexed_config or _env_prefix_names(tokens, sensitive_env) or \
             any(_process_env_overrides_git(name) for name in sensitive_env):
-        raise UnresolvableTarget("Git 環境の上書きは承認対象を確定できません")
+        return "Git 環境の上書きは承認対象を確定できません"
+    return None
+
+
+def push_target(repo: Path, command: str) -> dict:
+    """Resolve one branch update or fully qualified branch deletion offline.
+
+    Unsupported multi-ref/config override forms fail closed instead of simulating Git.
+    """
+    reason = git_environment_reason(command)
+    if reason:
+        raise UnresolvableTarget(reason)
+    tokens = _tokenize(command)
     starts = [i for i, token in enumerate(tokens) if token == "git" and _is_git_start(tokens, i)]
     if len(starts) != 1:
         raise UnresolvableTarget("単独の push 対象を確定できません")
@@ -686,6 +695,7 @@ def build_parser() -> argparse.ArgumentParser:
     commands.add_parser("push-target")
     check_parser = commands.add_parser("push-check")
     check_parser.add_argument("--flag", type=Path, required=True)
+    check_parser.add_argument("--base", type=Path, default=Path.cwd())
     commands.add_parser("pr-target")
     pr_check_parser = commands.add_parser("pr-check")
     pr_check_parser.add_argument("--flag", type=Path, required=True)
@@ -704,7 +714,8 @@ def main() -> int:
             print(approval_key(Path.cwd()))
             return 0
         is_pr = args.command.startswith("pr-")
-        target = (pr_target if is_pr else push_target)(Path.cwd(), _read_command_from_stdin())
+        command = _read_command_from_stdin()
+        target = (pr_target if is_pr else push_target)(Path.cwd(), command)
         if args.command in ("push-target", "pr-target"):
             print(json.dumps(target, ensure_ascii=False, sort_keys=True))
             return 0
@@ -714,6 +725,17 @@ def main() -> int:
             raise UnresolvableTarget("有効な送信先付き承認がありません。承認スクリプトで再承認してください") from error
         if not isinstance(approved, dict) or approved.get("head") != target["head"]:
             raise UnresolvableTarget("承認後に HEAD が変わったため再承認が必要です")
+        if not is_pr and approved.get("consentSource") == "standing-consent":
+            # Canonical push targets omit options such as force-with-lease. Recheck
+            # the actual command and global enrollment before reusing standing consent.
+            import publication_consent
+            try:
+                consent = publication_consent.check(args.base.resolve(), "git.push", command)
+            except (publication_consent.UnresolvableTarget, OSError, ValueError, TypeError, subprocess.SubprocessError) as error:
+                raise UnresolvableTarget(f"継続許可の条件が成立しません: {error}") from error
+            if consent["target"] != target:
+                raise UnresolvableTarget("継続許可の対象と実際の push が一致しません")
+            del approved["consentSource"]
         if approved != target:
             raise UnresolvableTarget("承認済みの操作・checkout・branch・送信先・ref/PR 番号と一致しません" + (f"（対象 PR #{target['number']}）" if is_pr else ""))
         ttl = int(os.environ.get("PR_APPROVAL_TTL_SECONDS" if is_pr else "PUSH_APPROVAL_TTL_SECONDS", "1800"))
