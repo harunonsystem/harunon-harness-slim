@@ -51,6 +51,7 @@ V2 `permissions` の deny は迂回しない。push・PR merge/close の ask は
 | 実装・診断・Git 規約 | `rules/core-standards.md` |
 | 技術比較の依頼 | `derive-optimal-solution` skill |
 | テスト追加・監査 | `test-audit` skill |
+| デッドコード・不要テスト削減 | `dead-code-audit` skill |
 | 実装後の簡素化 | `simplify` skill |
 | 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`。判定は `rules/review-policy.md` |
 | 開発・Issue・spec 整理 | 着手判定・worktree は `implement-issue`、tracker 前に `rules/issue-tracker.md`。trivial な局所変更は main で直接実装。non-trivial な実装は `poteto-mode` を親 workflow にする。独立した原因調査だけなら `how`、独立した設計比較だけなら `architect` |
