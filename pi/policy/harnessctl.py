@@ -113,7 +113,14 @@ def resolve_repo(request: JsonObject) -> Path:
         text=True,
     )
     if result.returncode != 0:
-        raise KernelError("GIT_CONTEXT_NOT_FOUND", cwd=str(base))
+        raise KernelError(
+            "GIT_CONTEXT_NOT_FOUND",
+            cwd=str(base),
+            reason=(
+                "対象の local worktree を実行 cwd に設定して再実行してください。"
+                "gh --repo は GitHub 上の対象指定であり、local Git context は設定しません。"
+            ),
+        )
     return Path(result.stdout.strip())
 
 
