@@ -18,8 +18,8 @@ def main() -> int:
         return 0
     if not isinstance(prompt, str):
         return 0
-    # One line plus one optional terminal newline. Never join pasted lines.
-    match = re.fullmatch(r'[ \t\u3000]*![ \t]*([^\r\n]+?)[ \t\u3000]*(?:\r?\n)?', prompt)
+    # Allow leading blank lines, but never join multiple command lines.
+    match = re.fullmatch(r'(?:[ \t\u3000]*\r?\n)*[ \t\u3000]*![ \t]*([^\r\n]+?)[ \t\u3000]*(?:\r?\n)?', prompt)
     if not match or not match[1].strip():
         return 0
     command = match[1]
