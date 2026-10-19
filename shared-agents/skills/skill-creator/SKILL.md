@@ -32,7 +32,7 @@ Express completion as observable outcomes and verification rather than prescribi
 - Multiple modes or complex resource layout: read [resource-patterns](references/resource-patterns.md).
 - Sequential or conditional workflow design: read [workflows](references/workflows.md).
 - Output format or examples: read [output-patterns](references/output-patterns.md).
-- Wording, pointers or hierarchy: use `writing-for-agents`.
+- Wording, pointers or hierarchy: use `writing-for-agents`; where it is not installed, review the same points yourself.
 
 Aim below 500 lines and about 5,000 tokens for the entrypoint; these are upper guidelines, not targets. Metadata loads during discovery, so keep the description short and discriminating. Bytes and words are not token counts.
 

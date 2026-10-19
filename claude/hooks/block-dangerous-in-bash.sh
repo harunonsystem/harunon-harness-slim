@@ -477,6 +477,17 @@ custom_git_discard_in_shared_checkout() {
   # git repo の外は git 自体が失敗するだけなので止めない。
   git rev-parse --git-dir >/dev/null 2>&1 || return 0
 
+  # pi install が管理する package checkout はセッションの作業場所ではない。
+  # resolver は先頭の -C を全体の対象にするので、例外は連結のない単独の呼び出しに限る。
+  local toplevel pi_git
+  toplevel=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+  pi_git=$(cd -P -- "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/git" 2>/dev/null && pwd -P || echo "")
+  if [ -n "$pi_git" ] && [[ ! "$NORMALIZED" =~ [\;\|\&] ]] && [[ ! "$NORMALIZED" =~ [^[:space:]].*$'\n'.*[^[:space:]] ]]; then
+    case "$(cd -P -- "$toplevel" 2>/dev/null && pwd -P)/" in
+      "$pi_git"/*) return 0 ;;
+    esac
+  fi
+
   # submodule は git-dir と common-dir が一致するため、所属する superproject が
   # linked worktree かどうかで判定する。
   local super

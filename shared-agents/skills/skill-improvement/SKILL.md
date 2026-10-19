@@ -10,7 +10,7 @@ description: 既存 skill・agent 指示の trigger、手順、参照、出力�
 1. 対象本文と参照先を読み、`target`・変更する `scope`・固定 `scenarios`・合否の `gate` を確定する。description と本文の不一致を記録する。本文・reference・scenario の変更は区別する。
 2. 変更に必要な設計ガイドだけ読む。
    - capability / trigger / workflow の設計は `skill-creator`。
-   - 文書構造・参照先・wording は `writing-for-agents`。
+   - 文書構造・参照先・wording は `writing-for-agents`。未導入の環境では同じ観点を自分で確認する。
 3. agent の判断・出力・読み落としに影響する変更は [empirical-prompt-tuning](../empirical-prompt-tuning/SKILL.md) の評価手順に従う。チェックリストを修正前に固定し、fresh baseline → one-theme patch → fresh 再実行 → hold-out で確認する。既存の評価シナリオは同 skill の `scenarios/` を探す。private 対象のシナリオは同じ private package に置く。
 4. 変更と評価結果、未検証事項を報告する。綴り・リンク修正など判断を変えない変更は構造確認で足りる。実行評価を省いた場合は実測済みとしない。
 

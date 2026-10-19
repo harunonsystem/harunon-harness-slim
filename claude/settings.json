@@ -227,6 +227,7 @@
     "excludedCommands": [
       "docker *",
       "gh *",
+      "rtk gh *",
       "gcloud *",
       "terraform *",
       "git push *",

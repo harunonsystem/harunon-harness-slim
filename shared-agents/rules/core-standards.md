@@ -28,7 +28,7 @@ workflow / reusable workflow / composite action を変更したら、既存の p
 4. **Simplify**: green 後、今回触った差分を簡素化の観点で読み直す。不要な複雑性がある非自明なコード変更では `simplify` skill を使う。数行の一意な修正では skill を儀式的に起動せず、その場の確認でよい。観測可能な挙動を保ったまま、不要な抽象・重複・分岐・old path と、変更によって古くなった code / test / docs を整理する。
 5. **Verify**: repository が宣言する deterministic checks と受入条件を再実行し、code / test / docs の整合と不要物が残っていないことを最終確認する。
 
-**テスト信頼性**: flaky test / race condition を retry・timeout 増加・sleep・不要な直列化・assertion の弱体化で隠さない。実際の並列実行 topology と共有 resource / lifecycle を確認し、同期は経過時間ではなく observable state / readiness / barrier を待つ。resource allocation は atomic に行い、teardown は close / abort / kill の呼び出しではなく process / resource が quiescent state に到達した時点を完了とする。並行性の回帰テストは可能なら barrier 等で deterministic に再現し、高回数実行して「落ちなかった」ことだけを根拠にしない。
+**テスト信頼性**: flaky test / race condition を retry・timeout 増加・sleep・不要な直列化・assertion の弱体化で隠さない。実際の並列実行 topology と共有 resource / lifecycle を確認し、同期は経過時間ではなく observable state / readiness / barrier を待つ。resource allocation は atomic に行い、teardown は close / abort / kill の呼び出しではなく process / resource が quiescent state に到達した時点を完了とする。並行性の回帰テストは可能なら barrier 等で deterministic に再現し、高回数実行して「落ちなかった」ことだけを根拠にしない。**変異確認（空虚な証明の防止）**: 実装やプロパティを意図的に壊したとき、テストや形式検証が正しく FAIL することを最低1回は確認する。いかなる変異でも失敗しないテストは完了の証拠にならない。
 
 プロジェクトが明示的に「開発中・内部向け」で、外部利用者・永続データ・既存契約に対する互換性や migration 要件がない場合は、古い構造を温存しない。理想形へ直接置き換え、不要になった旧実装・compatibility layer・migration・deprecated path を同じ変更で削除する。公開 API、保存済みデータ、外部 consumer がある場合は、削除前に互換性・migration 要件を確定する。
 
@@ -86,6 +86,8 @@ workflow / reusable workflow / composite action を変更したら、既存の p
 **Callback + 外部変数キャプチャ**: コールバック間の外部変数を介した状態構築は、順序・競合・寿命の契約を確認する。未保証の順序や共有状態に依存して動作が壊れる場合は REJECT し、戻り値で受け取れる処理は戻り値を使う。framework が要求するイベント駆動の state 更新や、所有・寿命が明確な局所状態という理由だけでは REJECT しない。
 
 **スコープクリープ**: 依頼されていない機能 / 単一実装への早すぎる抽象化 / 明示指示なしのレガシーサポート → REJECT。`.transform()` 正規化・`LEGACY_*_MAP`・`@deprecated` 型定義は明示指示なしで追加しない。
+
+**エラー揉み消しと防衛的過剰包装（Defensive slop）**: 起こり得ない場所への不要な `try-catch`、エラーの握りつぶし（空 catch や fallback への無断フォールバック）、自明な1行処理の無意味なラッパー関数化 → REJECT。エラーは境界でキャッチするか、上位へ正しく伝播させる。
 
 **レビュー指摘**: 修正の代わりにテスト追加 / ドキュメント追加 / 無関係ファイルの変更 → すべて REJECT。
 

@@ -1,4 +1,5 @@
 /** Claude PreToolUse entry for the shared permission intent. */
+import { execFileSync } from "node:child_process";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
@@ -22,9 +23,15 @@ function currentFileSession(event) {
   return session;
 }
 
-function currentScratchpad(event, session) {
+// The runtime-reported <runtime tmp>/<project>/<session>/scratchpad path; it may not exist yet.
+function scratchpadMetadata(event, session) {
   const directory = absoluteMetadataPath(event.scratchpad_dir);
-  if (!directory || basename(directory) !== "scratchpad" || basename(dirname(directory)) !== session) return undefined;
+  return directory && basename(directory) === "scratchpad" && basename(dirname(directory)) === session ? directory : undefined;
+}
+
+function currentScratchpad(event, session) {
+  const directory = scratchpadMetadata(event, session);
+  if (!directory) return undefined;
   try {
     return lstatSync(directory).isDirectory() && lstatSync(dirname(directory)).isDirectory() ? directory : undefined;
   } catch {
@@ -68,6 +75,48 @@ function currentToolResults(event, session, cwd, project) {
 // Claude's auto memory for this transcript's project. Edits stay subject to Claude's native rules.
 const currentMemory = (project) => project && ownedDirectory(join(project, "memory"));
 
+// Background command output (<runtime tmp>/<project>/<id>/tasks/<name>). After /clear the
+// session id changes but tasks keep the process's first id, so any id under this project's root counts.
+// The root is derived from scratchpad metadata, not from an existing scratchpad, which is created lazily.
+function currentTaskOutputs(event, scratchpad, cwd) {
+  if (event.tool_name !== "Read" || !scratchpad) return undefined;
+  const file = resolve(cwd, event.tool_input.file_path);
+  const directory = dirname(file);
+  const root = dirname(dirname(scratchpad));
+  if (basename(directory) !== "tasks" || dirname(dirname(directory)) !== root) return undefined;
+  try {
+    return ownedDirectory(directory, root, dirname(directory)) && lstatSync(file).isFile() ? directory : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// Distributed skills and rules are instructions the runtime tells the agent to read.
+function distributedInstructions(event) {
+  if (event.tool_name !== "Read") return [];
+  const config = absoluteMetadataPath(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude"));
+  const agents = join(homedir(), ".agents");
+  const roots = [join(agents, "skills"), join(agents, "rules")];
+  if (config) roots.push(join(config, "skills"), join(config, "rules"), join(config, "plugins", "cache"));
+  return roots.map((root) => ownedDirectory(root));
+}
+
+// Another checkout (main or linked worktree) of the cwd's repository. The target's own repository
+// decides: cwd's .git/worktrees entries are repository content and could name any directory.
+function sameRepositoryCheckout(event, cwd) {
+  if (event.tool_name !== "Read") return undefined;
+  const revParse = (directory, flag) => execFileSync("git", ["-C", directory, "rev-parse", flag], {
+    encoding: "utf8", timeout: 2000, stdio: ["ignore", "pipe", "ignore"],
+  }).trim();
+  const commonDir = (directory) => realpathSync.native(resolve(directory, revParse(directory, "--git-common-dir")));
+  try {
+    const target = dirname(resolve(cwd, event.tool_input.file_path));
+    return commonDir(target) === commonDir(cwd) ? absoluteMetadataPath(revParse(target, "--show-toplevel")) : undefined;
+  } catch {
+    return undefined; // Not a repository, a missing directory or git unavailable keeps the original decision.
+  }
+}
+
 try {
   const event = JSON.parse(readFileSync(0, "utf8"));
   const cwd = event.cwd || process.cwd();
@@ -76,10 +125,12 @@ try {
   if (result?.effect === "ask") {
     const session = currentFileSession(event);
     const project = session && transcriptProject(event, session);
-    const directories = session ?
-      [currentScratchpad(event, session), currentToolResults(event, session, cwd, project), currentMemory(project)] : [];
-    if (directories.some((directory) => directory &&
-        evaluateRuntimePermission("claude", event, { cwd, project: directory }, options)?.effect === "allow")) {
+    const allowedIn = (directory) => directory &&
+      evaluateRuntimePermission("claude", event, { cwd, project: directory }, options)?.effect === "allow";
+    // git runs only after the cheap filesystem roots fail.
+    if (session && ([currentScratchpad(event, session), currentToolResults(event, session, cwd, project), currentMemory(project),
+      currentTaskOutputs(event, scratchpadMetadata(event, session), cwd), ...distributedInstructions(event)].some(allowedIn) ||
+      allowedIn(sameRepositoryCheckout(event, cwd)))) {
       // Silence preserves Claude's native rules; emitting allow would override them.
       result = undefined;
     }

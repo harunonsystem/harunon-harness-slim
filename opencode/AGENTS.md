@@ -50,11 +50,11 @@ V2 `permissions` の deny は迂回しない。push・PR merge/close の ask は
 | --- | --- |
 | 実装・診断・Git 規約 | `rules/core-standards.md` |
 | 技術比較の依頼 | `derive-optimal-solution` skill |
-| テスト追加・監査 | `test-audit` skill |
+| テスト追加・監査 | `test-audit` skill。並行・不変条件の形式検証は `formal-verify` |
 | デッドコード・不要テスト削減 | `dead-code-audit` skill |
-| 実装後の簡素化 | `simplify` skill |
+| 実装後の簡素化・脱スロップ | `simplify` skill、AI 冗長コード削ぎ落としは `deslop` |
 | 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`。判定は `rules/review-policy.md` |
-| 開発・Issue・spec 整理 | 着手判定・worktree は `implement-issue`、tracker 前に `rules/issue-tracker.md`。trivial な局所変更は main で直接実装。non-trivial な実装は `poteto-mode` を親 workflow にする。独立した原因調査だけなら `how`、独立した設計比較だけなら `architect` |
+| 開発・Issue・spec 整理 | 着手判定・worktree は `implement-issue`、tracker 前に `rules/issue-tracker.md`。trivial な局所変更は main で直接実装。non-trivial な実装は `poteto-mode` を親 workflow にする。原因調査は `how`、設計比較は `architect`、E2E検証スキル生成は `create-verification-skill` |
 | 公開証跡（登録 repo のみ） | `run-change`（`policy/verification-repos.json` 登録外は不可） |
 | skill/指示の変更 | `skill-improvement` skill |
 | Figma からの実装（Claude のみ） | `figma-implement` skill |
