@@ -628,7 +628,7 @@ def push_target(repo: Path, command: str) -> dict:
     if not destination.startswith("refs/"):
         destination = "refs/heads/" + destination
     if not destination.startswith("refs/heads/") or destination in ("refs/heads/main", "refs/heads/master"):
-        raise UnresolvableTarget("保護 ref / branch 以外への push は承認では通せません")
+        raise UnresolvableTarget("main / master や branch 以外の ref への push は承認では通せません")
     _git(repo, "check-ref-format", destination)
     return {"operation": "git.push.delete" if delete else "git.push", "checkout": checkout_identity(repo), "branch": branch,
             "head": _git(repo, "rev-parse", "HEAD"), "repository": canonical_repository(urls[0]),
