@@ -12,9 +12,9 @@ Use the gh CLI to analyze this workflow run.
    - If a fix PR exists, report it and skip the remaining steps
 
 2. **Get basic info & identify actual failure**:
-   - What workflow/job failed, when, and on which commit?
-   - Read full logs to find what caused the exit code 1 — distinguish warnings/non-fatal errors from actual failures
-   - Look for "failing:", "fatal:", or script logic that triggers exit 1
+   - What workflow/job failed, when, and on which commit? (`gh run view <id>`)
+   - Fetch only failed step logs directly: `gh run view <id> --log-failed` (avoids token waste from full log downloads; fallback to `gh run view <id> --log` only if surrounding setup context is needed)
+   - Identify what triggered exit code 1 — distinguish warnings/non-fatal errors from actual failures (look for "failing:", "fatal:", or script logic that triggers exit 1)
 
 3. **Check flakiness** (history of the specific failing job, not the whole workflow):
    - `gh run list --workflow=<name>` → `gh run view <id> --json jobs` for the failing job's history across 10-20 runs

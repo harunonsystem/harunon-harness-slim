@@ -36,20 +36,8 @@ PR 作成後や push 後の CI 完了を非同期で監視する。
 - `persistent`: `false`
 
 ```bash
-while true; do
-  status=$(gh run view <run-id> --json status,conclusion -q '.status + " " + (.conclusion // "")' 2>/dev/null || echo "pending")
-  case "$status" in
-    completed\ success)
-      echo "CI_FINISHED: SUCCESS"
-      break
-      ;;
-    completed\ *)
-      echo "CI_FINISHED: $status"
-      break
-      ;;
-  esac
-  sleep 30
-done
+# gh run watch によるネイティブ待機（--exit-status で終了コードを反映、--compact で関連ステップのみ表示）
+gh run watch <run-id> --compact --exit-status
 ```
 
 ### 2. ローカル Dev サーバーのエラー常時監視

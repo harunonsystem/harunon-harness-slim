@@ -13,16 +13,26 @@
 # 注意: repo 外の場合の「早期 exit」判定は各 hook 側に残す。
 #       このライブラリは判定を行わず、repo 外では "none" を使った KEY を返す。
 #
-# CODEX_REVIEW_FLAG_DIR: フラグ格納先ディレクトリ（未設定時は ~/.claude/review-gate）。
-# テストがフラグ名前空間を隔離するための注入点。
-#
-# 旧デフォルトは /tmp 直下だったが、そこは Claude の Bash sandbox の write allowlist 外
-# （許可は /tmp/claude まで）。approve-push.sh の実行に sandbox 解除が要り、auto mode の
-# classifier に拒否されて「ユーザー承認を記録するスクリプト」自体が打てなくなった
-# （2026-08-29）。~/.claude/ は allowlist 内なので sandbox のまま書ける。
-# フラグを書く hook はすべてこの lib を source するため、ディレクトリ作成はここで 1 回行う。
-: "${CODEX_REVIEW_FLAG_DIR:=$HOME/.claude/review-gate}"
-mkdir -p "$CODEX_REVIEW_FLAG_DIR" 2>/dev/null || true
+# CODEX_REVIEW_FLAG_DIR: フラグ格納先ディレクトリ（テスト隔離用などの明示注入点）。
+# 未設定時は git リポジトリ内なら .git/harness-state（worktree も自動分離）、
+# repo 外なら ~/.claude/review-gate にフォールバックする。
+_codex_review_resolve_flag_dir() {
+  if [ -n "${CODEX_REVIEW_FLAG_DIR:-}" ]; then
+    mkdir -p "$CODEX_REVIEW_FLAG_DIR" 2>/dev/null || true
+    printf '%s\n' "$CODEX_REVIEW_FLAG_DIR"
+    return 0
+  fi
+  local git_path
+  git_path=$(git rev-parse --path-format=absolute --git-path harness-state 2>/dev/null || true)
+  if [ -n "$git_path" ]; then
+    mkdir -p "$git_path" 2>/dev/null || true
+    printf '%s\n' "$git_path"
+    return 0
+  fi
+  local fallback="${HOME}/.claude/review-gate"
+  mkdir -p "$fallback" 2>/dev/null || true
+  printf '%s\n' "$fallback"
+}
 
 # CMD → 対象 repo 解決 CLI（policy/repo_target.py）への絶対パス。source 時点
 # （このファイル自身の場所）から 1 回だけ計算する。
@@ -84,31 +94,39 @@ codex_review_key() {
 
 # gate フラグファイルのパスを echo する。
 codex_review_gate_flag() {
-  echo "${CODEX_REVIEW_FLAG_DIR}/.codex-review-gate-$(codex_review_key)"
+  local dir
+  dir=$(_codex_review_resolve_flag_dir)
+  echo "${dir}/.codex-review-gate-$(codex_review_key)"
 }
 
 # done フラグファイルのパスを echo する。
 codex_review_done_flag() {
-  echo "${CODEX_REVIEW_FLAG_DIR}/.codex-review-done-$(codex_review_key)"
+  local dir
+  dir=$(_codex_review_resolve_flag_dir)
+  echo "${dir}/.codex-review-done-$(codex_review_key)"
 }
 
 # difit done フラグファイルのパスを echo する（KEY は codex_review_key を流用）。
 difit_done_flag() {
-  echo "${CODEX_REVIEW_FLAG_DIR}/.difit-done-$(codex_review_key)"
+  local dir
+  dir=$(_codex_review_resolve_flag_dir)
+  echo "${dir}/.difit-done-$(codex_review_key)"
 }
 
 # 同一 filesystem 上の移動では維持し、clone/worktree 間では共有しない。
 push_approved_flag() {
-  local key
+  local dir key
+  dir=$(_codex_review_resolve_flag_dir)
   key=$(python3 "$_REPO_TARGET_CLI" approval-key) || return 1
-  echo "${CODEX_REVIEW_FLAG_DIR}/.push-approved-${key}"
+  echo "${dir}/.push-approved-${key}"
 }
 
 # PR 承認も push と同じ checkout identity を使い、移動と複製を区別する。
 pr_approved_flag() {
-  local key
+  local dir key
+  dir=$(_codex_review_resolve_flag_dir)
   key=$(python3 "$_REPO_TARGET_CLI" approval-key) || return 1
-  echo "${CODEX_REVIEW_FLAG_DIR}/.pr-approved-${key}"
+  echo "${dir}/.pr-approved-${key}"
 }
 
 # gate フラグに現在の HEAD を書き込み、bypass ログに記録する。

@@ -227,6 +227,11 @@
     },
     {
       "action": "shell",
+      "resource": "actionlint *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
       "resource": "basename *",
       "effect": "allow"
     },
@@ -362,6 +367,11 @@
     },
     {
       "action": "shell",
+      "resource": "difit *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
       "resource": "docker *",
       "effect": "allow"
     },
@@ -393,6 +403,11 @@
     {
       "action": "shell",
       "resource": "fc-match *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "fd *",
       "effect": "allow"
     },
     {
@@ -512,6 +527,21 @@
     },
     {
       "action": "shell",
+      "resource": "git grep *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote -v",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git remote get-url *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
       "resource": "grep *",
       "effect": "allow"
     },
@@ -568,6 +598,11 @@
     {
       "action": "shell",
       "resource": "mv *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "nl *",
       "effect": "allow"
     },
     {
@@ -667,7 +702,17 @@
     },
     {
       "action": "shell",
+      "resource": "sed -n *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
       "resource": "sh *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "shasum *",
       "effect": "allow"
     },
     {
@@ -702,12 +747,22 @@
     },
     {
       "action": "shell",
+      "resource": "true",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
       "resource": "uname *",
       "effect": "allow"
     },
     {
       "action": "shell",
       "resource": "uniq *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "vp *",
       "effect": "allow"
     },
     {

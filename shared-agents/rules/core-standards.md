@@ -118,6 +118,16 @@ workflow / reusable workflow / composite action を変更したら、既存の p
 
 **同じ方向性に 2 回 pushback されたら、3 回目の説明を書かずに止まる。** 説明を足しても伝わらないのは論点がずれているサイン。問題を 1 文で定義し直し、判断軸付きで 2〜3 案を出して選ばせる（「話が混ざってる」「で?」「そもそも何がしたいの」が 2 回出た時点で該当）。
 
+### コード説明・報告・ドキュメントの記述規範（コードベースが単語帳）
+
+- **コードベースが単語帳**: クラス名・関数名・ファイルパス・CLI フラグ・コマンド名・設定キーは日本語に意訳・言い換えせず、実際のシンボル名をそのままバッククォート（`...`）で書く。読者がエディタで直接検索・定義ジャンプできるようにする。
+- **AI スロップ・クリシェの排除**: 「〜について見ていきましょう」「〜は不可欠です」「強力な機能を提供します」などの空疎な前置き・装飾語・まとめを省き、事実・因果・変更内容を簡潔に述べる。
+- **要所ごとの推敲の使い分け**:
+  - **日常のコード説明・進捗報告**: 多段階スキルを回さず、この原則（実名保持＋スロップ排除）を直接守り、簡潔で自然な日本語で回答する。
+  - **PR 本文の作成**: `rules/pr-body.md` に従い、差分の実名・事実を確定した上で `yomiyasu`（`--domain business`）を最終推敲として適用する。
+  - **仕様整理・BLOCKED 質問**: `spec-ready` に従い、判断材料・選択肢・実名事実を揃えた上で `yomiyasu` で推敲する。
+  - **本格的な技術記事・解説ドキュメント**: `tech-writing-workflow` のパイプライン（コード実名強制・スロップ除去・日本語推敲）で執筆・推敲する。
+
 ### 独断で消費量・副作用を増やさない
 
 - 勝手に commit / push / PR 作成: commit message 2〜3 パターン + push 先を提示して確認する
@@ -214,7 +224,7 @@ commit:
 
 push・PR の承認:
 
-- push 承認フラグ（`approve-push.sh`）は承認した HEAD に紐づき、**HEAD が remote に到達した時点か 30 分（`PUSH_APPROVAL_TTL_SECONDS`）で失効**する。guard 通過時には消費しないので、後続の pre-push hook（unittest / validator / mise の python 依存）が落ちても同じ承認で再 push できる。例外は remote ref の削除だけの push（`--delete` / `:<ref>`）で、HEAD を送らないため guard 通過時に消費する（main / master の削除は承認でも通らない）。フラグは `~/.claude/review-gate/` に書くため sandbox 解除は不要
+- push 承認フラグ（`approve-push.sh`）は承認した HEAD に紐づき、**HEAD が remote に到達した時点か 30 分（`PUSH_APPROVAL_TTL_SECONDS`）で失効**する。guard 通過時には消費しないので、後続の pre-push hook（unittest / validator / mise の python 依存）が落ちても同じ承認で再 push できる。例外は remote ref の削除だけの push（`--delete` / `:<ref>`）で、HEAD を送らないため guard 通過時に消費する（main / master の削除は承認でも通らない）。フラグは Git リポジトリ内では `.git/harness-state/`（ワークツリー自動分離）、リポジトリ外では `~/.claude/review-gate/` に書くため sandbox 解除は不要
 - 承認は cwd の repo + branch 単位なので、worktree で push するなら worktree 内（`git -C <worktree>` の対象）で承認する
 - `gh pr merge` / `close` も同型で、`approve-pr.sh <PR番号> "理由"` の承認（番号紐づき・TTL 30 分）と一致する番号を明示した単独コマンドだけが通る（番号省略形は deny）
 - 長い自律ランは最後の push で止まりやすいため、着手前に `harness-doctor.sh`（前提ツール・未管理スキル・ドリフト）を通してから始める

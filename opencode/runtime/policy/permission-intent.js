@@ -1,5 +1,5 @@
 /** Semantic permission intent. Adapters must not treat this module as a live guard. */
-import { lstatSync, readFileSync, realpathSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -67,7 +67,8 @@ function canonicalPath(absolute) {
       lstatSync(ancestor);
       break;
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      // A too-long name or a file used as a directory cannot exist, like a missing one.
+      if (!["ENOENT", "ENAMETOOLONG", "ENOTDIR"].includes(error.code)) throw error;
       const parent = dirname(ancestor);
       if (parent === ancestor) throw error;
       ancestor = parent;
@@ -95,6 +96,74 @@ function isSecret(intent, pair) {
     const roots = pathPair(root, process.cwd());
     return pair.some((path) => roots.some((candidate) => tree ? within(path, candidate) : path === candidate));
   });
+}
+
+function globSegment(segment) {
+  let source = "";
+  for (let index = 0; index < segment.length; index++) {
+    const character = segment[index];
+    if (character === "*") source += ".*";
+    else if (character === "?") source += ".";
+    else if (character === "[") {
+      const end = segment.indexOf("]", index + 2);
+      // POSIX classes such as [[:alpha:]] are not read; they count as reachable.
+      if (end === -1 || segment.slice(index + 1, end).includes("[")) return undefined;
+      source += `[${segment.slice(index + 1, end).replace(/^!/, "^").replace(/\\/g, "\\\\")}]`;
+      index = end;
+    } else if (character === "{") {
+      const end = segment.indexOf("}", index);
+      const options = end === -1 ? [] : segment.slice(index + 1, end).split(",");
+      // Sequences ({a..z}) and nested patterns are not read; they count as reachable.
+      if (options.length < 2 || options.some((option) => /[*?[\]{}]|\.\./.test(option))) return undefined;
+      source += `(?:${options.map((option) => option.replace(/[.+^$()|\\]/g, "\\$&")).join("|")})`;
+      index = end;
+    } else source += character.replace(/[.+^$()|\\\]}]/g, "\\$&");
+  }
+  return new RegExp(`^${source}$`, "s");
+}
+
+/**
+ * Whether a glob may name a secret file or reach a secret tree. A glob the shell expands
+ * (`listable`) is checked against the directory entries, symlink targets included; a glob a
+ * tool applies while walking a tree without following links is checked by name; `filter` marks a
+ * search tool's file filter, whose literal value is a name test too. Shapes this cannot read
+ * count as reachable.
+ */
+export function globMayReachSecret(intent, pattern, cwd, { listable = false, filter = false } = {}) {
+  // Escapes are not read: `\.e*` would hide its literal prefix.
+  if (pattern.includes("\\")) return true;
+  const parts = homePath(pattern).split("/");
+  let first = parts.findIndex((part) => /[*?[\]{}]/.test(part));
+  // A search tool's filter (`--iglob .ENV.local`) selects names even without a wildcard.
+  if (first === -1 && !filter) return false;
+  if (first === -1) first = parts.length - 1;
+  let directory;
+  try {
+    directory = pathPair(parts.slice(0, first).join("/") || (pattern.startsWith("/") ? "/" : "."), cwd)[1];
+  } catch { return true; }
+  const roots = intent.files.secretPaths.map((path) => resolve(homePath(path.endsWith("/**") ? path.slice(0, -3) : path)));
+  if (roots.some((root) => within(root, directory))) return true;
+  const segments = parts.slice(first).map(globSegment);
+  if (segments.some((segment) => !segment)) return true;
+  if (listable) {
+    // A name says nothing about a symlink's target, so the shell's matches are resolved one by one.
+    if (segments.length !== 1) return true;
+    // A matched directory may be read recursively (rg, grep -r, cp -r), so it counts as reachable.
+    try {
+      return readdirSync(directory).some((entry) => segments[0].test(entry) &&
+        (isSecret(intent, pathPair(resolve(directory, entry), cwd)) || statSync(resolve(directory, entry)).isDirectory()));
+    } catch { return true; }
+  }
+  // A prefix secret (`.env.*`) is unreachable only when the glob's leading literal diverges from it.
+  // Case is ignored: tools offer case-insensitive globs and the default macOS filesystem folds case.
+  const mayNameSecret = (part, segment) => intent.files.secretBasenames.some((name) => {
+    if (!name.endsWith("*")) return new RegExp(segment.source, "si").test(name);
+    const prefix = name.slice(0, -1).toLowerCase();
+    const literal = part.split(/[*?[{]/)[0].toLowerCase();
+    return literal.startsWith(prefix) || prefix.startsWith(literal);
+  });
+  // Directory segments count too: a secret-named directory (`.env.local/token`) is a secret path.
+  return segments.some((segment, index) => mayNameSecret(parts[first + index], segment));
 }
 
 function fileDecision(intent, action, resource, cwd, project) {

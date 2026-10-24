@@ -53,12 +53,19 @@ Figma MCPが返すアセット（画像・アイコン・SVG）をダウンロ�
 - まず小さいコンポーネント単位で実装し、最後にページやセクションへ統合する
 - Figmaの値をそのまま移植せず、既存のUIパターン・命名・責務分割に合わせて変換する
 
-## Step 6: 自己検証ループ
+## Step 6: 自己検証ループ（frontend-verify 連携）
 
-1. プロジェクト既定のdevサーバーで対象を表示する。Storybookがあれば利用し、ブラウザでスクリーンショットを取得する
-2. Step 3のFigmaスクリーンショットと比較
-3. スペーシング・サイズ・カラー・レイアウトに差異があればCSS調整して再チェック
-4. 受入条件を満たしたら終了。同じ差異が残る場合は原因を調べ、再試行で解消しなければ未解決内容を報告する
+1. プロジェクト既定の dev サーバー（または Storybook）で対象を表示する。
+2. `frontend-verify`（`agent-browser`）を利用してヘッドレスでスクリーンショットを撮影する:
+   ```bash
+   agent-browser open http://localhost:3000/path
+   agent-browser wait 2000
+   agent-browser screenshot /tmp/impl-verify.png
+   ```
+   ※ モバイル等のレスポンシブ確認が必要な場合は `agent-browser viewport 390 844 && agent-browser screenshot /tmp/mobile-verify.png` を併用する。
+3. Read ツールで撮影画像を開き、Step 3 の Figma スクリーンショットと比較する。
+4. スペーシング・サイズ・カラー・レイアウト・フォント・余白の差異をCSS調整して再チェックする。
+5. 受入条件を満たしたら終了。同じ差異が残る場合は原因を調べ、再試行で解消しなければ未解決内容を報告する。
 
 ## Step 7: 最終検証
 

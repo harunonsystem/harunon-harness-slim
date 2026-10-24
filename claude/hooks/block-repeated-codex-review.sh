@@ -3,7 +3,7 @@
 #
 # 1 回目: そのまま通す + PostToolUse で flag を立てる (set-codex-review-flag.sh)
 # 2 回目以降: このフックが block し、ユーザー確認を要求する
-# 再実行が必要なら flag ファイル ($CODEX_REVIEW_FLAG_DIR/.codex-review-done-$KEY、既定 ~/.claude/review-gate/) をユーザー指示のもとで削除する
+# 再実行が必要なら flag ファイル ($CODEX_REVIEW_FLAG_DIR/.codex-review-done-$KEY、既定 .git/harness-state/、repo 外は ~/.claude/review-gate/) をユーザー指示のもとで削除する
 
 set -euo pipefail
 

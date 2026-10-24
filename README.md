@@ -22,6 +22,7 @@ Claude以外のruntimeが使う共通skillsは、`shared-agents/`から1回だ�
 
 ```bash
 scripts/validate.sh                       # 静的検証（JSON / shell / JS / Python / 資格情報スキャン）
+scripts/doctor.sh                         # 前提ツールと各ターゲットのインストール状態を診断
 scripts/install.sh claude --dry-run       # ~/.claude に何が変わるかを表示（書き込みなし）
 scripts/install.sh claude                 # 配布
 scripts/install.sh claude --check         # 配布後のドリフト確認（差分があれば exit 1）
@@ -34,6 +35,26 @@ scripts/install.sh claude --check         # 配布後のドリフト確認（差
 配布済みのファイルは`.harunon-slim.installed.json`に記録します。次回の配布では、前回配ったファイルのうち、今回の配布物にないものだけを削除します。
 上書き・削除する既存ファイルは`.harunon-slim.backups/<timestamp>/`に退避します。手元の修正はそこから復元できます。
 Codexの配布先は、`CODEX_HOME`が設定されていればそのディレクトリになります。
+
+## アンインストール
+
+配布した設定を安全に削除したい場合は `uninstall.sh` を使用します。
+
+```bash
+scripts/uninstall.sh claude --dry-run     # 削除対象のファイル一覧を表示（削除はしない）
+scripts/uninstall.sh claude               # 配布済みファイルを削除
+```
+
+`uninstall.sh` は `.harunon-slim.installed.json`（ledger）に記録された配布済みファイルのみを安全に削除し、未管理のファイルやユーザー独自のファイルは保持します。
+
+## 環境診断（doctor）
+
+現在の前提ツールの有無や、各ターゲットの配布状況・ドリフトを一括確認できます。
+
+```bash
+scripts/doctor.sh                         # 全ターゲットの診断
+scripts/doctor.sh claude                  # 特定ターゲットのみ診断
+```
 
 ## 設定ファイルの扱い
 

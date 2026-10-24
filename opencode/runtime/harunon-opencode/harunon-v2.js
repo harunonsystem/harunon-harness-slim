@@ -1,4 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHarnessPolicy } from "./harness-policy.js";
 import { ClaudeHooksBridge } from "./claude-hooks-bridge.js";
@@ -7,7 +9,7 @@ import { ScanNewSkills } from "./scan-new-skills.js";
 import { PostEditChecks } from "./post-edit-checks.js";
 import { buildProviderEntries } from "./model-providers.js";
 import { workflowToolV2 } from "./harness-workflow-v2.js";
-import { loadPermissionIntent } from "../policy/permission-intent.js";
+import { globMayReachSecret, loadPermissionIntent } from "../policy/permission-intent.js";
 import { evaluateRuntimePermission } from "../policy/permission-runtime.js";
 import { normalizePermissionEvent } from "../policy/permission-targets.js";
 import { tokenizeShellCommand } from "../policy/pr-action.js";
@@ -31,6 +33,7 @@ const SEARCH_SCALAR_OPTIONS = new Set([
   "--replace", "--sort", "--sortr", "--threads", "--type", "--type-add", "--type-clear", "--type-not",
 ]);
 const SEARCH_FILE_OPTIONS = new Set(["--file", "--glob", "--iglob", "--ignore-file"]);
+const COMMAND_WRAPPERS = ["rtk", "command", "env", "exec", "sudo", "nice", "time", "nohup"];
 
 function shellFileTokens(tokens) {
   const files = [];
@@ -38,11 +41,15 @@ function shellFileTokens(tokens) {
   for (const token of tokens) {
     const value = token.value;
     if (token.separator) { program = undefined; patternPending = filePending = scalarPending = optionsEnded = false; continue; }
-    if (token.redirection) { filePending = true; continue; }
-    if (filePending) { files.push(token); filePending = false; continue; }
+    if (token.redirection) { filePending = "redirect"; continue; }
+    if (filePending) {
+      files.push(filePending === "glob" ? { ...token, globOption: true } : filePending === "redirect" ? { ...token, redirect: true } : token);
+      filePending = false;
+      continue;
+    }
     if (scalarPending) { scalarPending = false; continue; }
     if (!program) {
-      if (["rtk", "command", "env", "exec", "sudo", "nice", "time", "nohup"].includes(value) ||
+      if (COMMAND_WRAPPERS.includes(value) ||
           value.startsWith("-") || /^[A-Za-z_][A-Za-z0-9_]*=/.test(value)) continue;
       program = value.split("/").at(-1);
       patternPending = ["rg", "grep", "egrep", "fgrep"].includes(program);
@@ -56,8 +63,8 @@ function shellFileTokens(tokens) {
         if (option === "--regexp") { patternPending = !attached.length; continue; }
         if (SEARCH_FILE_OPTIONS.has(option)) {
           if (option === "--file") patternPending = false;
-          if (attached.length) files.push({ ...token, value: attached.join("=") });
-          else filePending = true;
+          if (attached.length) files.push({ ...token, value: attached.join("="), globOption: option.endsWith("glob") });
+          else filePending = option.endsWith("glob") ? "glob" : true;
           continue;
         }
         if (SEARCH_SCALAR_OPTIONS.has(option)) { scalarPending = !attached.length; continue; }
@@ -70,8 +77,8 @@ function shellFileTokens(tokens) {
           if (flag === "e") patternPending = !argument;
           else if (flag === "f" || flag === "g") {
             if (flag === "f") patternPending = false;
-            if (argument) files.push({ ...token, value: argument });
-            else filePending = true;
+            if (argument) files.push({ ...token, value: argument, globOption: flag === "g" });
+            else filePending = flag === "g" ? "glob" : true;
           } else scalarPending = !argument;
           continue;
         }
@@ -82,6 +89,48 @@ function shellFileTokens(tokens) {
     files.push(token);
   }
   return files;
+}
+
+// A quoted delimiter (<<'PY', <<"PY", <<\PY) makes the body literal stdin: no expansion,
+// globbing or command parsing. Only a consumer that treats it as data gets its body split
+// off. An interpreter runs it as inline code, which still asks like `-c`; shells and anything
+// unrecognised keep the whole text tokenized as shell.
+const HEREDOC_DATA_CONSUMERS = /(?:^|\/)(?:cat|tee)$/;
+function quoteOpenAt(text, end) {
+  let quote;
+  for (let index = 0; index < end; index++) {
+    const character = text[index];
+    if (character === "\\" && quote !== "'") index++;
+    else if (quote) { if (character === quote) quote = undefined; }
+    else if (character === "'" || character === '"') quote = character;
+  }
+  return Boolean(quote);
+}
+function splitQuotedHeredocs(command) {
+  const bodies = [];
+  let script = command;
+  for (;;) {
+    const match = /(?<!<)<<-?[ \t]*(?:'([A-Za-z_]\w*)'|"([A-Za-z_]\w*)"|\\([A-Za-z_]\w*))/.exec(script);
+    const lineEnd = match ? script.indexOf("\n", match.index) : -1;
+    // A trailing backslash or an open quote continues the command line, and any other `<<` still
+    // waiting for its body takes the next lines first; in each case the body would start
+    // elsewhere than it looks. Split-off heredocs no longer leave their operator in `script`.
+    const line = lineEnd === -1 ? "" : script.slice(script.lastIndexOf("\n", match.index) + 1, lineEnd);
+    if (lineEnd === -1 || quoteOpenAt(script, match.index) || quoteOpenAt(script, lineEnd) ||
+        line.split("<<").length > 2 || /(?<!<)<<(?!<)/.test(script.slice(0, match.index)) ||
+        /[;&|]|\\\r?$/.test(script.slice(match.index + match[0].length, lineEnd))) return { script, bodies };
+    const delimiter = match[1] ?? match[2] ?? match[3];
+    const lineStart = Math.max(...[";", "&", "|", "(", "\n"].map((separator) => script.lastIndexOf(separator, match.index))) + 1;
+    const consumer = script.slice(lineStart, match.index).trim().split(/\s+/)
+      .find((word) => !/^[A-Za-z_]\w*=/.test(word) && !COMMAND_WRAPPERS.includes(word));
+    const terminator = new RegExp(`^${match[0].startsWith("<<-") ? "\\t*" : ""}${delimiter}$`, "m").exec(script.slice(lineEnd + 1));
+    if (!terminator || !HEREDOC_DATA_CONSUMERS.test(consumer ?? "")) return { script, bodies };
+    const bodyEnd = lineEnd + 1 + terminator.index;
+    bodies.push(script.slice(lineEnd + 1, bodyEnd));
+    // Drop the operator, body and terminator; the rest of the command line is still checked.
+    script = script.slice(0, match.index) + script.slice(match.index + match[0].length, lineEnd + 1) +
+      script.slice(bodyEnd + terminator[0].length);
+  }
 }
 
 export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, invokeKernel } = {}) {
@@ -109,24 +158,57 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
   });
   const shellSafety = (commands, cwd = base) => {
     let pending;
+    let cwds = [cwd];
     for (const command of commands) {
-      const tokens = tokenizeShellCommand(command);
+      const { script, bodies } = splitQuotedHeredocs(command);
+      const tokens = tokenizeShellCommand(script);
+      // V2 reports each simple command of `cd dir && cmd` as its own resource (its saved "always"
+      // rules are per command, e.g. `git -C *` from a compound call), so later paths resolve from dir.
+      // The separator is not visible and cd can fail, so later paths are checked from every
+      // directory they may run in. A cd inside one compound resource still asks.
+      const target = tokens?.length === 2 && tokens[0].value === "cd" && !tokens[1].dynamic && !tokens[1].glob &&
+        !/^(?:-|~[^/])/.test(tokens[1].value) ? tokens[1].value.replace(/^~(?=\/|$)/, homedir()) : undefined;
+      if (target) {
+        cwds = [...new Set([...cwds, ...cwds.map((directory) => resolve(directory, target))])];
+        // Each cd can double the candidates. Dropping any would weaken the secret checks, so a
+        // chain too long to enumerate is refused as a whole.
+        if (cwds.length > 64) return { effect: "deny", reason: "too many directory changes to check" };
+        continue;
+      }
       const files = shellFileTokens(tokens ?? []);
+      // A name listing prints paths, not contents, so a glob argument that matches a secret name reads nothing.
+      const programToken = files.find((token) => token.program);
+      const programIndex = tokens?.findIndex((token) => !token.separator && token.value === programToken?.value) ?? -1;
+      const program = programToken?.value.split("/").at(-1);
+      // git: the subcommand position itself, after at most one literal `-C <dir>`.
+      const gitArgs = program === "git" ? tokens.slice(programIndex + 1).map((token) => token.value) : [];
+      const gitSubcommand = gitArgs[0] === "-C" ? gitArgs[2] : gitArgs[0];
+      const listsNames = tokens && !tokens.some((token) => token.separator) && (
+        program === "ls" ||
+        program === "find" && !tokens.some((token) => /^-(?:exec|execdir|ok|okdir|delete|fprint0?|fprintf|fls)$/.test(token.value)) ||
+        program === "fd" && !tokens.some((token) => /^(?:-[A-Za-z]*[xX]|--exec)/.test(token.value)) ||
+        ["ls-files", "ls-tree"].includes(gitSubcommand));
+      // A tool that follows links can reach a secret through a link with an ordinary name.
+      const followsLinks = tokens?.some((token) => /^(?:-[A-Za-z]*[LR][A-Za-z]*|--follow|--dereference-recursive)$/.test(token.value));
       const inlineCode = files.some((token) => token.program &&
         /(?:^|\/)(?:python[0-9.]*|node|bash|sh|zsh|ruby|perl)$/.test(token.value)) &&
         tokens.some((token) => /^(?:-[cep]|--eval(?:=|$))/.test(token.value));
       if (!tokens || inlineCode || tokens.some((token) => token.dynamic ||
+          ["cd", "eval"].includes(token.value)) || files.some((token) =>
           // 引用符内の [] {} は jq 式やテンプレートで shell は展開しない。* と ? はツール自身が
-          // 展開しうるので引用符内でも確認する。
-          ["cd", "eval"].includes(token.value)) || files.some((token) => token.glob || /[*?]/.test(token.value))) {
+          // 展開しうるので、引用符内でも秘密ファイルに届きうるかを確かめる。除外 glob は読む対象を増やさない。
+          (token.glob || token.globOption || /[*?]/.test(token.value)) && !(token.globOption && token.value.startsWith("!")) &&
+          // A redirect target is written or read by the shell itself, whatever the program lists.
+          (token.program || (!listsNames || token.redirect) && (followsLinks && !token.glob || cwds.some((directory) =>
+            globMayReachSecret(intent, token.value, directory, { listable: token.glob, filter: token.globOption })))))) {
         pending = { effect: "ask", reason: "dynamic shell command" };
       }
-      const paths = files.flatMap(
-        (token) => [token.value, ...token.value.split(/[\s"'()<>=;&|/]+/)]
+      const paths = [...files.map((token) => token.value), ...bodies].flatMap(
+        (value) => [value, ...value.split(/[\s"'()<>=;&|/]+/)]
       ).filter(Boolean);
-      if (paths.length) {
+      for (const directory of paths.length ? cwds : []) {
         const files = evaluateRuntimePermission("opencode", { action: "read", resources: paths },
-          { cwd, project: ctx.location.project?.canonical ?? base }, { intent, channel: "permission-v2" });
+          { cwd: directory, project: ctx.location.project?.canonical ?? base }, { intent, channel: "permission-v2" });
         if (files?.effect === "deny") return files;
       }
       let normalized;

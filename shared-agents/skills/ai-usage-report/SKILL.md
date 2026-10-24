@@ -48,70 +48,11 @@ cclens sql "SELECT surface_id, count(*) n FROM events
 
 スキーマは `SELECT sql FROM sqlite_master`。
 
-## Phase 2: Codex の実測
+## Phase 2: 他ランタイム（Codex / pi / omp / OpenCode）の実測
 
-**`scripts/codex-usage.py`（harness repo）を使う。rollout ログを自前で数え直さない。**
+Codex, pi / omp, OpenCode の実測手順、抽出用コマンド、および SQL は [runtime-metrics-collection](references/runtime-metrics-collection.md) を参照。
 
-```bash
-python3 <harness-repo>/scripts/codex-usage.py --since <YYYY-MM-DD>
-```
-
-ファイル数を `find | wc -l` で数える方式は3つの理由で実態とずれる。このスクリプトは3つとも処理済み:
-
-- `archived_sessions/` に移された過去のログが落ちる（重いセッションほど古いので「最近は軽い」と読み違える）
-- 1ファイル＝1セッションだが、`thread_source` が `user` / `subagent` / `guardian_review` で混ざる。**人が始めた Codex セッションは `user` の行だけ**
-- `"model":"..."` を grep で数えると、セッション数ではなく turn_context の出現回数（≒ターン数の代理）になる
-
-出力の `thread_source 別` と `model × effort 別` が報告に使う部分。月次の推移が要るなら `--since` を変えて月ごとに実行して並べる。
-
-## Phase 3: pi / omp の実測
-
-pi と omp は Codex と保存形式が違う。どちらも `sessions/<encoded-cwd>/<ISO>_<uuid>.jsonl` で、ファイル名の先頭が ISO 日付。モデルは `model_change` イベントに入るが**キー名が違う**（pi は `modelId`、omp は `model` で provider 接頭辞つき）ので、両方拾う正規表現を使う。
-
-```bash
-# 月別セッション数（ランタイムごとに実行）
-for d in ~/.pi/agent/sessions ~/.omp/agent/sessions; do
-  echo "## $d"
-  find "$d" -name '*.jsonl' | perl -ne 'print "$1\n" if m{/(\d{4}-\d{2})}' | sort | uniq -c
-done
-
-# モデル構成（1セッション内で複数回切り替わるので、セッション数ではなく切替回数）
-for d in ~/.pi/agent/sessions ~/.omp/agent/sessions; do
-  echo "## $d"
-  find "$d" -name '*.jsonl' \
-    | xargs perl -ne 'print "$1\n" if /"type":"model_change".*?"model(?:Id)?":"([^"]+)"/' \
-    | sort | uniq -c | sort -rn
-done
-```
-
-`~/.pi/agent` 直下には `observability/history.jsonl` などセッションでない JSONL があるので、`sessions/` 配下に限定する。
-
-omp はモデル名に `<provider>/<model>` の形で provider が付くので、pi の裸のモデル名と合算するときは provider を落としてから揃える。枠制約の話をするときは落とさない方がよい（どの provider が使えなくなったかが要点になる）。
-
-OpenCode は `~/.local/share/opencode/opencode.db` と旧 `storage/session/` の両方を確認する（`XDG_DATA_HOME` 指定時はその配下）。DB は読み取り専用で開き、`sqlite_master` でスキーマを確認してから `session` / `message` / `part` を集計する。root session と子セッションを分け、user role でも synthetic / subtask の投入を人間の依頼に数えない。両保存先の重複は session ID で照合し、未確認なら別記して合算しない。
-
-保存先ごとの対象期間・取得件数・除外条件・読み取り失敗を報告する。少数のログや取得不能を「未使用」と扱わず、観測できた範囲だけを書く。SQLite の WAL がある場合はそれも含む一貫した snapshot を使い、`immutable=1` で WAL を無視した件数を全件として報告しない。
-
-列が `session(id, parent_id)`・`message(id, session_id, data)`・`part(id, message_id, data)` と一致する場合、読み取り専用接続で次の照会を使う。1行は message ではなく part。`subtask` → `synthetic` → 子 session → 直接入力候補の順で分類する。直接入力候補も人間の入力と断定しない。
-
-```sql
-SELECT s.id AS session_id, m.id AS message_id, p.id AS part_id,
-       CASE
-         WHEN json_extract(p.data, '$.type') = 'subtask' THEN 'subtask'
-         WHEN json_extract(p.data, '$.synthetic') = 1 THEN 'synthetic'
-         WHEN s.parent_id IS NOT NULL THEN 'child_session'
-         ELSE 'direct_user_candidate'
-       END AS classification
-FROM session s
-JOIN message m ON m.session_id = s.id
-JOIN part p ON p.message_id = m.id
-WHERE json_extract(m.data, '$.role') = 'user'
-  AND json_extract(p.data, '$.type') IN ('text', 'subtask');
-```
-
-旧形式は `storage/session/**/*.json` の JSON `id` を読み、DB の `SELECT id FROM session` と集合で照合する。共通 ID は重複 session とし、message/part 件数とは混ぜない。JSON 不正・`id` 欠落は読み取り失敗として別記し、ファイル名で推測しない。
-
-## Phase 4: 成果側（issue tracker）
+## Phase 3: 成果側（issue tracker）
 
 完了タスクを取るが、**件数をそのまま成果にしない**。issue tracker の完了件数は粒度がバラバラで、実態と乖離する。
 

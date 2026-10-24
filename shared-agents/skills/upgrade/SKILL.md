@@ -29,10 +29,21 @@ brew upgrade
 
 Run `brew cleanup` only when cleanup is also requested; it removes old package versions.
 
-### 4. Summary
+### 4. Check Pinned Tool Updates (harness-wide)
 
-Report which of mise / OpenCode / Homebrew succeeded or failed.
+If running in the harness repository, inspect pinned tools across `mise-global/mise.local.toml` and `mise.toml`:
+
+```bash
+python3 scripts/check-tool-updates.py
+```
+
+Report any detected updates (e.g. rulesync, jactionlint, pi, omp).
+
+### 5. Summary & Modernization
+
+Report which of mise / OpenCode / Homebrew succeeded or failed, and any detected pinned tool updates. If packages or tools were upgraded, suggest or run `workflow-modernize` to review and optimize custom skills and workflows with new capabilities and eliminate obsolete workarounds.
 
 ## Notes
 
 - Record versions before and after the upgrades. Retry a failed step after resolving its cause; do not repeat successful upgrades just to check them.
+- To audit and modernize custom skills or workflows after tool upgrades, use `workflow-modernize`.

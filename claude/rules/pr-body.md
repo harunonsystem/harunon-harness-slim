@@ -78,6 +78,7 @@ PR本文が英語のみの場合はこの工程を省略してよい。`yomiyasu
 - commit log や変更ファイル一覧を本文へ転記しない。
 - 「何を実装したか」より「何が変わるか」を優先する。
 - repo に `GLOSSARY.md` があれば、その用語で書く。
+- コードベースが単語帳: クラス名・関数名・ファイル名・CLIフラグは日本語に意訳・言い換えせず、実際のシンボル名をそのままバッククォート（`...`）で書く。`yomiyasu` 推敲時もコード識別子は一切変えない。
 - reviewer がdiffを読む順序に意味がある大きめのPRだけ、短い `Review path` を追加してよい。
 - issue / Linear task がある場合は Why の末尾かtemplate所定欄にリンクする。
 - P3 / scope外 finding は Notes の「残件」に finding 単位で書く。
