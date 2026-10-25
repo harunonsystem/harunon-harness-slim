@@ -52,6 +52,19 @@ workflow / reusable workflow / composite action を変更したら、既存の p
 
 意図的に妥協して既知の上限を残す場合（グローバルロック・O(n²) 走査・素朴なヒューリスティック）は、上限と昇格条件を書いたコメントを `ponytail:` プレフィクス付きで残す（ponytail 導入環境では ponytail-debt コマンドが回収する）。
 
+### 過剰防衛コード・推測的複雑性の抑止（Anti-Defensive Over-engineering）
+
+AI による過剰な防御的コード（ミルフィーユ状の型チェック、無意味な try/catch、早すぎる関数切り出し、起こり得ない並行性対策）を抑止するため、以下を遵守する。
+
+- **推測的エッジケースへの事前合意義務**: 推測される、またはほぼ起こり得ない競合・セキュリティのエッジケースに対して複雑性を追加する前に、具体的な障害モード・発生確率・複雑性のコストを説明し、ユーザーの合意を得る。「理論上より安全だから」を理由に無断でスコープを広げない。
+  *(Before adding complexity for a speculative or vanishingly unlikely race or security edge case, explain the concrete failure mode, likelihood, and complexity cost to the user and get their buy-in. Do not silently expand scope for theoretical robustness.)*
+- **境界での1回限りの検証と内部での型信頼**: 未知の値はそれを所有する境界（エントリポイント、外部 API、ユーザー入力）で1回だけ検証する。`typeof value === "object"` やプロパティ存在判定を各層で繰り返さず、内部には型が確定した値を渡す。スキーマ・コンストラクタ・内部型ですでに保証されている値を防衛的に再検証しない。
+  *(Validate unknown values once at the boundary that owns them. Pass typed values inward instead of repeating `typeof value === "object"` and property-existence checks. Do not defensively revalidate values already guaranteed by a schema, constructor, or internal type.)*
+- **単一利用ロジックのインライン優先（早すぎる関数切り出しの禁止）**: 1箇所でしか使わないロジックは先回りしてヘルパー関数に切り出さず、呼び出し箇所に直接書く。再利用されるか、真に複雑な境界を隠蔽するか、呼び出し元の可読性を明確に向上させる独立した命名がある場合を除く。
+  *(Do not extract single-use helpers preemptively. Inline the logic at the call site unless the helper is reused, hides a genuinely complex boundary, or has a clear independent name that improves the caller.)*
+- **単一関数の維持と不要な try/catch の排除**: 合成可能または再利用可能でない限り1つの関数で完結させる。不要な `try`/`catch` は可能な限り避け、エラーは握りつぶさずに境界まで伝播させる。
+  *(Keep things in one function unless composable or reusable. Avoid `try`/`catch` where possible.)*
+
 ### フォールバック/デフォルト引数の禁止・Resolution Responsibility・Phase Separation
 
 **フォールバック禁止**: (1) 必須データ → エラーを投げる。(2) 全呼び出し元が省略 → 必須にする。(3) 渡す経路がない → パラメータ追加。(4) 不変条件あり → ロード時にクロスバリデーション。(5) 起こり得ないシナリオへの防御コード・エラーハンドリング・validation を追加しない。内部コードとフレームワークの保証は信頼し、検証は境界（ユーザー入力・外部 API）のみで行う。
