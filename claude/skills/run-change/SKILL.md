@@ -35,7 +35,7 @@ Inspect first:
 python3 <skill-dir>/scripts/harness.py status
 ```
 
-If the result is `STATE_NOT_FOUND`, start the task. A previous task that never left `intake` (revision 0) is replaced by `start`; a task with recorded progress returns `ACTIVE_TASK_EXISTS` and must be finished in its own worktree first:
+If the result is `STATE_NOT_FOUND` or `WORKFLOW_VERSION_MISMATCH`, start the task. A previous task that never left `intake` (revision 0) or was written by an older workflow version is replaced by `start`; a current task with recorded progress returns `ACTIVE_TASK_EXISTS` and must be finished in its own worktree first:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py start <task-id>

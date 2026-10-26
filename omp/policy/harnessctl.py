@@ -565,12 +565,11 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
     if event_type == "task.start":
         if state_file.exists():
             # 非アクティブ判定は workflow version を bind せずに行う。change.json 更新後に
-            # 残った complete / 着手前 state を VERSION_MISMATCH で読めなくすると、
-            # 新タスクを start できず gate も解除できない永続ブロックに戻るため。
+            # 残った state は phase を問わずもう進められないので、VERSION_MISMATCH で
+            # start まで拒むと gate も解除できない永続ブロックになる。
             existing = read_state(state_file)
             validate_context(existing, repo)
-            if task_is_active(existing):
-                assert_workflow_bound(existing, ctx)
+            if task_is_active(existing) and existing["workflow"]["version"] == ctx.version:
                 raise KernelError(
                     "ACTIVE_TASK_EXISTS",
                     exit_code=2,
@@ -816,8 +815,8 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
         if action == "pr.create":
             check_pr_create_target(repo, request)
         return {"action": action, "allowed": True, "code": "NOT_ADOPTED"}
-    # Missing/stale completed tasks must re-enter the gate, never fall back to
-    # legacy flags. Current completed tasks still need fresh verification.
+    # Missing tasks and tasks from an older workflow version must re-enter the gate,
+    # never fall back to legacy flags. Current completed tasks still need fresh verification.
     try:
         state = read_state(state_file)
     except KernelError as error:
@@ -825,7 +824,7 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
             raise KernelError("TASK_REQUIRED", exit_code=2, reason="start --publish-only and verify before completing or publishing") from error
         raise
     validate_context(state, repo)
-    if state["phase"] == "complete" and state["workflow"]["version"] != ctx.version:
+    if state["workflow"]["version"] != ctx.version:
         raise KernelError(
             "TASK_REQUIRED",
             exit_code=2,
