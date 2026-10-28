@@ -136,11 +136,33 @@ payload_files() {
   (cd "$PAYLOAD" && find "${sync_paths[@]}" -type f | LC_ALL=C sort)
 }
 
+validate_ledger_path() {
+  local rel="$1" part rest current root resolved
+  case "$rel" in
+    ""|/*|*/|*//*|.|..|./*|../*|*/./*|*/../*|*/.|*/..)
+      echo "unsafe ledger path: $rel" >&2; return 1 ;;
+  esac
+  [ -d "$DEST" ] || return 0
+  root="$(cd -P "$DEST" && pwd)"
+  current="$DEST"
+  rest="$rel"
+  while [[ "$rest" == */* ]]; do
+    part="${rest%%/*}"
+    rest="${rest#*/}"
+    current="$current/$part"
+    if [ -L "$current" ]; then
+      resolved="$(cd -P "$current" && pwd)" || { echo "unsafe ledger path: $rel" >&2; return 1; }
+      case "$resolved/" in "$root/"*) ;; *) echo "unsafe ledger path: $rel" >&2; return 1 ;; esac
+    fi
+  done
+}
+
 # 前回 ledger に記録されたファイル（無ければ旧名を探し、それも無ければ空）
 ledger_files() {
   local source="$ledger"
   [ -f "$source" ] || source="$DEST/$LEGACY_LEDGER_NAME"
   [ -f "$source" ] || return 0
+  jq -e 'type == "object" and (.files | type == "array" and all(.[]; type == "string" and length > 0 and (contains("\n") | not) and (contains("\u0000") | not)))' "$source" >/dev/null || { echo "invalid ledger: $source" >&2; return 1; }
   jq -r '.files[]' "$source"
 }
 
@@ -149,8 +171,10 @@ stale_files() {
   local candidate
   while IFS= read -r candidate; do
     [ -n "$candidate" ] || continue
-    [ -f "$DEST/$candidate" ] && printf '%s\n' "$candidate"
-  done < <(LC_ALL=C comm -23 <(ledger_files | LC_ALL=C sort -u) <(payload_files))
+    if [ -f "$DEST/$candidate" ] || [ -L "$DEST/$candidate" ]; then
+      printf '%s\n' "$candidate"
+    fi
+  done <<< "$stale_candidates"
 }
 
 # --- settings ------------------------------------------------------------------
@@ -172,7 +196,10 @@ merged_settings() {
 
 # 比較は整形差（tab / 2 space、キー順）を無視して値だけ見る
 settings_in_sync() {
-  merged_settings | cmp -s - <(jq -S . "$DEST/$settings_file")
+  local merged existing
+  merged="$(merged_settings)" || return 2
+  existing="$(jq -S . "$DEST/$settings_file")" || return 2
+  [ "$merged" = "$existing" ]
 }
 
 # settings の drift を 1 行で出す（無ければ何も出さない）。json 以外は「dest に無い」だけを drift とする
@@ -181,7 +208,10 @@ settings_drift() {
   if [ ! -f "$DEST/$settings_file" ]; then
     echo "A $settings_file"
   elif [ "$settings_format" = "json" ]; then
-    settings_in_sync || echo "M $settings_file (managed keys)"
+    local status=0
+    settings_in_sync || status=$?
+    [ "$status" -le 1 ] || return "$status"
+    [ "$status" -eq 0 ] || echo "M $settings_file (managed keys)"
   fi
 }
 
@@ -196,7 +226,10 @@ apply_settings() {
     echo "S $settings_file (not merged: $settings_format; apply settingsKeys from $MANIFEST_NAME by hand)"
     return 0
   fi
-  settings_in_sync && return 0 # 管理キーは一致。ローカルの整形を保つため触らない
+  local status=0
+  settings_in_sync || status=$?
+  [ "$status" -le 1 ] || return "$status"
+  [ "$status" -ne 0 ] || return 0
   local tmp_settings
   tmp_settings="$(mktemp "${TMPDIR:-/tmp}/slim-install-settings.XXXXXX")"
   merged_settings > "$tmp_settings"
@@ -209,8 +242,19 @@ apply_settings() {
 back_up() {
   local rel="$1"
   mkdir -p "$backup_dir/$(dirname "$rel")"
-  cp -p "$DEST/$rel" "$backup_dir/$rel"
+  cp -pP "$DEST/$rel" "$backup_dir/$rel"
 }
+
+# Validate inputs and calculate deletion candidates before any side effects.
+ledger_list="$(ledger_files)"
+payload_list="$(payload_files)"
+if [ -n "$ledger_list" ]; then
+  while IFS= read -r rel; do
+    validate_ledger_path "$rel"
+  done <<< "$ledger_list"
+fi
+stale_candidates="$(LC_ALL=C comm -23 <(printf '%s\n' "$ledger_list" | LC_ALL=C sort -u) <(printf '%s\n' "$payload_list"))"
+stale_list="$(stale_files)"
 
 # --- check ---------------------------------------------------------------------
 
@@ -222,27 +266,29 @@ rsync_base=(-rlpgoD --checksum --relative)
 # ファイルにも `.f..T....`（時刻だけ転送時刻になる）を出すので、その行は落とす
 itemized_changes() {
   (cd "$PAYLOAD" && rsync "${rsync_base[@]}" --dry-run --itemize-changes "${sync_paths[@]}" "$DEST/") \
-    | { grep -v -E '^\.f\.\.T\.{4} ' || true; }
+    | awk '!/^\.f\.\.T\.\.\.\. /'
 }
 
 if [ "$CHECK_ONLY" -eq 1 ]; then
   [ -d "$DEST" ] || { echo "destination does not exist: $DEST" >&2; exit 1; }
+  changes="$(itemized_changes)" || { echo "failed to obtain rsync changes" >&2; exit 1; }
+  settings_changes="$(settings_drift)"
   drift=0
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     echo "$line"
     drift=1
-  done < <(itemized_changes)
+  done <<< "$changes"
   while IFS= read -r stale; do
     [ -n "$stale" ] || continue
     echo "D $stale (retired from payload)"
     drift=1
-  done < <(stale_files)
+  done <<< "$stale_list"
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     echo "$line"
     drift=1
-  done < <(settings_drift)
+  done <<< "$settings_changes"
   exit "$drift"
 fi
 
@@ -250,6 +296,7 @@ fi
 
 # --dry-run はファイルシステムに一切書かない（mkdir も ledger も）。rsync の dry-run は
 # 存在しない dest でも動く
+settings_changes="$(settings_drift)" || { echo "failed to compare settings" >&2; exit 1; }
 [ "$DRY_RUN" -eq 1 ] || mkdir -p "$DEST"
 if [ "$DRY_RUN" -eq 1 ]; then
   itemized_changes
@@ -267,7 +314,7 @@ while IFS= read -r stale; do
     rm -f "$DEST/$stale"
     echo "removed retired file: $stale"
   fi
-done < <(stale_files)
+done <<< "$stale_list"
 
 if [ "$DRY_RUN" -eq 1 ]; then
   settings_drift
@@ -275,7 +322,11 @@ if [ "$DRY_RUN" -eq 1 ]; then
 else
   apply_settings
   # ledger は途中で止まっても壊れないよう別名に書いてから置き換える
-  payload_files | jq -R . | jq -s '{files: .}' > "$ledger.tmp"
+  if [ -n "$payload_list" ]; then
+    printf '%s\n' "$payload_list" | jq -R . | jq -s '{files: .}' > "$ledger.tmp"
+  else
+    printf '%s\n' '{"files":[]}' > "$ledger.tmp"
+  fi
   mv "$ledger.tmp" "$ledger"
   if [ -d "$backup_dir" ]; then
     echo "backed up replaced files: $backup_dir"

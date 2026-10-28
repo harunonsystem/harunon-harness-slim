@@ -112,16 +112,49 @@ if [ -z "$active_ledger" ]; then
   exit 0
 fi
 
+validate_ledger_path() {
+  local rel="$1" part rest current root resolved
+  case "$rel" in
+    ""|/*|*/|*//*|.|..|./*|../*|*/./*|*/../*|*/.|*/..)
+      echo "unsafe ledger path: $rel" >&2; return 1 ;;
+  esac
+  [ -d "$DEST" ] || return 0
+  root="$(cd -P "$DEST" && pwd)"
+  current="$DEST"
+  rest="$rel"
+  while [[ "$rest" == */* ]]; do
+    part="${rest%%/*}"
+    rest="${rest#*/}"
+    current="$current/$part"
+    if [ -L "$current" ]; then
+      resolved="$(cd -P "$current" && pwd)" || { echo "unsafe ledger path: $rel" >&2; return 1; }
+      case "$resolved/" in "$root/"*) ;; *) echo "unsafe ledger path: $rel" >&2; return 1 ;; esac
+    fi
+  done
+}
+
 # 配布されたファイルの一覧取得
+jq -e 'type == "object" and (.files | type == "array" and all(.[]; type == "string" and length > 0 and (contains("\n") | not) and (contains("\u0000") | not)))' "$active_ledger" >/dev/null || { echo "invalid ledger: $active_ledger" >&2; exit 1; }
+installed_list="$(jq -r '.files[]' "$active_ledger")"
 installed_files=()
-while IFS= read -r f; do
-  [ -n "$f" ] && installed_files+=("$f")
-done < <(jq -r '.files[] // empty' "$active_ledger")
+if [ -n "$installed_list" ]; then
+  while IFS= read -r f; do
+    validate_ledger_path "$f"
+    installed_files+=("$f")
+  done <<< "$installed_list"
+elif jq -e '.files | length > 0' "$active_ledger" >/dev/null; then
+  echo "unsafe ledger path: empty" >&2
+  exit 1
+fi
+
+for rel in ${installed_files[@]+"${installed_files[@]}"}; do
+  validate_ledger_path "$rel"
+done
 
 echo "target: ${TARGET:-single-payload} -> $DEST"
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "dry-run: the following installed files would be removed:"
-  for rel in "${installed_files[@]}"; do
+  for rel in ${installed_files[@]+"${installed_files[@]}"}; do
     if [ -f "$DEST/$rel" ]; then
       echo "  D $rel"
     fi
@@ -132,7 +165,7 @@ fi
 
 # 実際のファイル削除
 removed_count=0
-for rel in "${installed_files[@]}"; do
+for rel in ${installed_files[@]+"${installed_files[@]}"}; do
   target_file="$DEST/$rel"
   if [ -f "$target_file" ] || [ -L "$target_file" ]; then
     rm -f "$target_file"
