@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from publication_body import digest
-from repo_target import canonical_repository, repository_identity
+from repo_target import canonical_repository, process_env_overrides_git, repository_identity
 
 GH_INSTALL_PATHS = ("/usr/bin/gh", "/usr/local/bin/gh", "/opt/homebrew/bin/gh")
 
@@ -23,7 +23,9 @@ class OwnPrError(Exception):
 def publish(repo: Path, kernel: Path, *, operation: str, hostname: str,
             repository: str, number: int, body_file: Path, task_id: str) -> dict:
     repo = repo.resolve(strict=True)
-    if any(os.environ.get(key) for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE", "GIT_CONFIG_COUNT")):
+    # GIT_CONFIG_COUNT は worktree セッションの sandbox が safe.directory 用に注入するので、送信先を変える key だけ拒否する
+    if any(os.environ.get(key) for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE")) \
+            or process_env_overrides_git("GIT_CONFIG_COUNT"):
         raise OwnPrError("Git context overrides cannot establish this worktree's PR")
     if (operation not in ("comment", "update-body") or type(number) is not int or number < 1
             or not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", hostname)

@@ -1,7 +1,29 @@
 {
   "version": 1,
   "status": "runtime-wired-partial",
-  "shell": { "default": "ask", "dangerRules": "danger-rules.json" },
+  "shell": {
+    "default": "ask",
+    "dangerRules": "danger-rules.json",
+    "claudeAllowPrefixes": [],
+    "rtkMirrorPrefixes": [
+      "git status",
+      "git diff",
+      "git log",
+      "git show",
+      "git rev-parse",
+      "ls",
+      "rg"
+    ],
+    "readOnlyExact": [
+      "pwd",
+      "mise settings --help",
+      "git rev-parse HEAD",
+      "git rev-parse --show-toplevel",
+      "git rev-parse --is-inside-work-tree",
+      "git rev-parse --show-prefix",
+      "git rev-parse --abbrev-ref HEAD"
+    ]
+  },
   "files": {
     "secretPaths": [
       "~/.aws/**",
@@ -15,7 +37,10 @@
       "~/.local/share/opencode/auth.json",
       "~/.config/opencode/opencode.json"
     ],
-    "secretBasenames": [".env", ".env.*"],
+    "secretBasenames": [
+      ".env",
+      ".env.*"
+    ],
     "secretEffect": "deny",
     "outsideProject": "ask"
   },
@@ -27,24 +52,60 @@
       "mcp__notion__notion-query-data-sources"
     ]
   },
-  "pluginTool": { "default": "ask" },
-  "publication": { "owner": "workflow-contract.json" },
-  "pluginDirectProcess": { "effect": "unresolved" },
+  "pluginTool": {
+    "default": "ask"
+  },
+  "publication": {
+    "owner": "workflow-contract.json"
+  },
+  "pluginDirectProcess": {
+    "effect": "unresolved"
+  },
   "targets": {
     "claude": {
-      "shell": "native-and-hook", "readEdit": "native-and-hook", "workspace": "native-and-hook-partial", "mcp": "native-with-exact-read-hook", "publication": "hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
+      "shell": "native-and-danger-hook",
+      "readEdit": "native-and-hook",
+      "workspace": "native-and-hook-partial",
+      "mcp": "native-with-exact-read-hook",
+      "publication": "hook",
+      "pluginTool": "unverified",
+      "pluginDirectProcess": "unresolved"
     },
     "codex": {
-      "shell": "native-approval-partial", "readEdit": "sandbox-and-hook", "workspace": "sandbox-and-hook-partial", "mcp": "native-approval-partial", "publication": "native-and-hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
+      "shell": "native-approval-partial",
+      "readEdit": "sandbox-and-hook",
+      "workspace": "sandbox-and-hook-partial",
+      "mcp": "native-approval-partial",
+      "publication": "native-and-hook",
+      "pluginTool": "unverified",
+      "pluginDirectProcess": "unresolved"
     },
     "pi": {
-      "shell": "danger-extension-and-hook", "readEdit": "generic-intent-unwired", "workspace": "generic-intent-unwired", "mcp": "annotation-danger-extension", "publication": "hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
+      "shell": "danger-extension-and-hook",
+      "readEdit": "generic-intent-unwired",
+      "workspace": "generic-intent-unwired",
+      "mcp": "annotation-danger-extension",
+      "publication": "hook",
+      "pluginTool": "unverified",
+      "pluginDirectProcess": "unresolved"
     },
     "omp": {
-      "shell": "native-patterns-and-hook", "readEdit": "generic-intent-unwired", "workspace": "generic-intent-unwired", "mcp": "generic-intent-unwired", "publication": "hook", "pluginTool": "unverified", "pluginDirectProcess": "unresolved"
+      "shell": "native-patterns-and-hook",
+      "readEdit": "generic-intent-unwired",
+      "workspace": "generic-intent-unwired",
+      "mcp": "generic-intent-unwired",
+      "publication": "hook",
+      "pluginTool": "unverified",
+      "pluginDirectProcess": "unresolved"
     },
     "opencode": {
-      "shell": "native-and-permission-hook", "readEdit": "native-and-permission-hook", "workspace": "native-and-permission-hook-partial", "mcp": "native-unclassified", "publication": "hook", "pluginTool": "native-unclassified", "pluginDirectProcess": "unresolved"
+      "shell": "native-and-permission-hook",
+      "readEdit": "native-and-permission-hook",
+      "workspace": "native-and-permission-hook-partial",
+      "mcp": "native-unclassified",
+      "publication": "hook",
+      "pluginTool": "native-unclassified",
+      "pluginDirectProcess": "unresolved"
     }
   }
 }

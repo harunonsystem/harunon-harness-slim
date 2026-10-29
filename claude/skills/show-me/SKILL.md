@@ -86,6 +86,7 @@ sequenceDiagram
 - 図だけで意味が曖昧な場合に限り、図の直後に要点を1〜3行で補足する。
 - 実装依頼と図解依頼を混同しない。図を作るだけの依頼では、コードや設定を変更しない。
 - Mermaid以外の形式が指定されている場合は指定を優先する。形式指定がなく、図の種類で結果が大きく変わる場合だけ、Mermaid・テキスト図・HTMLのどれを望むかを1問で確認する。
+- リポジトリに恒久的に残す Mermaid 図（ドキュメントや README での参照用）を作成・更新する場合は、環境依存による文字欠けや背景同色化を防ぐため、ソース（`.mmd`）から Pele で静的 SVG（`.svg`）を事前生成してコミットする（`docs/diagrams/` を推奨、詳細は `docs/evaluations/pele-mermaid-svg-adoption.md`）。
 - `/archify` を使う場合は、spec の JSON を成果物として残し、`validate`（showcase）→ `deliver` → `visual-check` を通してから報告する。検証を通していない HTML を完成として出さない。図の修正依頼は HTML ではなく spec に対して行う。
 
 ## 前提知識のない読み手

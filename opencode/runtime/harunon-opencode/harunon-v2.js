@@ -233,14 +233,36 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
 
   await ctx.tool.transform((editor) => editor.add(workflowToolV2(base, invokeKernel)));
 
-  await ctx.permission.hook("evaluate", (event) => {
+  await ctx.permission.hook("evaluate", async (event) => {
     const location = { cwd: base, project: ctx.location.project?.canonical ?? base };
     if (event.action === "shell") {
       const safety = shellSafety(event.resources ?? []);
       if (safety && event.effect !== "deny") {
         event.effect = safety.effect;
         event.message = safety.reason;
-        return;
+        if (safety.effect === "deny") return;
+      }
+      // A native rule for the unwrapped command may be stricter than an RTK
+      // rule (including a session-specific ask or deny). Ask OpenCode itself
+      // to enforce it; the nested resources have no RTK prefix, so they do
+      // not recurse into this branch. Never promote the outer decision.
+      const unwrapped = (event.resources ?? []).filter((resource) => /^rtk[ \t]+/.test(resource))
+        .map((resource) => resource.replace(/^rtk[ \t]+/, ""));
+      if (event.effect !== "deny" && unwrapped.length) {
+        if (!event.sessionID || typeof ctx.permission.assert !== "function") {
+          event.effect = "deny";
+          event.message = "cannot verify unwrapped RTK permission";
+          return;
+        }
+        try {
+          await ctx.permission.assert({ sessionID: event.sessionID,
+            ...(event.agent ? { agent: event.agent } : {}), action: "shell", resources: unwrapped,
+            ...(event.source ? { source: event.source } : {}) });
+        } catch {
+          event.effect = "deny";
+          event.message = "unwrapped RTK permission was not granted";
+          return;
+        }
       }
     }
     if (normalizePermissionEvent("opencode", event, location).action === "publication") return;
@@ -248,11 +270,8 @@ export async function setupHarunonV2(ctx, { hooksDir, tablePath, authorizePr, in
       ...location,
     }, { intent, channel: "permission-v2" });
     if (!verdict) return;
-    if (event.action === "shell" && verdict.effect === "allow" && event.effect === "ask") {
-      event.effect = "allow";
-      event.message = verdict.reason;
-      return;
-    }
+    // OpenCode does not report whether an ask came from an explicit rule or its
+    // fallback. Never promote it here: native rules must grant any allowance.
     // Native rules own ordinary shell and external-directory approvals; the shared
     // fallback is not a veto of those rules. File denials still tighten native policy.
     if (verdict.effect === "deny") {

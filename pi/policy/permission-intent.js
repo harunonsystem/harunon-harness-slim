@@ -25,6 +25,18 @@ export function loadPermissionIntent(path = CONTRACT) {
   for (const [index, [label, required]] of REQUIRED_EFFECTS.entries()) {
     if (actualEffects[index] !== required) throw new Error(`permission intent: ${label} must be ${required}`);
   }
+  const exact = intent.shell.readOnlyExact;
+  if (!Array.isArray(exact) || !exact.length || new Set(exact).size !== exact.length ||
+      exact.some((command) => typeof command !== "string" || !/^[A-Za-z0-9_./:@+-]+(?: [A-Za-z0-9_./:@+-]+)*$/.test(command))) {
+    throw new Error("permission intent: shell.readOnlyExact must contain unique literal commands");
+  }
+  for (const key of ["claudeAllowPrefixes", "rtkMirrorPrefixes"]) {
+    const prefixes = intent.shell[key];
+    if (!Array.isArray(prefixes) || new Set(prefixes).size !== prefixes.length ||
+        prefixes.some((command) => typeof command !== "string" || !/^[A-Za-z0-9_./:@+-]+(?: [A-Za-z0-9_./:@+-]+)*$/.test(command))) {
+      throw new Error(`permission intent: invalid shell.${key}`);
+    }
+  }
   for (const [label, list] of [
     ["files.secretPaths", intent.files.secretPaths], ["files.secretBasenames", intent.files.secretBasenames],
   ]) {
@@ -188,25 +200,16 @@ function fileDecision(intent, action, resource, cwd, project) {
 // Only a single, literal command can skip shell approval. In particular, no
 // quotes, substitutions, redirects, pipelines, environment assignments or
 // executable Git options reach this list. Unknown syntax keeps the default ask.
-function readOnlyShellPaths(command) {
+function readOnlyShellPaths(intent, command) {
   if (typeof command !== "string" || !/^[A-Za-z0-9_./:@+ -]+$/.test(command)) return undefined;
+  if (intent.shell.readOnlyExact.includes(command.trim().replace(/ +/g, " "))) return [];
   const [program, ...args] = command.trim().split(/ +/);
-  if (program === "pwd" && args.length === 0) return [];
-  if (program === "mise" && args.length === 2 && args[0] === "settings" && args[1] === "--help") return [];
   if (program === "cat" && args.length > 0 && args.every((arg) => !arg.startsWith("-"))) return args;
-  if (program !== "git") return undefined;
-  const [subcommand, ...options] = args;
-  // Status can execute a configured fsmonitor hook; log can invoke a pager or
-  // configured signature verifier. Only fixed rev-parse forms skip approval.
-  if (subcommand === "rev-parse" && (
-    options.length === 1 && ["HEAD", "--show-toplevel", "--is-inside-work-tree", "--show-prefix"].includes(options[0]) ||
-    options.length === 2 && options[0] === "--abbrev-ref" && options[1] === "HEAD"
-  )) return [];
   return undefined;
 }
 
 export function isReadOnlyShellCommand(intent, command, cwd, project) {
-  const paths = readOnlyShellPaths(command);
+  const paths = readOnlyShellPaths(intent, command);
   return paths !== undefined && [".", ...paths].every((path) => {
     try {
       // The common file rule checks the basename. Shell exceptions also reject

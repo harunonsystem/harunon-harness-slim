@@ -154,7 +154,7 @@ def _env_prefix_names(tokens: list[str], names: tuple[str, ...]) -> bool:
     )
 
 
-def _process_env_overrides_git(name: str) -> bool:
+def process_env_overrides_git(name: str) -> bool:
     value = os.environ.get(name)
     if not value:
         return False
@@ -172,7 +172,9 @@ def _process_env_overrides_git(name: str) -> bool:
         keys = [os.environ.get(f"GIT_CONFIG_KEY_{index}", "") for index in range(int(value))]
     else:
         return True
-    return not all(key.lower() == "safe.directory" or key.lower().startswith(("http.", "credential."))
+    # commit.gpgsign / tag.gpgsign は run-tests.py が sandbox 内の署名失敗を避けるために渡す。
+    return not all(key.lower() in ("safe.directory", "commit.gpgsign", "tag.gpgsign")
+                   or key.lower().startswith(("http.", "credential."))
                    for key in keys)
 
 
@@ -520,7 +522,7 @@ def git_environment_reason(command: str) -> str | None:
     indexed_config = any(re.match(r"GIT_CONFIG_(?:KEY|VALUE)_[0-9]+=", token) and _is_env_prefix_position(tokens, index)
                          for index, token in enumerate(tokens))
     if indexed_config or _env_prefix_names(tokens, sensitive_env) or \
-            any(_process_env_overrides_git(name) for name in sensitive_env):
+            any(process_env_overrides_git(name) for name in sensitive_env):
         return "Git 環境の上書きは承認対象を確定できません"
     return None
 

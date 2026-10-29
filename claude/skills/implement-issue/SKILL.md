@@ -7,7 +7,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, Agent, 
 
 # implement-issue: Issue実装スキル
 
-`yomiyasu` は利用可能な場合だけ使用する。未導入の場合は、各手順の制約を保ち、その場で表現だけを推敲する。
+`yomiyasu` は利用可能な場合だけ使用する。未導入の場合は、各手順の制約を保ち、その場で表現だけを推敲する。要約や報告文の作成では `explain-before-shorten`（口頭で説明してから短く整える）を意識し、言葉を削りすぎて文脈や前提を失わないようにする。
 
 PRD、Linear task、GitHub issue の URL、またはタスク説明を受け取り、要件と worktree を解決したら、常駐指示の Routing に従って実装へ引き継ぐ。この skill は実装手順を持たず、pstack の手順も複製しない。
 

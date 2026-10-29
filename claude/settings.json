@@ -270,6 +270,7 @@
         "~/.pi/agent",
         "~/.local/bin",
         "~/ghq/github.com/harunonsystem/harunon-harness",
+        "~/ghq/.worktrees",
         "~/.local/state/cclens",
         "~/.local/state/cclens-multi",
         "~/Library/pnpm/store",

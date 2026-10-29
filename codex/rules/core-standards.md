@@ -291,3 +291,4 @@ main への push は通らないので、ローカル main に commit してし�
 - 一時ファイルは `$TMPDIR` を使う。配布先の write deny は SSOT-first の境界なので解除せず、配布元を修正する
 - lockfile を更新する `pnpm install` は最初から sandbox 外で実行する。sandbox 内ではグローバル store に書けないため pnpm が worktree 内に空の store を作り、全パッケージを一から再取得して 10 分以上止まる（`--prefer-offline` でも同じ）。lint / typecheck / build は sandbox 内で通る
 - ブラウザを起動するテスト（Storybook の Chromium 等）は mach port の制約で sandbox 内では起動できない
+- sandbox の write 拒否で作業が止まったら、自分で `dangerouslyDisableSandbox` 付きで同じコマンドを再実行する（runtime の承認経路に乗る。拒否されたらその事実だけを伝える）。ユーザーに `!` 実行・パスのコピー・別セッションでの作業を依頼しない。`~/ghq/.worktrees`（worktree の作成先）は `allowWrite` 済みで、拒否されたら配布漏れを疑う。`mise trust` は WorktreeCreate hook が済ませるので sandbox 内で実行しない

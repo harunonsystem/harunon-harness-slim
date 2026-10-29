@@ -76,15 +76,20 @@ purple を 1 番目に置かない（LLM 生成物の既定色として最も手
 - **見出し**: 本文と同じフォント。サイズは 20 / 16 / 14 の 3 段まで。weight は 600 止まり（700 以上を使わない）
 - 文字色は `--text` と `--muted` の 2 つだけ。第 3 の中間色を作らない
 
-### Mermaid
+### Mermaid / SVG 事前生成
 
-テーマは指定する（既定のパステルを出さない）。
+インライン表示の場合はテーマを指定する（既定のパステルを出さない）。
 
 ```
 %%{init: {'theme':'base','themeVariables':{
   'background':'#0d1117','primaryColor':'#161b22','primaryTextColor':'#c9d1d9',
   'primaryBorderColor':'#30363d','lineColor':'#8b949e','fontSize':'14px'}}}%%
 ```
+
+リポジトリで管理・配布する図版（README やドキュメントへの埋め込み）は、閲覧環境（GitHub / Linear 等）依存による文字欠け・背景同色化を防ぐため、Mermaid ソース（`.mmd`）から Pele で静的 SVG（`.svg`）を事前生成してコミットする運用（`docs/diagrams/`）を推奨する。
+- SVG には明・暗両対応のテーマ変数と背景 `<rect>` を埋め込み、外部スタイルに依存せず単体で表示色が完結するようにする。
+- 長いラベルによる文字欠けを防ぐため `maxWidth` を指定し、必要に応じてノードラベルを改行する。
+- 詳細は `docs/evaluations/pele-mermaid-svg-adoption.md` を参照。
 
 ### 検証
 
