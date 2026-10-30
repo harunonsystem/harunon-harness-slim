@@ -11,6 +11,8 @@
     "hook-runner/runtime-mapping.js",
     "hooks",
     "policy",
+    "references/writing/explain-before-shorten",
+    "references/writing/unslop",
     "rules",
     "settings.json",
     "skills",

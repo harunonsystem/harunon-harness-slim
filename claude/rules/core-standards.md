@@ -137,8 +137,8 @@ AI による過剰な防御的コード（ミルフィーユ状の型チェッ�
 - **AI スロップ・クリシェの排除**: 「〜について見ていきましょう」「〜は不可欠です」「強力な機能を提供します」などの空疎な前置き・装飾語・まとめを省き、事実・因果・変更内容を簡潔に述べる。
 - **要所ごとの推敲の使い分け**:
   - **日常のコード説明・進捗報告**: 多段階スキルを回さず、この原則（実名保持＋スロップ排除）を直接守り、簡潔で自然な日本語で回答する。
-  - **PR 本文の作成**: `rules/pr-body.md` に従い、差分の実名・事実を確定した上で `yomiyasu`（`--domain business`）を最終推敲として適用する。
-  - **仕様整理・BLOCKED 質問**: `spec-ready` に従い、判断材料・選択肢・実名事実を揃えた上で `yomiyasu` で推敲する。
+  - **PR 本文の作成**: `rules/pr-body.md` に従い、差分の実名・事実を確定した上で `slop-word-refactor`（`--domain business`）を最終推敲として適用する。
+  - **仕様整理・BLOCKED 質問**: `spec-ready` に従い、判断材料・選択肢・実名事実を揃えた上で `slop-word-refactor` で推敲する。
   - **本格的な技術記事・解説ドキュメント**: `tech-writing-workflow` のパイプライン（コード実名強制・スロップ除去・日本語推敲）で執筆・推敲する。
 
 ### 独断で消費量・副作用を増やさない
@@ -292,3 +292,7 @@ main への push は通らないので、ローカル main に commit してし�
 - lockfile を更新する `pnpm install` は最初から sandbox 外で実行する。sandbox 内ではグローバル store に書けないため pnpm が worktree 内に空の store を作り、全パッケージを一から再取得して 10 分以上止まる（`--prefer-offline` でも同じ）。lint / typecheck / build は sandbox 内で通る
 - ブラウザを起動するテスト（Storybook の Chromium 等）は mach port の制約で sandbox 内では起動できない
 - sandbox の write 拒否で作業が止まったら、自分で `dangerouslyDisableSandbox` 付きで同じコマンドを再実行する（runtime の承認経路に乗る。拒否されたらその事実だけを伝える）。ユーザーに `!` 実行・パスのコピー・別セッションでの作業を依頼しない。`~/ghq/.worktrees`（worktree の作成先）は `allowWrite` 済みで、拒否されたら配布漏れを疑う。`mise trust` は WorktreeCreate hook が済ませるので sandbox 内で実行しない
+
+## 文章の推敲入口
+
+文章の脱 AI 臭・意味保持は `slop-word-refactor` が正本。旧 `yomiyasu`・`unslop`・`explain-before-shorten`・`ja-writing` と native plugin 内の旧名呼び出しも、この入口への指定として扱う。資料は skill 探索外の `references/writing/` に置き、別 skill・追加レビュー・CLI の連鎖実行はしない。コードの `deslop` や記事の論証設計は別の責務。

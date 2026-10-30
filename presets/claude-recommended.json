@@ -1,0 +1,35 @@
+{
+  "effortLevel": "medium",
+  "alwaysThinkingEnabled": true,
+  "language": "Japanese",
+  "skipAutoPermissionPrompt": true,
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git checkout -b:*)",
+      "Bash(git switch:*)",
+      "Bash(git add:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(pwd:*)",
+      "Bash(which:*)",
+      "Bash(file:*)",
+      "Bash(command:*)",
+      "Bash(echo:*)",
+      "Bash(jq:*)",
+      "WebSearch"
+    ]
+  }
+}

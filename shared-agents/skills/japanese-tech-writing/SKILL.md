@@ -8,7 +8,7 @@ license: Unlicense（https://gist.github.com/k16shikano/67625f2a7d96e3bbdfae8d57
 
 日本語で技術的な原稿（書籍の章、記事、解説文）を書く・推敲するときは、以下の規範に従う。
 
-短い文章の自然さや AI 特有の表現を直す用途は、利用可能なら `yomiyasu` に任せる。未導入の場合は、この文書の「LLM っぽい表現の禁止」「翻訳調の比喩と擬人化の禁止」「冗長の排除」に従い、事実と不確実性を保ってその場で表現だけを推敲する。この skill の文書レベルの編集は、章・節をまたぐ論証構造や概念の整合性を扱う場合に使う。コードベースを単語帳として実名を強制し解説記事・ドキュメントを書くパイプラインは、`tech-writing-workflow`（`/technical-writing` + `/unslop` + `/yomiyasu`）を参照する。
+短い文章の自然さや AI 特有の表現を直す用途は、利用可能なら `slop-word-refactor` に任せる。未導入の場合は、事実と不確実性を保ってその場で表現だけを推敲する。この skill の文書レベルの編集は、章・節をまたぐ論証構造や概念の整合性を扱う場合に使う。コードベースを単語帳として実名を強制し解説記事・ドキュメントを書くパイプラインは、`tech-writing-workflow`（`/technical-writing` + `/slop-word-refactor`）を参照する。
 
 ## 段落と論証の構成
 
@@ -85,7 +85,7 @@ license: Unlicense（https://gist.github.com/k16shikano/67625f2a7d96e3bbdfae8d57
 
 ## アンチパターンと推敲の点検
 
-LLM っぽい表現の禁止、翻訳調の比喩・擬人化の禁止、冗長の排除については、執筆後の最終点検として [anti-patterns](references/anti-patterns.md) を参照して点検する。
+表現の最終点検は `slop-word-refactor` の保持条件と手順に従う。[anti-patterns](references/anti-patterns.md) は参考例としてだけ読み、独立した禁止語ルールや追加の推敲段階としては使わない。
 
 ## 見出しの付け方
 

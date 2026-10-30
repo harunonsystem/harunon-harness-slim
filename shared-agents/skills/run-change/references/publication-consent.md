@@ -17,7 +17,7 @@ Claude の worktree-isolated セッションではテキスト内に `git` が�
 
 ## 2. PR 作成前の本文・参照アテステーション
 
-PR 本文の執筆前に `rules/pr-body.md` を読む。推敲には Agent Skill `yomiyasu --domain business` を適用する。
+PR 本文の執筆前に `rules/pr-body.md` を読む。推敲には Agent Skill `slop-word-refactor --domain business` を適用する。
 
 アテステーション JSON を diff 外に保存する:
 ```json
@@ -28,7 +28,7 @@ PR 本文の執筆前に `rules/pr-body.md` を読む。推敲には Agent Skill
   "target": { "action": "pr.create" },
   "checks": {
     "rule": "<absolute-path-to-pr-body.md>",
-    "yomiyasu": { "mode": "applied", "domain": "business", "references": ["<yomiyasu/SKILL.md>"] },
+    "slop-word-refactor": { "mode": "applied", "domain": "business", "references": ["<slop-word-refactor/SKILL.md>"] },
     "showMe": { "mode": "unnecessary", "reason": "..." }
   }
 }

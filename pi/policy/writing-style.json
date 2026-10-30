@@ -1,0 +1,7 @@
+{
+	"skill": "slop-word-refactor",
+	"references": {
+		"explain-before-shorten": "packages/core/writing-references/explain-before-shorten",
+		"unslop": "packages/core/writing-references/unslop"
+	}
+}

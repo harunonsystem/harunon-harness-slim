@@ -38,8 +38,8 @@ def _read(artifact: str, repo: Path, core: Path, task_id: str, head: str) -> tup
     if not body.strip() or digest(body) != body_reference["sha256"]:
         raise ValueError("final body is empty or changed while reading")
     checks = data["checks"]
-    if not isinstance(checks, dict) or set(checks) != {"rule", "yomiyasu", "showMe"}:
-        raise ValueError("record rule read, yomiyasu decision, and show-me decision")
+    if not isinstance(checks, dict) or set(checks) != {"rule", "slop-word-refactor", "showMe"}:
+        raise ValueError("record rule read, slop-word-refactor decision, and show-me decision")
     rule = snapshot(checks["rule"], repo)
     # OpenCode keeps policy below runtime/ and the applied rules one level up.
     rule_path = core / "rules/pr-body.md"
@@ -49,23 +49,23 @@ def _read(artifact: str, repo: Path, core: Path, task_id: str, head: str) -> tup
     if rule["sha256"] != authoritative["sha256"]:
         raise ValueError("rule must match this kernel's current bundled pr-body rule")
     references = [rule] if rule == authoritative else [rule, authoritative]
-    yomi = checks["yomiyasu"]
-    mode = yomi.get("mode") if isinstance(yomi, dict) else None
+    wording = checks["slop-word-refactor"]
+    mode = wording.get("mode") if isinstance(wording, dict) else None
     if mode == "applied":
-        if yomi.get("domain") != "business":
-            raise ValueError("yomiyasu domain must be business")
-        paths = yomi.get("references")
-        if not isinstance(paths, list) or not paths or Path(paths[0]).name != "SKILL.md" or Path(paths[0]).parent.name != "yomiyasu":
-            raise ValueError("applied yomiyasu requires its exact SKILL.md and applicable references")
+        if wording.get("domain") != "business":
+            raise ValueError("slop-word-refactor domain must be business")
+        paths = wording.get("references")
+        if not isinstance(paths, list) or not paths or Path(paths[0]).name != "SKILL.md" or Path(paths[0]).parent.name != "slop-word-refactor":
+            raise ValueError("applied slop-word-refactor requires its exact SKILL.md and applicable references")
         references.extend(snapshot(value, repo) for value in paths)
     elif mode == "english-only":
         if re.search(r"[\u3040-\u30ff\u3400-\u9fff]", body):
             raise ValueError("English-only omission cannot cover Japanese body text")
     elif mode == "manual-unavailable":
-        if yomi.get("unavailable") is not True or not isinstance(yomi.get("reason"), str) or not yomi["reason"].strip():
+        if wording.get("unavailable") is not True or not isinstance(wording.get("reason"), str) or not wording["reason"].strip():
             raise ValueError("manual fallback requires unavailable runtime and a concrete reason")
     else:
-        raise ValueError("yomiyasu mode must be applied, english-only, or manual-unavailable")
+        raise ValueError("slop-word-refactor mode must be applied, english-only, or manual-unavailable")
     show = checks["showMe"]
     mode = show.get("mode") if isinstance(show, dict) else None
     if mode == "applied":

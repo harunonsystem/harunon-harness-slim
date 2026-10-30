@@ -3,22 +3,22 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shlex
 import sys
 from pathlib import Path
 
 
-# Skill のうち、文脈に依存せず機械的に検出できる空句だけを対象にする。
-FORBIDDEN_PATTERNS = (
-    (r"重要なのは", "予告の空句"),
-    (r"本章では", "章の予告"),
-    (r"ここでは.{0,24}(見ていく|扱う|探求する)", "内容の予告"),
-    (r"(?:まとめると|要するに)", "直前の総括"),
-    (r"正面から(?:扱う|回収する|見る|書く|立てる)", "姿勢の宣言"),
-    (r"(?:深掘り|掘り下げ)する", "内容のない動詞"),
-    (r"言語化する", "内容のない動詞"),
-)
+def _pr_body_patterns() -> list[list[str]]:
+    # Claude/repo-local と shared-skills を使う runtime で同じ skill 本文を読む。
+    local = Path(__file__).resolve().parent.parent / "skills/slop-word-refactor/SKILL.md"
+    skill = local if local.is_file() else Path.home() / ".agents/skills/slop-word-refactor/SKILL.md"
+    text = skill.read_text(encoding="utf-8")
+    match = re.search(r"<!-- pr-body-patterns -->\s*```json\n(.*?)\n```", text, flags=re.DOTALL)
+    if not match:
+        raise ValueError("slop-word-refactor の PR 本文規則を読めません")
+    return json.loads(match[1])
 
 
 def _body_from_command(command: str) -> tuple[str | None, str | None]:
@@ -93,7 +93,7 @@ def violations(text: str) -> list[str]:
     # コード例の中の日本語まで文体違反として扱わない。
     prose = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
     found: list[str] = []
-    for pattern, label in FORBIDDEN_PATTERNS:
+    for pattern, label in _pr_body_patterns():
         if re.search(pattern, prose):
             found.append(label)
     return found
@@ -109,7 +109,11 @@ def check_command(command: str) -> int:
     if not body.strip():
         print("日本語技術文書ゲート: PR本文が空です", file=sys.stderr)
         return 2
-    found = violations(body)
+    try:
+        found = violations(body)
+    except (OSError, ValueError) as exc:
+        print(f"日本語技術文書ゲート: 推敲 skill の読込失敗: {exc}", file=sys.stderr)
+        return 2
     if found:
         print("日本語技術文書ゲート: PR本文に禁止表現があります: " + ", ".join(found), file=sys.stderr)
         return 2

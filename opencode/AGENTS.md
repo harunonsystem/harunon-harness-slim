@@ -12,6 +12,7 @@ OpenCode セッションでは**必ず日本語で応答する**。ユーザー�
 - 破壊的操作・commit/push・PR作成/merge・deploy はユーザー承認範囲で実行。明示依頼を再確認しない。commit/push/PR 作成の継続許可は `run-change` で対象を照合し、後の公開禁止・範囲制限を優先する。安全ガードを迂回しない。
 - 他作業の未 commit 変更を破棄・上書きしない。
 - harness 設定は配布元 SSOT を変更し、runtime の配布済みファイルを直接編集しない。
+- 文章の推敲は `slop-word-refactor` に統一（旧 skill 名も読み替える）。
 - 「raw で」「そのまま」の出力指定は逐語で返す。
 - コードベースが単語帳: 説明・報告は実在のシンボル・パスをバッククォートで直接書き、意訳やAIスロップを排す。
 - 検索は `rg` 推奨。`cd <絶対パス> &&` は使わずコマンド引数にパスを渡す。
@@ -53,9 +54,9 @@ V2 `permissions` の deny は迂回しない。push・PR merge/close の ask は
 | 技術比較の依頼 | `derive-optimal-solution` skill |
 | テスト追加・監査 | `test-audit` skill。並行・不変条件の形式検証は `formal-verify` |
 | デッドコード・不要テスト削減 | `dead-code-audit` skill |
-| 実装後の簡素化・脱スロップ | `simplify` skill、AI 冗長コード削ぎ落としは `deslop` |
-| 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`。判定は `rules/review-policy.md` |
-| 開発・Issue・spec 整理 | 着手判定・worktree は `implement-issue`、tracker 前に `rules/issue-tracker.md`。trivial な局所変更は main で直接実装。non-trivial な実装は `poteto-mode` を親 workflow にする。原因調査は `how`、設計比較は `architect`、E2E検証スキル生成は `create-verification-skill` |
+| 実装後の簡素化・脱スロップ | `simplify` skill、冗長コード削ぎ落としは `deslop` |
+| 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`（判定: `rules/review-policy.md`） |
+| 開発・Issue・spec 整理 | 着手判定・worktree は `implement-issue`、tracker 前に `rules/issue-tracker.md`。trivial は main 実装。non-trivial は `poteto-mode` を親 workflow にする。原因調査は `how`、設計比較は `architect`、E2E検証生成は `create-verification-skill` |
 | 公開証跡（登録 repo のみ） | `run-change`（`policy/verification-repos.json` 登録外は不可） |
 | skill/指示の変更 | `skill-improvement` skill |
 | Figma からの実装（Claude のみ） | `figma-implement` skill |
@@ -63,11 +64,11 @@ V2 `permissions` の deny は迂回しない。push・PR merge/close の ask は
 | 外部 OSS 貢献 | `rules/oss-contribution.md` |
 | PR 作成・更新 | `rules/pr-body.md`。既存 PR は `pr-body-sync` |
 
-trivial は、局所的で解法が明白、単一の変更・検証で完結し、設計判断・原因調査・独立した複数 slice が不要な変更。non-trivial は、複数の独立調査、cross-module / cross-cutting change、複数の実装 slice、設計判断と実装の往復、複数の検証・review lane のいずれかを必要とする変更。ファイル数・関数境界だけでは判定しない。
+trivial は解法明白・単一変更で完結し設計判断や複数 slice が不要な変更。non-trivial は複数調査、横断変更、複数 slice、設計・実装の往復、複数検証レーンのいずれかを要する変更。
 
-non-trivial で `poteto-mode` を選んだら、親が受入条件・現在 step・done condition を保持し、並列化は step 内の独立 slice に限定する。read-only 調査・review は同じ checkout を共有できるが、書き込みを並列化するなら独立 worktree または明確な ownership boundary を使い、同じ変更領域を複数 agent に同時編集させない。
+non-trivial で `poteto-mode` 選択時は親が受入条件・現在 step・done condition を保持。並列化は step 内の独立 slice に限定。書き込み並列化は独立 worktree か明確な boundary を使い同一領域の同時編集を防ぐ。
 
-pstack の SessionStart 自動 mandate は使わず、本 Routing を優先する。`poteto-mode` を選んだ後は上流 playbook の順序・skip 条件・完了条件を黙って省略しない。runtime に必要な subagent surface が無ければ存在しない並列性を装わず、同じ playbook を逐次実行する。
+pstack 自動 mandate は使わず本 Routing を優先。`poteto-mode` 後は playbook の順序・完了条件を省略しない。subagent が無ければ逐次実行。`poteto-mode` 不在時（Slim 等）は `grill-me` で仕様を固め `to-spec` → `implement-spec` / `implement-issue` で段階実装する。`poteto-mode` や pstack が利用できない環境（Slim 等）では、`grill-me` または `grill-implementation` で仕様を固め、`to-spec` → `implement-spec` / `implement-issue` で段階的に実装する。
 
 ブラウザ操作は `agent-browser`（headless。ユーザーの画面にウィンドウを出さない）を使う。ログイン済みタブ・拡張機能など、ユーザーの実ブラウザの状態が必要な確認は `agent-browser` で代替せず、確認できない旨を伝える。
 

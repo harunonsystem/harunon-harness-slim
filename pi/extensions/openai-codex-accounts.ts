@@ -623,16 +623,16 @@ export default function openAICodexAccounts(pi: ExtensionAPI): void {
 	});
 
 	registerAccountCommand(pi, currentState);
-	pi.registerCommand("yomiyasu", {
+	pi.registerCommand("writing-output", {
 		description: "Session Japanese polishing: on, off, status",
 		handler: async (args, ctx) => {
 			const policy = japaneseOutputSessions.get(ctx.sessionManager.getSessionId());
-			if (!policy) { ctx.ui.notify("yomiyasu: 設定またはモデルを読み込めませんでした。", "warning"); return; }
+			if (!policy) { ctx.ui.notify("slop-word-refactor: 設定またはモデルを読み込めませんでした。", "warning"); return; }
 			if (args.trim() === "off") policy.disabled = true;
 			else if (args.trim() === "on") policy.disabled = false;
-			else if (args.trim() && args.trim() !== "status") { ctx.ui.notify("Usage: /yomiyasu [on|off|status]", "error"); return; }
+			else if (args.trim() && args.trim() !== "status") { ctx.ui.notify("Usage: /writing-output [on|off|status]", "error"); return; }
 			policy.bypass = policy.disabled;
-			ctx.ui.notify(`yomiyasu: ${policy.disabled ? "off" : "on"}`, "info");
+			ctx.ui.notify(`slop-word-refactor: ${policy.disabled ? "off" : "on"}`, "info");
 		},
 	});
 	pi.on("input", (event, ctx) => {
@@ -643,7 +643,7 @@ export default function openAICodexAccounts(pi: ExtensionAPI): void {
 	let previousSessionId: string | undefined;
 	const initializeSession = async (ctx: ExtensionContext) => {
 		const sessionId = ctx.sessionManager.getSessionId();
-		ctx.ui.setStatus("yomiyasu", undefined);
+		ctx.ui.setStatus("slop-word-refactor", undefined);
 		japaneseOutputSessions.delete(sessionId);
 		if (previousSessionId) japaneseOutputSessions.delete(previousSessionId);
 		if (previousSessionId && previousSessionId !== sessionId) {
@@ -670,8 +670,8 @@ export default function openAICodexAccounts(pi: ExtensionAPI): void {
 				if (!model || model.api !== "openai-codex-responses") throw Error("missing Codex model");
 				const codexModel = { ...model, api: model.api };
 				const reasoning = config.thinking;
-				const skillDir = join(homedir(), ".agents", "skills", "yomiyasu");
-				const instructions = ["SKILL.md", "references/domains/tech.md"].map((file) => readFileSync(join(skillDir, file), "utf8")).join("\n");
+				const skillDir = join(homedir(), ".agents", "skills", "slop-word-refactor");
+				const instructions = readFileSync(join(skillDir, "SKILL.md"), "utf8");
 				const polish: Polish = createJapanesePolisher({
 					instructions, timeoutMs: config.timeoutMs, maxChars: config.maxChars,
 					complete: async ({ instructions, documents, slots, signal }) => {
@@ -680,7 +680,7 @@ export default function openAICodexAccounts(pi: ExtensionAPI): void {
 						if (!apiKey) throw Error("missing credential");
 						const piAi = await import("@earendil-works/pi-ai/compat");
 						if (signal.aborted || japaneseOutputSessions.get(sessionId)?.polish !== polish) throw Error("aborted");
-						ctx.ui.setStatus("yomiyasu", "yomiyasu: 推敲中");
+						ctx.ui.setStatus("slop-word-refactor", "slop-word-refactor: 推敲中");
 						const response = await piAi.openAICodexResponsesApi().streamSimple(codexModel, piAi.normalizeContext({
 							messages: [
 								{ role: "system", timestamp: Date.now(), content: `${instructions}\n${JAPANESE_REWRITE_CONTRACT}` },
@@ -694,14 +694,14 @@ export default function openAICodexAccounts(pi: ExtensionAPI): void {
 					},
 					report: (report) => {
 						if (japaneseOutputSessions.get(sessionId)?.polish !== polish) return;
-						ctx.ui.setStatus("yomiyasu", undefined);
+						ctx.ui.setStatus("slop-word-refactor", undefined);
 						pi.appendEntry("japanese-output", report);
-						if (report.outcome === "fallback") ctx.ui.notify(`yomiyasu: ${report.reason} のため原文を残しました。`, "warning");
+						if (report.outcome === "fallback") ctx.ui.notify(`slop-word-refactor: ${report.reason} のため原文を残しました。`, "warning");
 					},
 				});
 				japaneseOutputSessions.set(sessionId, { polish, disabled: !config.enabled, bypass: !config.enabled });
 			} catch {
-				ctx.ui.notify("yomiyasu: 設定・モデル・skill を読み込めないため推敲を無効にしました。", "warning");
+				ctx.ui.notify("slop-word-refactor: 設定・モデル・skill を読み込めないため推敲を無効にしました。", "warning");
 			}
 		}
 		const state = accountForSession(ctx);

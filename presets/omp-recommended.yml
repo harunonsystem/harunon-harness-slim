@@ -1,0 +1,4 @@
+compaction:
+  thresholdTokens: 100000
+tools:
+  approvalMode: "yolo"

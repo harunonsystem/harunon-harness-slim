@@ -5,7 +5,7 @@ description: 大きいIssueをコードベース・契約・既存方針にgroun
 
 # Spec Ready
 
-`yomiyasu` は利用可能な場合だけ使用する。未導入の場合は、各手順の制約を保ち、その場で表現だけを推敲する。
+`slop-word-refactor` は利用可能な場合だけ使用する。未導入の場合は、各手順の制約を保ち、その場で表現だけを推敲する。
 
 PdM / product-level の大きい Issue を、実装 agent が迷わず着手できる状態まで具体化し、必要なら複数の子 Issue に分割する入口。
 通常の粒度確認や分割承認のために人間を挟まない。Issue・repo・ADR・既存契約から決められない product decision だけを例外として止める。
@@ -18,10 +18,11 @@ READY にできるのは、以下がすべて満たされた実装 slice だけ�
 - 目的、観測可能な outcome、受け入れ条件、out of scope が明確
 - 既存 behavior との互換性を判定済み
 - contract / migration / release boundary の方針が決まっている
+- 状態を持つ機能（非同期・ライフサイクル・決済・認証等）は、状態検証ゲートを通過し、状態遷移・ガード条件・不変条件（Invariants）が子 Issue の受け入れ条件に反映されている
 - 各子 Issue が fresh context の agent 1 セッションで扱える大きさかつ main に単独 merge 可能
 - 依存関係、verification、cleanup 条件が明示されている
 
-BLOCKED で人間の product decision を求める場合だけ、判断材料・選択肢・質問を確定した後に `yomiyasu --domain business` を最終推敲として適用する。READY のまま子 Issue を自動作成して次の agent workflow へ流す場合は適用しない。
+BLOCKED で人間の product decision を求める場合だけ、判断材料・選択肢・質問を確定した後に `slop-word-refactor --domain business` を最終推敲として適用する。READY のまま子 Issue を自動作成して次の agent workflow へ流す場合は適用しない。
 
 ## Workflow
 
@@ -29,9 +30,15 @@ BLOCKED で人間の product decision を求める場合だけ、判断材料・
 対象 Issue の本文・コメントと、関連コード・既存 contract・DB schema・feature flag・ADR・既存 PR を読む。
 推測で仕様を決めず、既存の実態を先に確認する。解法が複数残る場合の比較は `derive-optimal-solution` に従う。
 
-### 2. Spec synthesis
+### 2. Spec synthesis & 状態検証ゲート
 親 Issue は product outcome の単位として維持する。
 最低限、Problem / outcome、Acceptance criteria、Out of scope、維持すべき既存 behavior、unresolved decisions を確定する。
+
+**状態検証ゲート**:
+対象が「非同期ジョブ」「決済・認証フロー」「複数ステップのUI」「分散・イベント同期」など**状態（State）を持つ場合、このステップを省略してはならない**。
+1. **モデル化**: 主要な状態（States）、イベント（Events）、不変条件（Invariants: 二重実行禁止など）を特定する。
+2. **検証（`/statechart` の実行）**: `/statechart` を呼び出してモデル化と検査を行い、デッドロック、未処理イベント（タイムアウト、キャンセル、ネットワーク切断、重複受信）、不変条件違反がないかを検証する。
+3. **成果物の反映**: 検出された考慮漏れ（反例シナリオ）を仕様に盛り込み、生成された状態遷移表または Mermaid ステート図を、該当する子 Issue の「受け入れ条件（Acceptance criteria）」に必ず含める。
 
 ### 3. Architecture classification & Release boundary
 behavior の互換性（`compatible` / `parallel-v2`）と migration（`none` / `expand-migrate-contract`）、および release boundary を判定する。

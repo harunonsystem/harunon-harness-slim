@@ -1,0 +1,13 @@
+{
+  "defaultThinkingLevel": "medium",
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 16384,
+    "keepRecentTokens": 32768
+  },
+  "defaultTools": [
+    "+codemode",
+    "+grep",
+    "+find"
+  ]
+}

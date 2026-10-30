@@ -6,7 +6,7 @@ compatibility: codex opencode pi omp claude
 
 # Run Change
 
-When `yomiyasu` is unavailable, proofread the wording locally under the same constraints instead of invoking it.
+When `slop-word-refactor` is unavailable, proofread the wording locally under the same constraints instead of invoking it.
 
 Follow the resident Routing instructions for implementation, directly or through the selected pstack skill; keep the runtime's native execution loop. This skill uses the common kernel for required outcomes, verification evidence, and completion/publication gates, and resumes existing Core Workflow state; it does not orchestrate implementation. For a new task, finish implementation, then use `start --publish-only` to enter the completion/publication gates. If a task already has active state, resume it and record completed phases without replaying work.
 
@@ -148,7 +148,7 @@ Within the requested work, check installed global consent before asking again fo
 printf '%s' 'gh pr create --repo owner/repo --head feature --base main --body-file final-body.md' | python3 <skill-dir>/scripts/harness.py consent pr.create
 ```
 
-Before PR creation, reconcile, draft the PR body following `rules/pr-body.md` with `yomiyasu --domain business`, save and attach the body attestation, and authorize the action. In Codex, prefer the GitHub app's pull-request tool when it is available; use `gh` only as a fallback:
+Before PR creation, reconcile, draft the PR body following `rules/pr-body.md` with `slop-word-refactor --domain business`, save and attach the body attestation, and authorize the action. In Codex, prefer the GitHub app's pull-request tool when it is available; use `gh` only as a fallback:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py attach-publication-body --revision <revision> --artifact <body-attestation.json>

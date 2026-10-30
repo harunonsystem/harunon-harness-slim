@@ -64,7 +64,7 @@ repo の `.github/PULL_REQUEST_TEMPLATE.md` があれば読み、本文を欄ご
 - template の見出しと checklist はそのまま残し、乖離のある欄だけ書き換える
 - `<!-- xxx:start -->` 〜 `<!-- xxx:end -->` のようなマーカー区間（他の skill や bot が管理する）は中身を変えずに残す
 - 事実は差分と実行結果から書く。未実行の検証を実行済みに見せない。分からない事実は `TBD` にする
-- 日本語の本文は、構成と事実を確定してから `yomiyasu` を domain `business` で適用する。表現だけを整え、技術的主張・数値・risk・残件は増減させない。`yomiyasu` が利用できない runtime では同じ制約で手動推敲する
+- 日本語の本文は、構成と事実を確定してから `slop-word-refactor` を domain `business` で適用する。表現だけを整え、技術的主張・数値・risk・残件は増減させない。`slop-word-refactor` が利用できない runtime では同じ制約で手動推敲する
 - `rules/pr-body.md` の `show-me` 選択基準で図の有効性を判断し、必要な表現だけを使う。推敲・図の判断を実際に行い、hash だけを適用の証拠にしない
 - 更新案は現在の本文との差分（変えた欄と変えた理由）として提示する
 

@@ -33,7 +33,7 @@ Argument handling:
 - Do not add extra review instructions or rewrite the user's intent.
 - If the user passes their own `--model`, forward it to the selected reviewer when supported; otherwise report that the native reviewer owns model selection.
 - `/codex:review` is native-review only. It does not support staged-only review, unstaged-only review, or extra focus text.
-- If the user needs custom review instructions or more adversarial framing, they should use `/codex:adversarial-review`.
+- If the user needs custom review instructions or more adversarial framing, run the companion directly: `node "<COMPANION>" adversarial-review <args>` (the plugin is disabled, so `/codex:adversarial-review` is not registered).
 
 Path resolution:
 - Discover the path in a separate tool call and pass the resulting absolute path directly in the review command. Unresolved command substitution cannot establish review evidence.

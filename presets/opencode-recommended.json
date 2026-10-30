@@ -1,0 +1,5 @@
+{
+  "small_model": "opencode/deepseek-v4-flash-free",
+  "default_agent": "build",
+  "lsp": true
+}
