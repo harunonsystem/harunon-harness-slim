@@ -48,7 +48,7 @@
       "absent": {
         "codex": "push 承認は Codex native permissions / guardian_approval が所有する（旧 hook-pipeline absent.codex の決定を rule 単位で継承）"
       },
-      "message": "git push はユーザーの明示的な許可を得てから実行してください。許可を得たら承認スクリプト `approve-push.sh \"理由\"`（Claude: `~/.claude/hooks/`、pi: `~/.pi/agent/claude-hooks/`、omp: `~/.omp/agent/claude-hooks/`）を実行してから、単独の push コマンドを実行してください。`~/.agents/policy/publication-consent.json` で継続許可を宣言した repo なら、確認せずに `approve-push.sh --standing-consent` を実行してよい（送信先は省略可）",
+      "message": "git push はユーザーの明示的な許可を得てから実行してください。許可を得たら承認スクリプト `approve-push.sh \"理由\"`（Claude: `~/.claude/hooks/`、pi: `~/.pi/agent/claude-hooks/`、omp: `~/.omp/agent/claude-hooks/`）を実行してから、単独の push コマンドを実行してください。`~/.agents/policy/publication-consent.json` で継続許可を宣言した repo なら、確認せずに `approve-push.sh --standing-consent` を実行してよい（送信先は省略可）。Claude で承認スクリプト自体が auto mode に拒否されたら再試行せず、ユーザーに `! ~/.claude/hooks/approve-push.sh \"理由\"` の実行を頼んでください",
       "autoMode": [
         { "tier": "hard_deny", "prose": "main / master への直接 push、および force push（--force / -f / +ref）は禁止" },
         { "tier": "soft_deny", "prose": "git push はユーザーが明示的に許可した場合のみ実行する。commit と push を 1 コマンドに連結しない" }

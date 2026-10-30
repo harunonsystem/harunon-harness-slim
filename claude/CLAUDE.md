@@ -73,3 +73,4 @@ pstack 自動 mandate は使わず本 Routing を優先。`poteto-mode` 後は p
 - Edit / Write する既存ファイルは Bash の `cat` ではなく `Read` で先に読む。Edit は Read 済みを要求し、`File has not been read yet` は同じ引数の retry では消えない。
 - 長時間のバックグラウンド監視（CI 完了待ち、Dev サーバーエラー監視、テスト進捗）は Bash でセッションを停止させず `Monitor` ツールを使う。pnpm 環境では `-s` / `--silent`、`--stream`、`FORCE_COLOR=0`、`pnpm -C` を徹底する（定型は `/claude-monitor` 参照）。
 - 会話はリストを基本にし、比較が必要な場合だけ表を使う。
+- `git add` / `git commit` / `git push` と `gh pr create|edit` は 1 コマンドずつ単独で実行し、`&&`・`;`・パイプで連結しない。
