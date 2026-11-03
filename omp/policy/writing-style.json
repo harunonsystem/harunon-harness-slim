@@ -1,6 +1,8 @@
 {
 	"skill": "slop-word-refactor",
 	"references": {
+		"yomiyasu": ".rulesync/skills/.curated/yomiyasu",
+		"ja-writing": ".rulesync/skills/.curated/ja-writing",
 		"explain-before-shorten": "packages/core/writing-references/explain-before-shorten",
 		"unslop": "packages/core/writing-references/unslop"
 	}

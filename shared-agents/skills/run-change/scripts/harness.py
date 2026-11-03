@@ -164,6 +164,26 @@ def reconcile_pr(repo: Path, selector: str) -> dict:
         return {"state": "UNKNOWN", "reason": str(error)}
 
 
+def checkout_target(repo: Path) -> dict:
+    """This checkout's repository and branch; omitted when unresolvable so the kernel refuses."""
+    sys.path.insert(0, str(locate_kernel().parent))
+    from repo_target import UnresolvableTarget, canonical_repository, repository_identity
+
+    target: dict = {}
+    try:
+        identity = repository_identity(repo)
+        # The kernel re-canonicalizes it as a selector; port hosts and local remotes cannot round-trip.
+        if canonical_repository(identity, selector=True) == identity:
+            target["repository"] = identity
+    except UnresolvableTarget:
+        pass
+    branch = subprocess.run(["git", "-C", str(repo), "branch", "--show-current"],
+                            capture_output=True, text=True).stdout.strip()
+    if branch:
+        target["headBranch"] = branch
+    return target
+
+
 def main() -> int:
     args = parse_args()
     if args.command == "consent":
@@ -216,9 +236,13 @@ def main() -> int:
             "expectedRevision": args.revision,
         }
     elif operation == "authorize":
-        arguments = {"action": args.action}
+        # The CLI publishes from this checkout, so name it: casual gates compare these to the checkout.
+        publication = checkout_target(args.repo.resolve())
+        if args.pr is not None:
+            publication["number"] = args.pr
         if args.body_file is not None:
-            arguments["publication"] = {"body": args.body_file.read_bytes().decode("utf-8"), "number": args.pr}
+            publication["body"] = args.body_file.read_bytes().decode("utf-8")
+        arguments = {"action": args.action, "publication": publication}
     elif operation == "attach_publication_body":
         arguments = {"expectedRevision": args.revision, "artifact": str(args.artifact.expanduser().resolve())}
     elif operation == "assign":

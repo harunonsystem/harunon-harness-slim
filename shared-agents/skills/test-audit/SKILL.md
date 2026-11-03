@@ -18,12 +18,13 @@ description: テストの追加・変更・レビュー時に使う価値監査�
 
 behavior-preserving refactor で壊れるテストは implementation を検証している疑いが強い。公開契約として必要な場合を除き、owner boundary の振る舞いへ移す。
 
-バグ regression test は、修正前コードで意図した理由により失敗し、修正後に通ることを確認する。同じ bug scenario を通過する全 layer で繰り返さない。
+バグ regression test は、修正前コードで意図した理由により失敗し、修正後に通ることを確認する（Old Code Failure 原則）。旧コードで失敗が再現しないテストはフェイク修正の疑いとして扱い、修正と認めない。同じ bug scenario を通過する全 layer で繰り返さない。
 
 ## Junk patterns
 
 次に該当するテストは、独立した契約を守る根拠がない限り追加しない。既存テストの監査では削除・統合候補にする。
 
+- 修正前コードで失敗しない、または無関係な理由で失敗するバグ修正テスト（Old Code Failure 欠落によるフェイク修正）
 - assertion のない coverage probe
 - self-comparison / identity の再確認
 - source / import / export list / manifest の単純な写経

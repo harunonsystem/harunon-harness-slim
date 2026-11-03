@@ -280,6 +280,12 @@ if [ "$PRESET" != "guardrails-only" ] && [ "$TARGET" != "shared-agents" ]; then
         while IFS= read -r line || [ -n "$line" ]; do
           [ -z "$line" ] && continue
           key="$(echo "$line" | cut -d'=' -f1 | tr -d ' ')"
+          if [ "$PRESET" = "custom" ]; then
+            case "$key" in
+              model_reasoning_effort|plan_mode_reasoning_effort) [ "$ENABLE_THINKING" -eq 1 ] || continue ;;
+              *) continue ;;
+            esac
+          fi
           if ! grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$tmp_config"; then
             echo "$line" >> "$tmp_config"
           fi
@@ -287,7 +293,7 @@ if [ "$PRESET" != "guardrails-only" ] && [ "$TARGET" != "shared-agents" ]; then
         backup_and_replace "$target_config" "$tmp_config" "$actual_dest"
       fi
 
-    elif [ "$TARGET" = "opencode" ]; then
+    elif [ "$TARGET" = "opencode" ] && [ "$PRESET" = "recommended" ]; then
       target_json="$actual_dest/opencode.json"
       preset_file="$REPO_ROOT/presets/opencode-recommended.json"
       if [ -f "$target_json" ] && [ -f "$preset_file" ] && [ "$DRY_RUN" -eq 0 ]; then
@@ -298,18 +304,23 @@ if [ "$PRESET" != "guardrails-only" ] && [ "$TARGET" != "shared-agents" ]; then
         backup_and_replace "$target_json" "$tmp_json" "$actual_dest"
       fi
 
-    elif [ "$TARGET" = "pi" ]; then
+    elif [ "$TARGET" = "pi" ] && { [ "$PRESET" = "recommended" ] || [ "$ENABLE_THINKING" -eq 1 ]; }; then
       target_json="$actual_dest/settings.json"
       preset_file="$REPO_ROOT/presets/pi-recommended.json"
       if [ -f "$target_json" ] && [ -f "$preset_file" ] && [ "$DRY_RUN" -eq 0 ]; then
         echo ""
         echo "▼ pi agent 推奨設定の適用中..."
         tmp_json="$(mktemp "${TMPDIR:-/tmp}/harness-setup-json.XXXXXX")"
-        jq -s '.[0] * .[1]' "$target_json" "$preset_file" > "$tmp_json"
+        if [ "$PRESET" = "custom" ]; then
+          # custom reaches here only with thinking selected; a preset without the key adds nothing
+          jq -s '.[0] * (.[1] | {defaultThinkingLevel} | with_entries(select(.value != null)))' "$target_json" "$preset_file" > "$tmp_json"
+        else
+          jq -s '.[0] * .[1]' "$target_json" "$preset_file" > "$tmp_json"
+        fi
         backup_and_replace "$target_json" "$tmp_json" "$actual_dest"
       fi
 
-    elif [ "$TARGET" = "omp" ]; then
+    elif [ "$TARGET" = "omp" ] && [ "$PRESET" = "recommended" ]; then
       target_yml="$actual_dest/config.yml"
       preset_file="$REPO_ROOT/presets/omp-recommended.yml"
       if [ -f "$target_yml" ] && [ -f "$preset_file" ] && [ "$DRY_RUN" -eq 0 ]; then
@@ -362,4 +373,5 @@ echo "  3. チャットが長くなったら新規チャットにする"
 echo "     （ログが溜まるとコンテキストが溢れて急激に物忘れします）"
 echo ""
 echo "状態の確認: ./scripts/doctor.sh"
+[ "$TARGET" = "claude" ] && echo "安全ガードを試す: ./scripts/try.sh（危ない操作が止まるかを AI なしで確かめます）"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

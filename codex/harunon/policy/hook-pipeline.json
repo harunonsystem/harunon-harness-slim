@@ -1,0 +1,194 @@
+{
+	"version": 1,
+	"stages": [
+		"guard",
+		"rewrite"
+	],
+	"runtimes": {
+		"claude": {
+			"executionModel": "parallel"
+		},
+		"pi": {
+			"executionModel": "sequential"
+		},
+		"opencode": {
+			"executionModel": "sequential"
+		},
+		"codex": {
+			"executionModel": "sequential"
+		},
+		"omp": {
+			"executionModel": "sequential"
+		}
+	},
+	"hooks": [
+		{
+			"id": "harness-publication-gate",
+			"file": "harness-publication-gate.sh",
+			"event": "PreToolUse",
+			"stage": "guard",
+			"order": 35,
+			"required": true,
+			"when": {
+				"tools": [
+					"Bash"
+				]
+			},
+			"runtimes": [
+				"claude",
+				"codex",
+				"opencode",
+				"pi",
+				"omp"
+			]
+		},
+		{
+			"id": "block-grep-in-bash",
+			"file": "block-grep-in-bash.sh",
+			"event": "PreToolUse",
+			"stage": "guard",
+			"order": 10,
+			"required": true,
+			"when": {
+				"tools": [
+					"Bash"
+				],
+				"commandEre": "(?:^|[;&|\\n]\\s*)(?:e?grep|fgrep|sed|awk)\\b"
+			},
+			"runtimes": [
+				"pi",
+				"opencode",
+				"codex",
+				"omp"
+			],
+			"absent": {
+				"claude": "style guard で可逆操作を止めない。2026-10 の実測で deny 後 100% が言い換え再実行で、防いだ操作が無かった"
+			}
+		},
+		{
+			"id": "block-japanese-tech-writing",
+			"file": "block-japanese-tech-writing.sh",
+			"event": "PreToolUse",
+			"stage": "guard",
+			"order": 25,
+			"required": true,
+			"when": {
+				"tools": [
+					"Bash"
+				]
+			},
+			"runtimes": [
+				"claude",
+				"pi",
+				"opencode",
+				"codex",
+				"omp"
+			]
+		},
+		{
+			"id": "block-dangerous-in-bash",
+			"file": "block-dangerous-in-bash.sh",
+			"event": "PreToolUse",
+			"stage": "guard",
+			"order": 20,
+			"required": true,
+			"when": {
+				"tools": [
+					"Bash"
+				]
+			},
+			"runtimes": [
+				"claude",
+				"pi",
+				"opencode",
+				"codex",
+				"omp"
+			]
+		},
+		{
+			"id": "block-secrets-in-commit",
+			"file": "block-secrets-in-commit.sh",
+			"event": "PreToolUse",
+			"stage": "guard",
+			"order": 39,
+			"required": true,
+			"when": {
+				"tools": [
+					"Bash"
+				]
+			},
+			"runtimes": [
+				"claude",
+				"pi",
+				"opencode",
+				"codex",
+				"omp"
+			],
+			"notes": "verify-before-commit から分離した deny 側。staged 差分に AWS key / 秘密鍵 / GitHub PAT / Anthropic key らしき文字列があれば commit を止める。runtime 非依存なので移植ポリシー (a)。omp は 2026-09-15 に配線（adapter が bash の tool_call を既に hookRunner に渡しており、Bash hook は追加配線なしで効く）"
+		},
+		{
+			"id": "verify-before-commit",
+			"file": "verify-before-commit.sh",
+			"event": "PreToolUse",
+			"stage": "guard",
+			"order": 40,
+			"required": true,
+			"when": {
+				"tools": [
+					"Bash"
+				]
+			},
+			"runtimes": [
+				"claude",
+				"codex"
+			],
+			"absent": {
+				"pi": "additionalContext のチェックリスト注入が目的なので hook 移植ポリシー (b) により配らない。deny する判定（staged 差分のシークレット検出）は block-secrets-in-commit に分離して全 runtime へ配った",
+				"opencode": "同上",
+				"omp": "同上"
+			}
+		},
+		{
+			"id": "block-edit-on-main",
+			"file": "block-edit-on-main.sh",
+			"event": "PreToolUse",
+			"stage": "guard",
+			"order": 50,
+			"required": true,
+			"when": {
+				"tools": [
+					"Write",
+					"Edit"
+				]
+			},
+			"runtimes": [
+				"claude",
+				"pi",
+				"codex",
+				"omp"
+			],
+			"absent": {
+				"opencode": "編集系 hook は未配線（plan mode が主用途で編集しない）"
+			}
+		},
+		{
+			"id": "rtk-rewrite",
+			"file": "rtk-rewrite.sh",
+			"event": "PreToolUse",
+			"stage": "rewrite",
+			"order": 100,
+			"when": {
+				"tools": [
+					"Bash"
+				]
+			},
+			"runtimes": [
+				"claude",
+				"pi",
+				"opencode",
+				"codex",
+				"omp"
+			]
+		}
+	]
+}

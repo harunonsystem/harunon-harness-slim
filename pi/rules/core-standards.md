@@ -13,9 +13,10 @@ paths:
 workflow / reusable workflow / composite action を変更したら、既存の project tool 管理と検証入口を使い、次を満たしてから完了とする。
 
 - workflow は `jactionlint` で検証する。既存設定の SHA pin・permissions・timeout・local action の checkout 要件を緩めない。既に jactionlint があれば actionlint を重ねて追加しない。
-- 外部 action / reusable workflow は full commit SHA と version コメントを付け、`jactionlint`（`unpinned-uses` / `missing-version-comment` / `ref-version-mismatch`）で検証する。composite action と配布用 CI template も対象に含める。
-- action の追加・更新時は `pinact run --fix=false --verify-comment` で SHA と version コメントの対応も照合する。offline 検査を照合済みと報告しない。API が使えなければ未確認とする。
-- pin の編集は pinact を使う。既存 action の version 更新は依頼範囲内だけに限定し、lint を通すための無関係な更新や除外を追加しない。
+- 外部 action / reusable workflow は full commit SHA と version コメント、または GitHub Actions の `actions.lock` で直接・推移依存を固定する。`jactionlint` で検証し、composite action と配布用 CI template も対象に含める。
+- この repo の action 追加・更新時は `gh actions-lock` で lock を再生成し、`gh actions-lock --verify` で upstream の provenance を照合する。`mise run actions:verify` の lock coverage は offline 検査であり、provenance 検証の代わりにはならない。
+- 配布用 CI template は full commit SHA と version コメントを維持し、`pinact run --fix=false --verify-comment` で対応を照合する。API が使えなければ未確認とする。
+- pin の編集は固定方式に応じて gh-actions-lock / pinact を使う。既存 action の version 更新は依頼範囲内だけに限定し、lint を通すための無関係な更新や除外を追加しない。
 - 同じ検証をローカルと CI の共通入口へ配線する。token は API が必要なコマンドだけへ渡し、commit / push / PR / 配布の承認範囲は拡張しない。
 
 ### 変更サイクル
@@ -23,7 +24,7 @@ workflow / reusable workflow / composite action を変更したら、既存の p
 実装を伴う変更は、**資料・契約 → Test → Minimal implementation → Simplify → Verify** の順で進める。工程を満たすためだけの成果物は増やさない。
 
 1. **資料・契約を先に揃える**: Issue の受入条件、ADR、仕様書、schema、README など、対象挙動の既存 SSOT を確認する。documented contract が変わるならコードより先に更新し、古い記述や矛盾を解消する。関連資料が存在しない局所修正のために新規文書を作らない。
-2. **Test**: バグ修正・ロジック変更は対象の失敗テストから始める。`tdd` skill が利用可能なら詳細を読む。テスト追加・変更時は `test-audit` を適用し、実装詳細・自明な getter・一行ごとの挙動まで機械的にテストしない。UI 文言や設定だけの変更など、失敗テストで価値を証明できない変更に儀式的な TDD を強制しない。
+2. **Test**: バグ修正・ロジック変更は対象の失敗テストから始める。バグ修正では修正前のコード（base / HEAD~1）で確実に FAIL し、修正後に PASS する再現テスト（Old Code Failure 原則）を必須とする。`tdd` skill が利用可能なら詳細を読む。テスト追加・変更時は `test-audit` を適用し、実装詳細・自明な getter・一行ごとの挙動まで機械的にテストしない。UI 文言や設定だけの変更など、失敗テストで価値を証明できない変更に儀式的な TDD を強制しない。
 3. **Minimal implementation**: 受入条件と失敗テストを通す最小の実装だけを書く。将来用の abstraction、fallback、option、互換 shim を先回りして足さない。
 4. **Simplify**: green 後、今回触った差分を簡素化の観点で読み直す。不要な複雑性がある非自明なコード変更では `simplify` skill を使う。数行の一意な修正では skill を儀式的に起動せず、その場の確認でよい。観測可能な挙動を保ったまま、不要な抽象・重複・分岐・old path と、変更によって古くなった code / test / docs を整理する。
 5. **Verify**: repository が宣言する deterministic checks と受入条件を再実行し、code / test / docs の整合と不要物が残っていないことを最終確認する。
@@ -33,6 +34,8 @@ workflow / reusable workflow / composite action を変更したら、既存の p
 プロジェクトが明示的に「開発中・内部向け」で、外部利用者・永続データ・既存契約に対する互換性や migration 要件がない場合は、古い構造を温存しない。理想形へ直接置き換え、不要になった旧実装・compatibility layer・migration・deprecated path を同じ変更で削除する。公開 API、保存済みデータ、外部 consumer がある場合は、削除前に互換性・migration 要件を確定する。
 
 新機能より既存の差分修正・バグ修正を先にやる。新機能追加時はエントリポイント・ナビゲーションも同じ変更セットで更新する。
+
+**PR の完遂責任（Durable Runs）**: PR をオープンしたエージェントはマージまで所有権（Ownership）を持つ。PR 作成で作業を終えず、CI 監視・CI 失敗時の即時修正・レビュー指摘（bot / 人間）の解消・コンフリクト解消をマージ可能状態になるまで主導する。放置された PR を作らない。
 
 ### 実装の梯子
 
@@ -83,7 +86,8 @@ AI による過剰な防御的コード（ミルフィーユ状の型チェッ�
 
 ### 禁止事項
 
-- **安全機構をバイパスするワークアラウンド**
+- **安全機構・品質ゲートをバイパスするワークアラウンド**
+- **自己改善による保護規約（REJECT基準・テスト義務・セキュリティ境界）の緩和・削除** - スキルや指示の自己編集において、成功率を上げるためにゲートを緩める変更は REJECT。改善は検出力・明確化の向上のみ許容する
 - **散在するハードコード契約文字列** - ファイル名やconfigキー名は1箇所で定数定義
 - **プロジェクトスクリプトを迂回する直接ツール実行**
 - **自明なコメント** - コメントは why のみ。what はコードで表現する

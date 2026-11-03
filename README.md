@@ -97,6 +97,18 @@ scripts/doctor.sh                         # 全ターゲットの診断
 scripts/doctor.sh claude                  # 特定ターゲットのみ診断
 ```
 
+## 安全ガードを試す（try）
+
+Claude Code に入れた hook が実際に効いているかを、AI を起動せずに確かめられます。
+使い捨ての git repo を作り、`--no-verify` の commit や承認なしの force push などの見本の操作を hook に問い合わせ、通過・拒否・確認のどれになったかを、止めた hook の名前と理由と一緒に表示します。見本の操作そのものは実行せず、拒否の記録も利用者のログには残しません。
+
+```bash
+scripts/try.sh                            # ~/.claude の hook を確かめる
+scripts/try.sh claude --dest DIR          # install.sh --dest で入れた場合
+```
+
+期待と違う判定が 1 件でもあれば exit 1 になります。現在は Claude Code だけに対応しています。
+
 ## 設定ファイルの扱い
 
 JSON（`claude/settings.json`・`opencode/opencode.json`・`pi/settings.json`）は、既存ファイルがあれば`install-manifest.json`の`settingsKeys`にあるキーだけをマージします。それ以外のローカル値は保持し、ファイルがなければ全体をコピーします。

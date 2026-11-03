@@ -7,6 +7,17 @@ description: 既存 skill・agent 指示の trigger、手順、参照、出力�
 
 既存の skill / agent 指示を改善する入口。対象の仕事や利用範囲は拡張しない。
 
+## 保護規約の不変性（Immutability Guard）
+
+改善の過程で、以下の「保護されたコア規約」を緩和・削除・迂回する変更を行ってはならない（`core-standards.md`「禁止事項」適用）:
+- `rules/review-policy.md` の REJECT 基準（特に Old Code Failure やセキュリティ境界）
+- `rules/core-standards.md` の品質・テスト・安全基準
+- テスト authoring gate や Junk patterns 判定
+
+自己評価やテストの通過率を上げるためにゲートを緩める変更（Loosening Drift）は REJECT 対象。改善は「指示の明確化」「見落とし防止」「偽陰性の低減」「具体的な失敗例の追加」に限定する。
+
+## 改善手順
+
 1. 対象本文と参照先を読み、`target`・変更する `scope`・固定 `scenarios`・合否の `gate` を確定する。description と本文の不一致を記録する。本文・reference・scenario の変更は区別する。
 2. 変更に必要な設計ガイドだけ読む。
    - capability / trigger / workflow の設計は `skill-creator`。

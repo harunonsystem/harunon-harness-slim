@@ -50,6 +50,11 @@ repo root に `REVIEW.md` があれば必ず読む。そこにある repo 固有
 小さな差分・単一モジュールはメインが品質・回帰・セキュリティを確認する。
 非自明な差分では、少なくとも1つの fresh context の独立 reviewer を使えるなら使う。広い独立調査は次の担当へ分け、同じ範囲・観点を重複して委譲しない。
 
+**ブラインドレビューの徹底（Context Shielding）**:
+- 担当者（独立レビュアー）には**「元要件（Issue/PR目的）」と「対象ref/SHA・変更ファイル集合・差分・適用規約」のみ**を渡す。
+- 実装エージェントの会話履歴、推論過程（思考ログ）、途中試行の弁明・解説は渡さない。思考ログを読むと同調バイアスが生じ、欠陥の看過につながる。
+- バグ修正 diff を含む場合は、「追加されたテストが修正前（base）で FAIL し、修正後（head）で PASS すること（Old Code Failure）」を最優先で検証させる。旧コードでも通るようなテストはフェイク修正として REJECT candidate にする。
+
 - `reviewer`: 一般品質、配線・回帰、AI生成コード検証。基準は `rules/core-standards.md` の該当節。
 - `architecture-reviewer`: 複数モジュールの責務・依存方向・公開契約が変わる場合。
 - `security-reviewer`: 外部入力、認証認可、機密、危険なsink、CI/CDの信頼境界が変わる場合。詳細は [security-sinks](references/security-sinks.md) の該当言語。
