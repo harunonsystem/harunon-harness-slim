@@ -54,7 +54,7 @@
 | 外部 OSS 貢献 | `rules/oss-contribution.md` |
 | PR 作成・更新 | `rules/pr-body.md`。既存 PR は `pr-body-sync` |
 
-trivial は明白・単一変更で完結する変更。non-trivial は複数調査・横断変更・複数 slice・検証を要する変更。
+trivial は解法が明白で局所的な変更。non-trivial は設計判断・複数の依存する変更・実装と検証の往復を要する変更。調査や検証の数だけで判定しない。
 
 non-trivial で `poteto-mode` 選択時は親が受入・進捗・done 条件を保持。並列化は独立 slice に限定し、書き込み並列化は独立 worktree / boundary で同一領域の同時編集を防ぐ。
 
@@ -70,7 +70,7 @@ pstack 自動 mandate は使わず本 Routing 優先。`poteto-mode` 後は play
 - 委譲時、skill が専用 agent を指定する場合はその指定を使う。それ以外の調査は `Explore`、実装は `fast-worker`（仕様が具体的なもの）、確認コマンドの実行だけなら `command-runner`、難しい原因分析・設計は `deep-reasoner`、レビューは `reviewer`。利用可能なモデルと effort は runtime の設定で選ぶ。別 worktree への委譲は `implement-issue` の「cwd と handoff」に従う。
 - 新規 worktree は `EnterWorktree(name: <branch>)`。作成方式は runtime の設定に従う。
 - skill の「ユーザー確認機能」は `AskUserQuestion`。承認済みの操作に再確認は不要。
-- Edit / Write する既存ファイルは Bash の `cat` ではなく `Read` で先に読む。Edit は Read 済みを要求し、`File has not been read yet` は同じ引数の retry では消えない。
-- 長時間のバックグラウンド監視（CI 完了待ち、Dev サーバーエラー監視、テスト進捗）は Bash でセッションを停止させず `Monitor` ツールを使う。pnpm 環境では `-s` / `--silent`、`--stream`、`FORCE_COLOR=0`、`pnpm -C` を徹底する（定型は `/claude-monitor` 参照）。
+- 既存ファイルは `Read` 後に Edit / Write する。`File has not been read yet` が出たら読み直す。
+- 長時間のバックグラウンド監視には `Monitor` を使う。pnpm 環境では `-s` / `--silent`、`--stream`、`FORCE_COLOR=0`、`pnpm -C` を使う（定型は `/claude-monitor`）。
 - 会話はリストを基本にし、比較が必要な場合だけ表を使う。
 - `git add` / `git commit` / `git push` と `gh pr create|edit` は 1 コマンドずつ単独で実行し、`&&`・`;`・パイプで連結しない。

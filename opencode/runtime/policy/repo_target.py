@@ -665,6 +665,40 @@ def pr_target(repo: Path, command: str) -> dict:
             "head": _git(repo, "rev-parse", "HEAD"), "repository": repository_identity(repo), "number": args[1]}
 
 
+_PR_BODY_VALUE_OPTIONS = {"--body", "-b", "--body-file", "-F", "--title", "-t", "--repo", "-R"}
+_CONTROL_TOKENS = {";", "&", "|", "&&", "||", "(", ")"}
+
+
+def pr_body_selector(command: str) -> str | None:
+    """Return the positional PR selector of a lone `gh pr edit|comment`, or None when omitted.
+
+    Only `gh pr edit|comment [<selector>] [--body|-b|--body-file|-F|--title|-t|--repo|-R <value>]...`
+    is accepted; chains, subshells, unknown options and a second positional are unresolvable.
+    """
+    tokens = _tokenize(command)
+    starts = [i for i in range(len(tokens) - 1) if tokens[i:i + 2] == ["gh", "pr"] and _is_env_prefix_position(tokens, i)]
+    if len(starts) != 1 or any(token in _CONTROL_TOKENS for token in tokens):
+        raise UnresolvableTarget("単独の gh pr edit / comment を確定できません")
+    args = tokens[starts[0] + 2:]
+    if not args or args[0] not in ("edit", "comment"):
+        raise UnresolvableTarget("gh pr edit / comment ではありません")
+    selector = None
+    index = 1
+    while index < len(args):
+        token = args[index]
+        index += 1
+        if token.split("=", 1)[0] in _PR_BODY_VALUE_OPTIONS:
+            if "=" not in token:
+                if index >= len(args):
+                    raise UnresolvableTarget(f"{token} の値がありません")
+                index += 1
+            continue
+        if token.startswith("-") or selector is not None:
+            raise UnresolvableTarget("未知の option / 複数の PR 指定は通せません")
+        selector = token
+    return selector
+
+
 # --- CLI（bash から呼ぶ。command は stdin 経由） ---
 
 
@@ -709,6 +743,8 @@ def build_parser() -> argparse.ArgumentParser:
     check_parser.add_argument("--flag", type=Path, required=True)
     check_parser.add_argument("--base", type=Path, default=Path.cwd())
     commands.add_parser("pr-target")
+    casual_parser = commands.add_parser("casual-target")
+    casual_parser.add_argument("--kind", choices=("push", "pr"), required=True)
     pr_check_parser = commands.add_parser("pr-check")
     pr_check_parser.add_argument("--flag", type=Path, required=True)
 
@@ -725,6 +761,12 @@ def main() -> int:
         if args.command == "approval-key":
             print(approval_key(Path.cwd()))
             return 0
+        if args.command == "casual-target":
+            # Exit 0 only for a branch push or PR merge whose resolved target remote is casual.
+            import rigor
+            target = (pr_target if args.kind == "pr" else push_target)(Path.cwd(), _read_command_from_stdin())
+            allowed = target["operation"] == ("pr.merge" if args.kind == "pr" else "git.push")
+            return 0 if allowed and rigor.is_casual_repository(target["repository"]) else 1
         is_pr = args.command.startswith("pr-")
         command = _read_command_from_stdin()
         target = (pr_target if is_pr else push_target)(Path.cwd(), command)

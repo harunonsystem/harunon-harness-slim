@@ -340,6 +340,10 @@ custom_git_push() {
   # review_gate_resolve_target_repo above already resolves --cwd/cd/git -C with the
   # quote-aware repo_target.py kernel and denies ambiguous or missing targets. Keep
   # the approval check bound to that resolved repository.
+  # casual な push 先 remote（明示 owner パターン一致のみ）は承認記録を求めない（ADR-009 追記）。
+  if printf '%s' "$COMMAND" | python3 "$_REPO_TARGET_CLI" casual-target --kind push >/dev/null 2>&1; then
+    return 0
+  fi
   if ! flag=$(push_approved_flag); then
     echo "${message}。承認の checkout を確定できません" >&2
     exit 2
@@ -374,6 +378,10 @@ custom_gh_pr_merge_close() {
     echo "${message}。承認の対象 repo を確定できません（${REVIEW_GATE_UNRESOLVABLE_REASON}）" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "gh-pr-merge-close" "${COMMAND:-}" || true
     exit 2
+  fi
+  # casual な repo の merge は承認記録の代わりに kernel（harness-publication-gate）の検証で止める。close は従来どおり。
+  if printf '%s' "$COMMAND" | python3 "$_REPO_TARGET_CLI" casual-target --kind pr >/dev/null 2>&1; then
+    return 0
   fi
   if ! flag=$(pr_approved_flag); then
     echo "${message}。承認の checkout を確定できません" >&2

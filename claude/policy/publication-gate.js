@@ -88,11 +88,17 @@ export function authorize(action, cwd, command, publication, kernel = KERNEL) {
   });
 }
 
+const inputRepository = (input) => input?.repository_full_name ?? input?.repo_full_name ?? input?.repository ?? (input?.owner && input?.repo ? `${input.owner}/${input.repo}` : undefined);
+const inputNumber = (input) => input?.pr_number ?? input?.pull_number ?? input?.pull_request_number ?? input?.number;
+
 /**
  * 公開操作でなければ undefined。公開操作なら kernel の判定を { allowed, reason } で返す。
  * 1 コマンドに複数の PR action がある場合は、どれか 1 つだけを承認しないよう拒否する。
  */
-export async function gateToolCall({ toolName, command, cwd, input }, run = authorize) {
+export async function gateToolCall({ toolName, command: rawCommand, cwd, input }, run = authorize) {
+  // An MCP PR tool acts on its structured input; a `command` field in that input must not
+  // route the call through the shell-command checks instead.
+  const command = /github.*(create|merge|update).*pull.*request/i.test(String(toolName ?? "")) ? undefined : rawCommand;
   const action = classifyToolCall(toolName, command, input);
   if (action === undefined) return undefined;
   if (action === AMBIGUOUS_PR_ACTION) {
@@ -102,7 +108,13 @@ export async function gateToolCall({ toolName, command, cwd, input }, run = auth
     };
   }
   let publication;
-  if (action === "pr.create" || action === "pr.update-body") {
+  if (action === "pr.merge" && typeof command !== "string") {
+    // Shell merges carry the target in `command`; MCP merges only have tool input.
+    publication = {
+      repository: inputRepository(input),
+      number: inputNumber(input),
+    };
+  } else if (action === "pr.create" || action === "pr.update-body") {
     if (typeof command === "string") {
       publication = publicationInput(command);
       if (publication.bodyFile !== undefined) {
@@ -120,9 +132,9 @@ export async function gateToolCall({ toolName, command, cwd, input }, run = auth
         delete publication.bodyFile;
       }
     } else {
-      const repository = input?.repository_full_name ?? input?.repo_full_name ?? input?.repository ?? (input?.owner && input?.repo ? `${input.owner}/${input.repo}` : undefined);
+      const repository = inputRepository(input);
       const headBranch = input?.head_branch ?? input?.head;
-      publication = { body: input?.body, repository, headBranch, number: input?.pr_number ?? input?.pull_number ?? input?.pull_request_number ?? input?.number,
+      publication = { body: input?.body, repository, headBranch, number: inputNumber(input),
         ...(input?.head_repo ? { headRepository: input.head_repo } : {}) };
       if (!repository || (action === "pr.create" && !headBranch)) {
         publication.body = undefined;

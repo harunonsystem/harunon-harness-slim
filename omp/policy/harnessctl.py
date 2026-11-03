@@ -9,6 +9,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -17,10 +18,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from repo_target import UnresolvableTarget, gh_target_reason, resolve_target
+from repo_target import (UnresolvableTarget, canonical_repository, gh_target_reason, pr_body_selector, pr_target,
+                         repository_identity, resolve_target)
 from schema import validate
 import verification
 import publication_body
+import rigor
 
 
 CORE_DIR = Path(__file__).resolve().parents[1]
@@ -804,6 +807,122 @@ def check_pr_create_target(repo: Path, request: JsonObject) -> None:
         raise KernelError("REPO_TARGET_UNRESOLVABLE", exit_code=2, reason=reason)
 
 
+_SHELL_EXPANSION = "$`{}*?[]~"
+_PR_URL = re.compile(r"https://([\w.-]+)/([\w.-]+)/([\w.-]+)/pull/[1-9][0-9]*/?", re.IGNORECASE)
+
+
+def check_casual_publication_target(repo: Path, request: JsonObject) -> None:
+    """casual skips the body evidence, so pin here what it pinned: this checkout's repo and branch."""
+    identity = repository_identity(repo)
+
+    def deny(reason: str) -> None:
+        raise KernelError("REPO_TARGET_UNRESOLVABLE", exit_code=2, reason=reason)
+
+    def same_repository(value: Any) -> bool:
+        try:
+            return isinstance(value, str) and canonical_repository(value, selector=True) == identity
+        except UnresolvableTarget:
+            return False
+
+    command = request.get("command")
+    if isinstance(command, str) and command.strip():
+        check_pr_create_target(repo, request)  # -R / GH_REPO / GH_HOST / --head
+        # The tokenizers drop quote context, so substitution, brace, glob or tilde expansion could
+        # add arguments or run a second, unchecked command. Refuse them anywhere in the command.
+        if any(char in command for char in _SHELL_EXPANSION):
+            deny("展開文字（$ ` { } * ? [ ] ~）を含む command は通せません（本文は --body-file で渡してください）")
+        if request.get("action") == "pr.create":
+            return
+        # gh pr edit / comment take a positional PR selector that may name another repo: allow
+        # only none (current branch), a bare number, or a URL of this checkout's repo.
+        try:
+            selector = pr_body_selector(command)
+        except UnresolvableTarget as error:
+            deny(error.reason)
+        if selector is None or re.fullmatch(r"[1-9][0-9]*", selector):
+            return
+        match = _PR_URL.fullmatch(selector)
+        if not match or not same_repository(f"https://{match[1]}/{match[2]}/{match[3]}"):
+            deny("PR の指定は番号か、この checkout の repo の PR URL にしてください")
+        return
+    # MCP requests carry no command, so their structured fields must name this checkout.
+    publication = request.get("publication")
+    if not isinstance(publication, dict) or not same_repository(publication.get("repository")):
+        deny("公開先の repo が checkout と一致しません")
+    if publication.get("headRepository") is not None and not same_repository(publication["headRepository"]):
+        deny("head の repo が checkout と一致しません")
+    if request.get("action") == "pr.create" and publication.get("headBranch") != git_value(repo, "--abbrev-ref", "HEAD"):
+        deny("作成する PR の head branch が現在の branch と一致しません")
+
+
+def casual_repository(repo: Path) -> bool:
+    """The checkout's own remote decides; `-R` to any other repo is rejected by the target checks."""
+    try:
+        return rigor.is_casual_repository(repository_identity(repo))
+    except UnresolvableTarget:
+        return False
+
+
+def gh_pr_view(repository: str, number: str) -> JsonObject:
+    try:
+        result = subprocess.run(
+            ["gh", "pr", "view", number, "--repo", repository, "--json", "state,headRefOid,statusCheckRollup"],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise KernelError("CASUAL_MERGE_PR_UNREADABLE", exit_code=2, reason=str(error)) from error
+    if result.returncode != 0:
+        raise KernelError("CASUAL_MERGE_PR_UNREADABLE", exit_code=2, reason=result.stderr.strip()[:500])
+    return _parse_json_object(result.stdout, "CASUAL_MERGE_PR_UNREADABLE")
+
+
+def _check_passed(check: Any) -> bool:
+    if not isinstance(check, dict):
+        return False
+    if "state" in check:  # StatusContext
+        return check["state"] == "SUCCESS"
+    return check.get("status") == "COMPLETED" and check.get("conclusion") in ("SUCCESS", "NEUTRAL", "SKIPPED")
+
+
+def casual_merge_decision(repo: Path, request: JsonObject, *, verified: bool = True) -> JsonObject:
+    """Merge a casual PR only when no check is unfinished or failing.
+
+    verified: kernel verification is current, so the PR head must be the verified checkout HEAD
+    and zero checks is acceptable. Otherwise (unregistered repo) at least one check must exist.
+    """
+    command = request.get("command")
+    publication = request.get("publication")
+    try:
+        if isinstance(command, str) and command.strip():
+            target = pr_target(repo, command)
+            if target["operation"] != "pr.merge":
+                raise UnresolvableTarget("merge 以外の PR 操作です")
+            repository, number = target["repository"], target["number"]
+        elif isinstance(publication, dict) and isinstance(publication.get("repository"), str):
+            repository = canonical_repository(publication["repository"], selector=True)
+            number = str(publication.get("number", ""))
+            if repository != repository_identity(repo) or not number.isdigit() or number.startswith("0"):
+                raise UnresolvableTarget("merge 対象の repo / PR 番号が checkout と一致しません")
+        else:
+            raise UnresolvableTarget("merge 対象の PR 番号を確定できません")
+    except UnresolvableTarget as error:
+        return {"allowed": False, "code": "REPO_TARGET_UNRESOLVABLE", "reason": error.reason}
+    if not rigor.is_casual_repository(repository):
+        return {"allowed": False, "code": "TRUSTED_REVIEW_REQUIRED"}
+    pr = gh_pr_view(repository, number)
+    checks = pr.get("statusCheckRollup")
+    if pr.get("state") != "OPEN":
+        return {"allowed": False, "code": "CASUAL_MERGE_PR_NOT_OPEN"}
+    if verified and pr.get("headRefOid") != git_value(repo, "HEAD"):
+        return {"allowed": False, "code": "CASUAL_MERGE_HEAD_MISMATCH"}
+    # With verification, no checks is fine: the declared CI already ran on this exact SHA.
+    if not isinstance(checks, list) or not all(_check_passed(check) for check in checks):
+        return {"allowed": False, "code": "CASUAL_MERGE_CHECKS_NOT_PASSED"}
+    if not verified and not checks:
+        return {"allowed": False, "code": "CASUAL_MERGE_CHECKS_NOT_PASSED"}
+    return {"allowed": True, "code": "CASUAL_MERGE_VERIFIED"}
+
+
 def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowContext) -> JsonObject:
     action = request.get("action")
     workflow = ctx.workflow
@@ -814,6 +933,10 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
     if not gates_adopted(repo):
         if action == "pr.create":
             check_pr_create_target(repo, request)
+        # The bash guard drops the approval record for casual merges, so the kernel must still
+        # gate them here. Without kernel verification, passing GitHub checks are the only gate.
+        if action == "pr.merge" and casual_repository(repo):
+            return {"action": action, **casual_merge_decision(repo, request, verified=False)}
         return {"action": action, "allowed": True, "code": "NOT_ADOPTED"}
     # Missing tasks and tasks from an older workflow version must re-enter the gate,
     # never fall back to legacy flags. Current completed tasks still need fresh verification.
@@ -834,7 +957,10 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
         )
     state = read_state(state_file)
     assert_workflow_bound(state, ctx)
-    if state["phase"] not in action_policy["allowedStates"]:
+    casual = action != "task.report" and casual_repository(repo)
+    # casual publication needs no review evidence, so it may start from the review phase.
+    allowed_states = [*action_policy["allowedStates"], *(("review", "decide") if casual else ())]
+    if state["phase"] not in allowed_states:
         return {
             "action": action,
             "allowed": False,
@@ -847,6 +973,12 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
         if decision["allowed"]:
             decision["code"] = "TASK_COMPLETE_CURRENT"
         return {"action": action, **decision}
+    if casual and action in ("pr.create", "pr.update-body", "pr.comment"):
+        # casual: current verification is the only publication requirement (ADR-009 addendum).
+        check_casual_publication_target(repo, request)
+        return {"action": action, "allowed": True, "code": "CASUAL_VERIFIED"}
+    if casual and action == "pr.merge":
+        return {"action": action, **casual_merge_decision(repo, request)}
     if action == "pr.comment":
         return {"action": action, **review_decision(state, repo, ctx)}
     if action in ("pr.create", "pr.update-body"):
@@ -855,8 +987,8 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
         if decision["allowed"]:
             publication_body.require(state, repo, request, CORE_DIR)
         return {"action": action, **decision}
-    # Merge is the external enforcement boundary. Local files remain audit-only
-    # and can never satisfy the required GitHub status check.
+    # Outside casual targets, merge is the external enforcement boundary. Local files
+    # remain audit-only and can never satisfy the required GitHub status check.
     return {
         "action": action,
         "allowed": False,

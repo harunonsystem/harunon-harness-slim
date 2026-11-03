@@ -86,9 +86,10 @@ def publish(repo: Path, kernel: Path, *, operation: str, hostname: str,
     if state.get("task", {}).get("id") != task_id or state.get("phase") not in ("publish", "complete"):
         raise OwnPrError("Current workflow task ID or publication phase does not match")
     action = "pr.comment" if operation == "comment" else "pr.update-body"
-    request = {"action": action}
+    # casual targets are checked against these fields, so comments name their PR too.
+    request = {"action": action, "publication": {"repository": identity, "number": number}}
     if operation == "update-body":
-        request["publication"] = {"body": body, "repository": identity, "number": number}
+        request["publication"]["body"] = body
     decision = workflow("authorize", request)
     if decision.get("allowed") is not True:
         raise OwnPrError("Existing verification/review/publication gate refused the operation")

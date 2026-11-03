@@ -62,7 +62,7 @@ V2 `permissions` の deny は迂回しない。push・PR merge/close の ask は
 | 外部 OSS 貢献 | `rules/oss-contribution.md` |
 | PR 作成・更新 | `rules/pr-body.md`。既存 PR は `pr-body-sync` |
 
-trivial は明白・単一変更で完結する変更。non-trivial は複数調査・横断変更・複数 slice・検証を要する変更。
+trivial は解法が明白で局所的な変更。non-trivial は設計判断・複数の依存する変更・実装と検証の往復を要する変更。調査や検証の数だけで判定しない。
 
 non-trivial で `poteto-mode` 選択時は親が受入・進捗・done 条件を保持。並列化は独立 slice に限定し、書き込み並列化は独立 worktree / boundary で同一領域の同時編集を防ぐ。
 
