@@ -143,13 +143,13 @@
       }
     },
     {
-      "id": "git-checkout-new-branch-in-main-repo",
+      "id": "git-create-branch-in-checkout",
       "action": "block",
       "impl": "custom",
       "targets": ["claude", "omp", "opencode", "pi"],
-      "message": "メインリポジトリでブランチを作成しないでください。worktree を作成してから作業してください:",
+      "message": "既存の checkout（main checkout・別 branch の worktree とも）で branch を作らないでください。1 branch = 1 worktree です。新しい worktree を作ってそこで作業してください（Claude: EnterWorktree(name: <branch>)、その他: gwm add <branch>）",
       "autoMode": [
-        { "tier": "soft_deny", "prose": "メインリポジトリのチェックアウト上で branch を作成しない。worktree を作成してから作業する" }
+        { "tier": "soft_deny", "prose": "既存の checkout（main checkout・worktree とも）で branch を作成・切り替えて別作業を始めない。新しい worktree を作成してから作業する" }
       ],
       "match": {
         "ere": "(git|rtk git)[[:space:]]+(checkout[[:space:]]+-[bB]|switch[[:space:]]+(-[cC]|--create))",
@@ -234,7 +234,7 @@
       "action": "block",
       "impl": "custom",
       "targets": ["claude", "opencode", "omp", "pi"],
-      "message": "PR の merge/close はユーザーの明示的な許可を得てから実行してください。許可を得たら `~/.claude/hooks/approve-pr.sh <PR番号> \"理由\"` を実行してから、番号を明示した単独の gh pr merge / close を実行してください",
+      "message": "PR の merge/close はユーザーの明示的な許可を得てから実行してください。許可を得たら `~/.claude/hooks/approve-pr.sh <PR番号> \"理由\"` を実行してから、番号を明示した単独の gh pr merge / close を実行してください。その後 Core Workflow が TRUSTED_REVIEW_REQUIRED で拒否した場合は承認では通せないので、merge はユーザーに依頼してください",
       "autoMode": [
         { "tier": "soft_deny", "prose": "PR の merge / close はユーザーの明示的な許可がある場合のみ" }
       ],

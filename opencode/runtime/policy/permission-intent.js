@@ -208,7 +208,7 @@ function readOnlyShellPaths(intent, command) {
   return undefined;
 }
 
-export function isReadOnlyShellCommand(intent, command, cwd, project) {
+function isReadOnlyShellCommand(intent, command, cwd, project) {
   const paths = readOnlyShellPaths(intent, command);
   return paths !== undefined && [".", ...paths].every((path) => {
     try {

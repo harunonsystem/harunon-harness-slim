@@ -178,7 +178,8 @@ function shellScriptToken(tokens, index) {
     if (value === "--") return undefined;
     if (!value.startsWith("-")) return undefined;
     index += 1;
-    if (/^-[A-Za-z]*c[A-Za-z]*$/.test(value)) return tokens[index];
+    // `-c --` や `-c -e` のように直後が option なら bash は後ろの語を script にする。確定できないので返さない
+    if (/^-[A-Za-z]*c[A-Za-z]*$/.test(value)) return tokens[index]?.value.startsWith("-") ? undefined : tokens[index];
   }
   return undefined;
 }
@@ -229,12 +230,32 @@ function directPrTokensAt(tokens, index) {
 }
 
 const BODY_OPTION = /^(?:--body(?:-file)?(?:=|$)|-[bF])/;
+const PR_MUTATIONS = new Set(["create", "edit", "merge"]);
+const PR_MUTATION_TEXT = /\bgh\b[\s\S]*\bpr\s+(?:create|edit|merge)\b/;
+const isGh = (value) => value.replace(/^\\/, "").split("/").pop() === "gh";
+
+// 直接の gh pr として読めなかった形（未知の wrapper option、`bash -o x -c`、`timeout N` 等）の
+// 中に PR の変更操作が見えるか。見えれば分類できないものとして止める（fail closed、2026-11-04）。
+// 1 つの引用 token に収まった文字列（echo 'gh pr create' 等）は shell の script 位置でなければデータ。
+// echo / printf は引数を表示するだけなので、引用しない `echo gh pr create` もデータ。
+const DATA_COMMANDS = new Set(["echo", "printf"]);
+function hidesPrMutation(tokens) {
+  const values = tokens.map((token) => token.value);
+  if (DATA_COMMANDS.has(values[commandIndex(tokens) ?? -1])) return false;
+  // /usr/bin/gh 等のパス指定も gh。gh の後ろの pr はすべて見る
+  const gh = values.findIndex(isGh);
+  if (gh >= 0 && values.some((value, i) => i > gh && value === "pr" && PR_MUTATIONS.has(values[i + 1]))) return true;
+  const index = commandIndex(tokens);
+  return index !== undefined && SHELL_COMMAND_WRAPPERS.has(values[index]) &&
+    values.slice(index + 1).some((value) => PR_MUTATION_TEXT.test(value));
+}
 
 function actionForCommand(tokens) {
   const index = commandIndex(tokens);
   const script = index === undefined ? undefined : literalShellScript(tokens, index);
   if (script) return classifyPrCommand(script);
   const args = directPrTokens(tokens);
+  if (args === undefined) return hidesPrMutation(tokens) ? AMBIGUOUS_PR_ACTION : undefined;
   const action = args?.[0]?.value;
   if (action === "create") return "pr.create";
   if (action === "merge") return "pr.merge";
@@ -265,6 +286,14 @@ export function publicationInput(command) {
     choices.push(file ? { bodyFile: value } : { body: value });
   }
   if (choices.length !== 1) return { bodyError: "Specify exactly one final --body or --body-file" };
+  // wrapper（env -C、sudo -D、bash -c 内の cd 等）は cwd を変え得るので、gate が読む本文ファイルと
+  // gh が送るファイルが別物になる。option の綴りを追わず、直接の gh pr 以外では絶対パスを求める
+  const index = commandIndex(tokens);
+  const direct = index !== undefined && tokens.slice(0, index).every((token) => ENV_ASSIGNMENT.test(token.value)) &&
+    literalShellScript(tokens, index) === undefined;
+  if (choices[0].bodyFile !== undefined && !choices[0].bodyFile.startsWith("/") && !direct) {
+    return { bodyError: "Use an absolute --body-file path when gh runs through a wrapper (env, sudo, bash -c, ...)" };
+  }
   const target = args[1]?.value;
   return { ...choices[0], ...(args[0].value === "edit" ? { number: target } : {}) };
 }

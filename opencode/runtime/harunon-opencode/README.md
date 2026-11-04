@@ -13,9 +13,9 @@ OpenCode V2 固有の hook / custom tool 実装。これらを個別に auto-loa
 | `harness-workflow-v2.js` | V2 `ctx.tool.transform` に `harness_workflow` を登録し、Core Workflow kernel を呼ぶ |
 | `claude-hooks-bridge.js` | bash の `tool.execute.before` を Claude の Bash / tool_input に写し、`../hook-runner/hook-runner.js`（hookRunner。`packages/core/hook-runner/` から `runtime/hook-runner/` へ配布）に渡す adapter。どの hook を流すか・wire protocol・required hook の fail-closed は hookRunner が `runtime/policy/hook-pipeline.json` から決め、`runtime/claude-hooks/*.sh` を無改修実行する。`~/.claude/hooks` には依存しない。ask は throw（deny）に落とす（確認 UI が無い） |
 | `post-edit-checks.js` | write / edit 後の `tool.execute.after` で `../hook-runner/post-edit.js` を呼び、shellcheck / jq の指摘を tool result 末尾に追記する adapter（.md は fix-gfm-tables.js が担うため除外） |
-| `tool-cwd.js` | 判定 cwd の SSOT: bash tool の `cwd` 引数 > `worktree`（`/` 除く）> `directory`。harness-policy / harness-workflow / claude-hooks-bridge が共有 |
+| `tool-cwd.js` | 判定 cwd の base: `worktree`（`/` 除く）> `directory`。tool 引数（`workdir` > `cwd`）は `../hook-runner/runtime-mapping.js` の `resolveCwd` が解決する |
 | `fix-gfm-tables.js` / `scan-new-skills.js` | 編集後整形・skill 検出 |
-| `model-providers.js` | OpenAI を含む provider 設定の統合 |
+| `model-providers.js` | `model-providers.json` を OpenCode の provider エントリに射影する。非ネイティブの provider があると `harunon-v2.js` が起動を拒否する |
 
 ## 設計境界
 

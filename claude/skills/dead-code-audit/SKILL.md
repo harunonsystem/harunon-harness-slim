@@ -29,6 +29,7 @@ compatibility: codex opencode pi omp claude
 
 ### Phase 1: Recon & 探索軸の分割
 - リポジトリの検証コマンド、テスト構成、パッケージ境界、SSOT レイアウトを把握する。
+- repo が未使用コードの検出 task（knip / vulture / ts-prune 等）を持つなら先に実行し、出力を候補の起点にする。CLI subcommand や tool 定義から辿れるが運用で誰も呼ばない API は静的検出に出ないので、利用実態（呼び出し元・ログ）で別に確かめる。
 - 探索軸を独立した関心事に分割する（例: サブエージェント1「テストコード監査・重複／壊れたテスト特定」、サブエージェント2「本番コード・設定・SSOTの孤立／デッドコード特定」）。
 
 ### Phase 2: 並行監査（Subagent / Focused Search）

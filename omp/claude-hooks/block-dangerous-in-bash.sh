@@ -436,22 +436,22 @@ custom_git_commit_chain() {
   fi
 }
 
-# rule: git-checkout-new-branch-in-main-repo
-custom_git_checkout_new_branch_in_main_repo() {
-  # git checkout -b / git switch -c をメインリポジトリでブロック（worktree では許可）
-  if ere_matches "$NORMALIZED" "${ORIGIN}(git|rtk git)[[:space:]]+(checkout[[:space:]]+-[bB]|switch[[:space:]]+(-[cC]|--create))"; then
-    GIT_TOP=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
-    if [ -n "$GIT_TOP" ] && [ -d "$GIT_TOP/.git" ]; then
-      cat >&2 <<'EOF'
-メインリポジトリでブランチを作成しないでください。worktree を作成してから作業してください:
-
-  git worktree add -b <branch-name> <path> main    # 新規 worktree（main から）
-  git worktree add -b <branch-name> <path> <base>  # base ref 指定
-EOF
-      declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-checkout-new-branch-in-main-repo" "${COMMAND:-}" || true
-      exit 2
-    fi
+# rule: git-create-branch-in-checkout
+custom_git_create_branch_in_checkout() {
+  # git checkout -b / git switch -c を main checkout でも linked worktree でもブロックする。
+  # worktree 内で切り替えると、その worktree の branch に別作業が混ざる（2026-11-04）。
+  ere_matches "$NORMALIZED" "${ORIGIN}${ere}" || return 0
+  # submodule（extras 等）は worktree を持たない detached HEAD で、push 前に branch を作る必要がある。
+  # 対象（-C 先を含む）の解決は cd を伴うので、後続 rule の cwd を変えないよう subshell で行う。
+  # resolver は先頭の -C を全体の対象にするので、例外は連結のない単独の呼び出しに限る。
+  local super
+  if [[ ! "$NORMALIZED" =~ [\;\|\&] ]] && [[ ! "$NORMALIZED" =~ [^[:space:]].*$'\n'.*[^[:space:]] ]] && \
+     super=$(review_gate_resolve_target_repo "$COMMAND" >/dev/null 2>&1 && git rev-parse --show-superproject-working-tree 2>/dev/null); then
+    [ -n "$super" ] && return 0
   fi
+  echo "$message" >&2
+  declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-create-branch-in-checkout" "${COMMAND:-}" || true
+  exit 2
 }
 
 # cwd の checkout が linked worktree（git worktree add / gwm add 由来）か判定する。

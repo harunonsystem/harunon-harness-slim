@@ -11,7 +11,7 @@ import { postEditFindings } from "../hook-runner/post-edit.js";
 
 const EDIT_TOOLS = new Set(["edit", "write"]);
 
-export function appendFindings(output, findings) {
+function appendFindings(output, findings) {
   const existing = typeof output.output === "string" ? output.output : "";
   output.output = `${existing}\n\n[post-edit-check]\n${findings}`;
 }

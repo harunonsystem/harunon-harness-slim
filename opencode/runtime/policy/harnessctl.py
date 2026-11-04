@@ -13,7 +13,6 @@ import re
 import subprocess
 import sys
 import tempfile
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -179,7 +178,17 @@ def read_state(path: Path) -> JsonObject:
     if not path.is_file():
         raise KernelError("STATE_NOT_FOUND", exit_code=2, path=str(path))
     state = load_json(path, "STATE")
-    validate_state(state)
+    try:
+        validate_state(state)
+    except KernelError:
+        # 旧 workflow で書かれた state は schema ごと古い（廃止した phase・assignments 等）。
+        # schema 違反ではなく version 違いとして返し、start で置き換えられるようにする。
+        workflow = state.get("workflow") if isinstance(state, dict) else None
+        stored = workflow.get("version") if isinstance(workflow, dict) else None
+        current = load_workflow_context().version
+        if isinstance(stored, str) and stored != current:
+            raise KernelError("WORKFLOW_VERSION_MISMATCH", stored=stored, current=current) from None
+        raise
     return state
 
 
@@ -246,14 +255,10 @@ def validate_context(state: JsonObject, repo: Path) -> None:
 def initial_state(request: JsonObject, repo: Path, ctx: WorkflowContext) -> JsonObject:
     workflow = ctx.workflow
     task_id = request.get("taskId")
-    mode = request.get("mode", "change")
-    phase = workflow["entryStates"].get(mode)
-    if phase is None:
-        raise KernelError("INVALID_TASK_MODE", mode=mode)
     state = {
         "schemaVersion": 2,
         "revision": 0,
-        "phase": phase,
+        "phase": workflow["initialState"],
         "task": {"id": task_id},
         "workflow": {"name": workflow["name"], "version": ctx.version},
         "context": {
@@ -262,7 +267,6 @@ def initial_state(request: JsonObject, repo: Path, ctx: WorkflowContext) -> Json
         },
         "evidence": [],
         "reviewAttempts": 0,
-        "assignments": [],
     }
     return state
 
@@ -307,9 +311,8 @@ def validate_review_evidence(evidence: JsonObject, repo: Path) -> None:
 def check_artifact_exists(artifact: str, repo: Path) -> None:
     """Verify an evidence artifact path is real and readable.
 
-    Shared by local-review evidence (validate_review_evidence) and worker-report
-    evidence (assignment.report, implement role) — both point at a coordinator-
-    verified file rather than trusting a worker's self-reported path.
+    Used by local-review evidence (validate_review_evidence): the artifact must be a
+    verified file rather than a reviewer's self-reported path.
     """
     artifact_path = Path(artifact).expanduser()
     if artifact_path.is_absolute():
@@ -392,13 +395,8 @@ def _apply_review_report(
     request: JsonObject,
     repo: Path,
     workflow: JsonObject,
-    assignment_index: int | None,
 ) -> None:
-    """local-review evidence を検証して decide に進める。review.attach と
-    assignment.report(role=review) の共通本体（ADR-012 §2 の別名維持）。
-    assignment_index が None なら assignment 側の記帳はしない（assignment を
-    使わない従来の review.attach 呼び出し）。
-    """
+    """local-review evidence を検証して decide に進める（review.attach の本体）。"""
     evidence = request.get("evidence")
     self_check = isinstance(evidence, dict) and evidence.get("provider") == "self-check"
     quota_self_check = (
@@ -436,8 +434,6 @@ def _apply_review_report(
     if evidence.get("subjectSha") != git_value(repo, "HEAD"):
         raise KernelError("REVIEW_SUBJECT_STALE", exit_code=2)
     if self_check:
-        if assignment_index is not None:
-            raise KernelError("INVALID_REVIEW_EVIDENCE", reason="a self-check cannot report an independent reviewer assignment")
         state["evidence"].append(evidence)
         if quota_self_check or (state["phase"] == "review" and not independent_review_required(repo)):
             state["phase"] = workflow["states"]["review"]["review_attached"]
@@ -445,13 +441,9 @@ def _apply_review_report(
     if approval is not None:
         evidence["rereviewReason"] = approval["reason"]
         state.pop("rereviewApproval")
-    if assignment_index is not None:
-        evidence["assignmentIndex"] = assignment_index
     state["evidence"].append(evidence)
     state["reviewAttempts"] += 1
     state["phase"] = workflow["states"]["review"]["review_attached"]
-    if assignment_index is not None:
-        state["assignments"][assignment_index]["status"] = "reported"
 
 
 def _apply_review_skip(
@@ -491,88 +483,27 @@ def _apply_review_skip(
     state["phase"] = workflow["states"]["review"]["review_skipped"]
 
 
-def _apply_implement_report(
-    state: JsonObject,
-    request: JsonObject,
-    repo: Path,
-    assignment_index: int,
-) -> None:
-    """worker-report evidence を検証して implement assignment を reported にする。
-
-    変更ファイル一覧は worker の自己申告を信じない（ADR-012 §1）ので、ここで
-    確認するのは「その HEAD が本当にそこにあるか」（resultSha）と「割当時の
-    base から実際に進んだか」（subjectSha が祖先か）だけに絞る。
-    """
-    evidence = request.get("evidence")
-    if not isinstance(evidence, dict):
-        raise KernelError("INVALID_REVIEW_EVIDENCE")
-    expected = {"kind": "worker-report", "trust": "audit-only"}
-    if any(evidence.get(key) != value for key, value in expected.items()):
-        raise KernelError(
-            "INVALID_REVIEW_EVIDENCE",
-            reason="worker report evidence must be kind worker-report and audit-only",
-        )
-    for field in ("executor", "workerId", "resultSha", "artifact"):
-        value = evidence.get(field)
-        if not isinstance(value, str) or not value.strip():
-            raise KernelError(
-                "INVALID_REVIEW_EVIDENCE",
-                reason=f"{field} must be a non-empty string",
-            )
-    # subjectSha は割当時に kernel が記録した値を使う。worker の自己申告に
-    # base を差し替えられると祖先チェックの意味が無くなるため、evidence の値では
-    # なく assignments[assignment_index] を真実として扱う（ADR-012 §1）。
-    evidence["subjectSha"] = state["assignments"][assignment_index]["subjectSha"]
-    checks = evidence.get("checks", [])
-    if not isinstance(checks, list):
-        raise KernelError("INVALID_REVIEW_EVIDENCE", reason="checks must be an array")
-    for check in checks:
-        if (
-            not isinstance(check, dict)
-            or not isinstance(check.get("command"), str)
-            or not check["command"].strip()
-            or not isinstance(check.get("exitCode"), int)
-            or isinstance(check.get("exitCode"), bool)
-        ):
-            raise KernelError(
-                "INVALID_REVIEW_EVIDENCE",
-                reason="each check needs a non-empty command and an integer exitCode",
-            )
-    check_artifact_exists(evidence["artifact"], repo)
-    head = git_value(repo, "HEAD")
-    if evidence["resultSha"] != head:
-        raise KernelError("REPORT_SUBJECT_STALE", exit_code=2)
-    ancestor = subprocess.run(
-        [
-            "git",
-            "-C",
-            str(repo),
-            "merge-base",
-            "--is-ancestor",
-            evidence["subjectSha"],
-            evidence["resultSha"],
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if ancestor.returncode != 0:
-        raise KernelError("REPORT_BASE_NOT_ANCESTOR", exit_code=2)
-    evidence["assignmentIndex"] = assignment_index
-    state["evidence"].append(evidence)
-    state["assignments"][assignment_index]["status"] = "reported"
-    state["assignments"][assignment_index]["resultSha"] = evidence["resultSha"]
-
-
 def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowContext) -> JsonObject:
     event_type = request.get("type")
     if event_type == "task.start":
         if state_file.exists():
             # 非アクティブ判定は workflow version を bind せずに行う。change.json 更新後に
             # 残った state は phase を問わずもう進められないので、VERSION_MISMATCH で
-            # start まで拒むと gate も解除できない永続ブロックになる。
-            existing = read_state(state_file)
-            validate_context(existing, repo)
-            if task_is_active(existing) and existing["workflow"]["version"] == ctx.version:
+            # start まで拒むと gate も解除できない永続ブロックになる。旧 workflow の state は
+            # schema ごと古い（旧 phase / assignments）ので read_state が VERSION_MISMATCH を返す。
+            try:
+                existing = read_state(state_file)
+            except KernelError as error:
+                if error.code != "WORKFLOW_VERSION_MISMATCH":
+                    raise
+                # 旧 schema の state でも、別 repo / worktree のものは置き換えない
+                stale = load_json(state_file, "STATE")
+                if isinstance(stale.get("context"), dict):
+                    validate_context(stale, repo)
+                existing = None
+            if existing is not None:
+                validate_context(existing, repo)
+            if existing is not None and task_is_active(existing) and existing["workflow"]["version"] == ctx.version:
                 raise KernelError(
                     "ACTIVE_TASK_EXISTS",
                     exit_code=2,
@@ -591,10 +522,6 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
         "review.approve",
         "review.skip",
         "publication.attach",
-        "assignment.create",
-        "assignment.dispatched",
-        "assignment.report",
-        "assignment.abandon",
     }
     if event_type not in known_events:
         raise KernelError("UNKNOWN_EVENT", eventType=event_type)
@@ -604,7 +531,6 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
     validate_context(state, repo)
     check_revision(state, request)
     workflow = ctx.workflow
-    assignments = state["assignments"]
 
     if event_type == "task.complete" or (event_type == "phase.advance" and request.get("event") == "published" and state["phase"] == "publish"):
         verification.require_current(state["evidence"], repo)
@@ -616,7 +542,8 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
     if event_type == "task.complete":
         state["phase"] = "complete"
     elif event_type == "verification.run":
-        if state["phase"] not in ("verify", "checkpoint", "review", "decide", "publish", "complete"):
+        # 検証は phase を進めない。どの phase でも最新の証跡を記録し直せる
+        if state["phase"] not in workflow["states"]:
             raise KernelError("INVALID_VERIFICATION_PHASE", exit_code=2, phase=state["phase"])
         # Persist an unsuccessful attempt before execution. A killed kernel must
         # never leave an earlier passing receipt usable after a failed rerun.
@@ -624,8 +551,6 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
         state["revision"] += 1
         write_state(state_file, state)
         state["evidence"][-1] = verification.run(repo, state_file.parent / "verification")
-        if state["evidence"][-1]["passed"] and state["phase"] == "verify":
-            state["phase"] = workflow["states"]["verify"]["checks_passed"]
     elif event_type == "phase.advance":
         event = request.get("event")
         transitions = workflow["states"].get(state["phase"])
@@ -638,18 +563,9 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
                 phase=state["phase"],
                 event=event,
             )
-        if event in ("review_attached", "review_skipped", "checks_passed"):
+        if event in ("review_attached", "review_skipped"):
             # evidence 付きイベント（review.attach / review.skip）だけが通せる遷移
             raise KernelError("PROTECTED_TRANSITION", exit_code=2, event=event)
-        if event == "implemented" and assignments and assignments[-1]["role"] == "implement":
-            # dispatched のまま先に進む経路だけを塞ぐ。assignment を使わない
-            # 直接実装（casual タスク、委譲コストが上回る軽微修正）は従来どおり通す。
-            if assignments[-1]["status"] != "reported":
-                raise KernelError(
-                    "ASSIGNMENT_NOT_REPORTED",
-                    exit_code=2,
-                    status=assignments[-1]["status"],
-                )
         state["phase"] = transitions[event]
     elif event_type == "review.approve":
         if state["phase"] != "review" or state["reviewAttempts"] < 1:
@@ -661,105 +577,15 @@ def apply_event(state_file: Path, repo: Path, request: JsonObject, ctx: Workflow
     elif event_type == "review.skip":
         _apply_review_skip(state, request, repo, workflow)
     elif event_type == "review.attach":
-        # 現在の assignment が review/dispatched なら assignment.report(role=review)
-        # の別名として振る舞う。それ以外（assignment 無し、または他 role/status）は
-        # 従来どおり assignment に触れない review.attach として扱う（後方互換）。
-        current = assignments[-1] if assignments else None
-        assignment_index = (
-            len(assignments) - 1
-            if current is not None
-            and current["role"] == "review"
-            and current["status"] in ("assigned", "dispatched")
-            and not (isinstance(request.get("evidence"), dict) and request["evidence"].get("provider") == "self-check")
-            else None
-        )
-        _apply_review_report(state, request, repo, workflow, assignment_index)
-    elif event_type == "publication.attach":
+        _apply_review_report(state, request, repo, workflow)
+    else:
+        assert event_type == "publication.attach"
         if state["phase"] not in ("review", "decide", "publish", "complete"):
             raise KernelError("INVALID_PUBLICATION_PHASE", exit_code=2, phase=state["phase"])
         artifact = request.get("artifact")
         if not isinstance(artifact, str) or not artifact.strip():
             raise KernelError("PUBLICATION_ARTIFACT_REQUIRED", exit_code=2)
         state["evidence"].append(publication_body.capture(state, repo, artifact, CORE_DIR))
-    elif event_type == "assignment.create":
-        if state["phase"] not in ("implement", "review"):
-            raise KernelError("INVALID_ASSIGNMENT_PHASE", exit_code=2, phase=state["phase"])
-        role = request.get("role")
-        if role not in ("implement", "review"):
-            raise KernelError("INVALID_ASSIGNMENT_ROLE", exit_code=2, role=role)
-        if role != state["phase"]:
-            # ADR-012 §2 の「phase が implement または review」は role ごとの
-            # その phase を指す（implement role は implement phase だけ、review
-            # role は review phase だけ）。組み合わせの自由度を持たせない。
-            raise KernelError(
-                "ASSIGNMENT_ROLE_PHASE_MISMATCH",
-                exit_code=2,
-                role=role,
-                phase=state["phase"],
-            )
-        executor = request.get("executor")
-        worker_id = request.get("workerId")
-        if not isinstance(executor, str) or not executor.strip():
-            raise KernelError("ASSIGNMENT_FIELD_REQUIRED", exit_code=2, field="executor")
-        if not isinstance(worker_id, str) or not worker_id.strip():
-            raise KernelError("ASSIGNMENT_FIELD_REQUIRED", exit_code=2, field="workerId")
-        current = assignments[-1] if assignments else None
-        if current is not None and current["status"] not in ("reported", "abandoned"):
-            raise KernelError("ASSIGNMENT_ACTIVE", exit_code=2, status=current["status"])
-        assignments.append(
-            {
-                "role": role,
-                "executor": executor,
-                "workerId": worker_id,
-                "status": "assigned",
-                "correlationId": uuid.uuid4().hex,
-                "subjectSha": git_value(repo, "HEAD"),
-            }
-        )
-    elif event_type == "assignment.dispatched":
-        if not assignments or assignments[-1]["status"] != "assigned":
-            raise KernelError(
-                "INVALID_ASSIGNMENT_STATUS",
-                exit_code=2,
-                status=assignments[-1]["status"] if assignments else None,
-            )
-        transport = request.get("transport")
-        ref = request.get("ref")
-        at = request.get("at")
-        if not isinstance(transport, str) or not transport.strip():
-            raise KernelError("ASSIGNMENT_FIELD_REQUIRED", exit_code=2, field="transport")
-        if not isinstance(ref, dict):
-            raise KernelError("ASSIGNMENT_FIELD_REQUIRED", exit_code=2, field="ref")
-        if not isinstance(at, str) or not at.strip():
-            raise KernelError("ASSIGNMENT_FIELD_REQUIRED", exit_code=2, field="at")
-        assignments[-1]["status"] = "dispatched"
-        assignments[-1]["dispatch"] = {"transport": transport, "ref": ref, "at": at}
-    elif event_type == "assignment.report":
-        if not assignments or assignments[-1]["status"] != "dispatched":
-            raise KernelError(
-                "INVALID_ASSIGNMENT_STATUS",
-                exit_code=2,
-                status=assignments[-1]["status"] if assignments else None,
-            )
-        assignment_index = len(assignments) - 1
-        if assignments[assignment_index]["role"] == "review":
-            _apply_review_report(state, request, repo, workflow, assignment_index)
-        else:
-            _apply_implement_report(state, request, repo, assignment_index)
-    else:
-        assert event_type == "assignment.abandon"
-        if not assignments or assignments[-1]["status"] not in ("assigned", "dispatched"):
-            raise KernelError(
-                "INVALID_ASSIGNMENT_STATUS",
-                exit_code=2,
-                status=assignments[-1]["status"] if assignments else None,
-            )
-        reason = request.get("reason")
-        if not isinstance(reason, str) or not reason.strip():
-            raise KernelError("ABANDON_REASON_REQUIRED", exit_code=2)
-        assignments[-1]["status"] = "abandoned"
-        assignments[-1]["abandonReason"] = reason.strip()
-
     state["revision"] += 1
     write_state(state_file, state)
     return state
@@ -884,6 +710,15 @@ def _check_passed(check: Any) -> bool:
     return check.get("status") == "COMPLETED" and check.get("conclusion") in ("SUCCESS", "NEUTRAL", "SKIPPED")
 
 
+# approve-pr.sh の承認ではこの境界を越えられない。拒否だけ返すと人が main へ直接 push する
+# 迂回に流れた（2026-11-04）ので、通る手順を返す。
+TRUSTED_REVIEW_NEXT = (
+    "この repo の merge は GitHub の required check と branch protection が判定します"
+    "（approve-pr.sh やローカルの証跡では通せないので、承認を取り直しても変わりません）。"
+    "checks の通過後に、ユーザーが GitHub の UI か自分の terminal で merge してください"
+)
+
+
 def casual_merge_decision(repo: Path, request: JsonObject, *, verified: bool = True) -> JsonObject:
     """Merge a casual PR only when no check is unfinished or failing.
 
@@ -908,18 +743,32 @@ def casual_merge_decision(repo: Path, request: JsonObject, *, verified: bool = T
     except UnresolvableTarget as error:
         return {"allowed": False, "code": "REPO_TARGET_UNRESOLVABLE", "reason": error.reason}
     if not rigor.is_casual_repository(repository):
-        return {"allowed": False, "code": "TRUSTED_REVIEW_REQUIRED"}
+        return {"allowed": False, "code": "TRUSTED_REVIEW_REQUIRED", "reason": TRUSTED_REVIEW_NEXT}
     pr = gh_pr_view(repository, number)
     checks = pr.get("statusCheckRollup")
-    if pr.get("state") != "OPEN":
-        return {"allowed": False, "code": "CASUAL_MERGE_PR_NOT_OPEN"}
-    if verified and pr.get("headRefOid") != git_value(repo, "HEAD"):
-        return {"allowed": False, "code": "CASUAL_MERGE_HEAD_MISMATCH"}
+    state = pr.get("state")
+    if state != "OPEN":
+        next_step = ("merge 済みなので操作は不要です" if state == "MERGED"
+                     else "閉じた PR を merge するかは、reopen するかを含めてユーザーが判断してください")
+        return {"allowed": False, "code": "CASUAL_MERGE_PR_NOT_OPEN",
+                "reason": f"PR #{number} は {state or '状態不明'} です。{next_step}"}
+    head = git_value(repo, "HEAD") if verified else None
+    if verified and pr.get("headRefOid") != head:
+        return {"allowed": False, "code": "CASUAL_MERGE_HEAD_MISMATCH",
+                "reason": f"PR の head（{pr.get('headRefOid') or '不明'}）が、検証したこの checkout の HEAD（{head}）と違います。"
+                          "push か pull で PR の head とこの checkout を揃え、verify し直してから merge してください"}
     # With verification, no checks is fine: the declared CI already ran on this exact SHA.
     if not isinstance(checks, list) or not all(_check_passed(check) for check in checks):
-        return {"allowed": False, "code": "CASUAL_MERGE_CHECKS_NOT_PASSED"}
+        failed = isinstance(checks, list) and any(check.get("conclusion") == "FAILURE" or check.get("state") == "FAILURE"
+                                                  for check in checks if isinstance(check, dict))
+        next_step = ("失敗した check を直して push してください" if failed
+                     else f"`gh pr checks {number}` で完了を待ってから merge してください")
+        return {"allowed": False, "code": "CASUAL_MERGE_CHECKS_NOT_PASSED",
+                "reason": f"PR #{number} の checks が成功していません。{next_step}"}
     if not verified and not checks:
-        return {"allowed": False, "code": "CASUAL_MERGE_CHECKS_NOT_PASSED"}
+        return {"allowed": False, "code": "CASUAL_MERGE_CHECKS_NOT_PASSED",
+                "reason": f"PR #{number} に checks が 1 つもありません。この repo は検証を登録していないので、"
+                          "CI を足すか、ユーザーが自分で merge してください"}
     return {"allowed": True, "code": "CASUAL_MERGE_VERIFIED"}
 
 
@@ -943,8 +792,8 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
     try:
         state = read_state(state_file)
     except KernelError as error:
-        if error.code == "STATE_NOT_FOUND":
-            raise KernelError("TASK_REQUIRED", exit_code=2, reason="start --publish-only and verify before completing or publishing") from error
+        if error.code in ("STATE_NOT_FOUND", "WORKFLOW_VERSION_MISMATCH"):
+            raise KernelError("TASK_REQUIRED", exit_code=2, reason="start and verify before completing or publishing") from error
         raise
     validate_context(state, repo)
     if state["workflow"]["version"] != ctx.version:
@@ -993,6 +842,7 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
         "action": action,
         "allowed": False,
         "code": "TRUSTED_REVIEW_REQUIRED",
+        "reason": TRUSTED_REVIEW_NEXT,
     }
 
 
@@ -1006,10 +856,6 @@ SUPPORTED_OPERATIONS = (
     "attach_review",
     "attach_publication_body",
     "skip_review",
-    "assign",
-    "dispatched",
-    "report",
-    "abandon",
     "authorize",
 )
 
@@ -1109,36 +955,6 @@ def _operation_json_object(operation: str, arguments: JsonObject, name: str) -> 
     return value
 
 
-def _operation_json_array(operation: str, arguments: JsonObject, name: str) -> list[Any]:
-    raw = arguments[name]
-    if isinstance(raw, list):
-        return raw
-    if not isinstance(raw, str):
-        raise _operation_error(
-            "OPERATION_ARGUMENT_INVALID",
-            operation,
-            argument=name,
-            reason="must be a JSON array",
-        )
-    try:
-        value = json.loads(raw)
-    except json.JSONDecodeError as error:
-        raise _operation_error(
-            "OPERATION_ARGUMENT_INVALID",
-            operation,
-            argument=name,
-            reason=str(error),
-        ) from error
-    if not isinstance(value, list):
-        raise _operation_error(
-            "OPERATION_ARGUMENT_INVALID",
-            operation,
-            argument=name,
-            reason="must be a JSON array",
-        )
-    return value
-
-
 def _operation_artifact(operation: str, arguments: JsonObject, name: str) -> str:
     return str(Path(_operation_string(operation, arguments, name)).expanduser())
 
@@ -1159,20 +975,8 @@ def compile_operation(
         _validate_operation_keys(operation, operation_arguments, ())
         return "inspect", {}
     if operation == "start":
-        _validate_operation_keys(operation, operation_arguments, ("taskId",), ("mode",))
-        task_id = _operation_string(operation, operation_arguments, "taskId")
-        request: JsonObject = {"type": "task.start", "taskId": task_id}
-        if "mode" in operation_arguments:
-            mode = _operation_string(operation, operation_arguments, "mode")
-            if mode not in ("change", "publish"):
-                raise _operation_error(
-                    "OPERATION_ARGUMENT_INVALID",
-                    operation,
-                    argument="mode",
-                    reason="must be change or publish",
-                )
-            request["mode"] = mode
-        return "apply", request
+        _validate_operation_keys(operation, operation_arguments, ("taskId",))
+        return "apply", {"type": "task.start", "taskId": _operation_string(operation, operation_arguments, "taskId")}
     if operation == "advance":
         _validate_operation_keys(operation, operation_arguments, ("event", "expectedRevision"), ("publication",))
         return "apply", {
@@ -1227,75 +1031,6 @@ def compile_operation(
                 "skipReason": "quota",
                 "reason": _operation_string(operation, operation_arguments, "reason"),
             },
-        }
-    if operation == "assign":
-        _validate_operation_keys(
-            operation,
-            operation_arguments,
-            ("expectedRevision", "role", "executor", "workerId"),
-        )
-        role = _operation_string(operation, operation_arguments, "role")
-        if role not in ("implement", "review"):
-            raise _operation_error(
-                "OPERATION_ARGUMENT_INVALID",
-                operation,
-                argument="role",
-                reason="must be implement or review",
-            )
-        return "apply", {
-            "type": "assignment.create",
-            "expectedRevision": _operation_revision(operation, operation_arguments),
-            "role": role,
-            "executor": _operation_string(operation, operation_arguments, "executor"),
-            "workerId": _operation_string(operation, operation_arguments, "workerId"),
-        }
-    if operation == "dispatched":
-        _validate_operation_keys(
-            operation,
-            operation_arguments,
-            ("expectedRevision", "transport", "ref", "at"),
-        )
-        return "apply", {
-            "type": "assignment.dispatched",
-            "expectedRevision": _operation_revision(operation, operation_arguments),
-            "transport": _operation_string(operation, operation_arguments, "transport"),
-            "ref": _operation_json_object(operation, operation_arguments, "ref"),
-            "at": _operation_string(operation, operation_arguments, "at"),
-        }
-    if operation == "report":
-        _validate_operation_keys(
-            operation,
-            operation_arguments,
-            ("expectedRevision", "executor", "workerId", "resultSha", "artifact"),
-            ("checks",),
-        )
-        artifact = _operation_artifact(operation, operation_arguments, "artifact")
-        check_artifact_exists(artifact, repo)
-        artifact = _resolve_operation_artifact(artifact, repo)
-        checks = (
-            _operation_json_array(operation, operation_arguments, "checks")
-            if "checks" in operation_arguments
-            else []
-        )
-        return "apply", {
-            "type": "assignment.report",
-            "expectedRevision": _operation_revision(operation, operation_arguments),
-            "evidence": {
-                "kind": "worker-report",
-                "trust": "audit-only",
-                "executor": _operation_string(operation, operation_arguments, "executor"),
-                "workerId": _operation_string(operation, operation_arguments, "workerId"),
-                "resultSha": _operation_string(operation, operation_arguments, "resultSha"),
-                "artifact": artifact,
-                "checks": checks,
-            },
-        }
-    if operation == "abandon":
-        _validate_operation_keys(operation, operation_arguments, ("expectedRevision", "reason"))
-        return "apply", {
-            "type": "assignment.abandon",
-            "expectedRevision": _operation_revision(operation, operation_arguments),
-            "reason": _operation_string(operation, operation_arguments, "reason"),
         }
     _validate_operation_keys(operation, operation_arguments, ("action",), ("publication", "command"))
     return "authorize", {"action": _operation_string(operation, operation_arguments, "action"),

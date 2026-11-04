@@ -1,6 +1,7 @@
 import { AMBIGUOUS_PR_ACTION } from "../policy/pr-action.js";
 import { authorize, classifyToolCall, gateToolCall } from "../policy/publication-gate.js";
-import { resolveToolCwd, sessionBaseCwd } from "./tool-cwd.js";
+import { resolveCwd } from "../hook-runner/runtime-mapping.js";
+import { sessionBaseCwd } from "./tool-cwd.js";
 
 const SHELL_TOOLS = new Set(["bash", "exec_command", "interactive_shell"]);
 
@@ -27,13 +28,10 @@ export function createHarnessPolicy(run = authorize) {
   // directory は project root を指すため、独立 worktree では別タスクの state を
   // 参照してしまう。worktree を優先し、さらに bash tool の cwd 引数（セッションと
   // 別の worktree でコマンドを実行する形）があればそれを base にする
-  // （harness-workflow-v2.js と同じ解決。tool-cwd.js が SSOT）。
+  // （全 runtime 共通の runtime-mapping.js resolveCwd）。
   return async ({ directory, worktree }) => ({
     "tool.execute.before": async (input, output) => {
-      const cwd = resolveToolCwd(
-        sessionBaseCwd({ directory, worktree }),
-        output?.args?.workdir ?? output?.args?.cwd,
-      );
+      const cwd = resolveCwd(output?.args ?? {}, sessionBaseCwd({ directory, worktree }));
       const verdict = await gateToolCall(
         { toolName: toolNameOf(input), command: shellCommand(input, output), input: output?.args, cwd },
         run,
@@ -42,5 +40,3 @@ export function createHarnessPolicy(run = authorize) {
     },
   });
 }
-
-export const HarnessPolicy = createHarnessPolicy();

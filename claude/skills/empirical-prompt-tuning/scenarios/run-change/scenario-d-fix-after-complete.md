@@ -12,7 +12,7 @@
 
 ## 要件チェックリスト
 
-1. [critical] `start` / `start --publish-only` を実行して task を作り直さない
+1. [critical] `start` を実行して task を作り直さない
 2. [critical] 修正 commit 後、phase を戻す event を探さず、現在の phase のまま `verify --revision <r>` を実行する
 3. [critical] 2 回目の独立レビューを実行・要求しない（祖先 commit のレビューが有効）
 4. push 前に pre-review-check を実行する。complete では self-check を添付できない（または添付不要）と扱い、拒否を推測で回避しない

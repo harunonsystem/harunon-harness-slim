@@ -13,10 +13,9 @@ from urllib.parse import quote
 
 
 def locate_kernel() -> Path:
+    # 先頭は skill の配布先から見た policy/（Codex / OpenCode は ~/.agents から読む）
     candidates = [
         Path(__file__).resolve().parents[3] / "policy/harnessctl.py",
-        Path.home() / ".codex/policy/harnessctl.py",
-        Path.home() / ".config/opencode/policy/harnessctl.py",
         Path.home() / ".claude/policy/harnessctl.py",
         Path.home() / ".pi/agent/policy/harnessctl.py",
         Path.home() / ".omp/agent/policy/harnessctl.py",
@@ -39,7 +38,6 @@ def parse_args() -> argparse.Namespace:
     complete.add_argument("--revision", type=int, required=True)
     start = commands.add_parser("start")
     start.add_argument("task_id")
-    start.add_argument("--publish-only", action="store_true")
     advance = commands.add_parser("advance")
     advance.add_argument("event")
     advance.add_argument("--revision", type=int, required=True)
@@ -72,26 +70,6 @@ def parse_args() -> argparse.Namespace:
     own_pr.add_argument("--pr", type=int, required=True)
     own_pr.add_argument("--body-file", type=Path, required=True)
     own_pr.add_argument("--task-id", required=True)
-    assign = commands.add_parser("assign")
-    assign.add_argument("role", choices=("implement", "review"))
-    assign.add_argument("--executor", required=True)
-    assign.add_argument("--worker-id", required=True)
-    assign.add_argument("--revision", type=int, required=True)
-    dispatched = commands.add_parser("dispatched")
-    dispatched.add_argument("--transport", required=True)
-    dispatched.add_argument("--ref", required=True)
-    dispatched.add_argument("--at", required=True)
-    dispatched.add_argument("--revision", type=int, required=True)
-    report = commands.add_parser("report")
-    report.add_argument("--revision", type=int, required=True)
-    report.add_argument("--executor", required=True)
-    report.add_argument("--worker-id", required=True)
-    report.add_argument("--result-sha", required=True)
-    report.add_argument("--artifact", type=Path, required=True)
-    report.add_argument("--checks", default="[]")
-    abandon = commands.add_parser("abandon")
-    abandon.add_argument("--reason", required=True)
-    abandon.add_argument("--revision", type=int, required=True)
     return parser.parse_args()
 
 
@@ -210,10 +188,7 @@ def main() -> int:
     operation = "inspect" if args.command == "status" else args.command.replace("-", "_")
     arguments: dict[str, object] = {}
     if operation == "start":
-        arguments = {
-            "taskId": args.task_id,
-            "mode": "publish" if args.publish_only else "change",
-        }
+        arguments = {"taskId": args.task_id}
     elif operation == "advance":
         arguments = {"event": args.event, "expectedRevision": args.revision}
         if args.body_file is not None:
@@ -245,31 +220,6 @@ def main() -> int:
         arguments = {"action": args.action, "publication": publication}
     elif operation == "attach_publication_body":
         arguments = {"expectedRevision": args.revision, "artifact": str(args.artifact.expanduser().resolve())}
-    elif operation == "assign":
-        arguments = {
-            "role": args.role,
-            "executor": args.executor,
-            "workerId": args.worker_id,
-            "expectedRevision": args.revision,
-        }
-    elif operation == "dispatched":
-        arguments = {
-            "transport": args.transport,
-            "ref": args.ref,
-            "at": args.at,
-            "expectedRevision": args.revision,
-        }
-    elif operation == "report":
-        arguments = {
-            "executor": args.executor,
-            "workerId": args.worker_id,
-            "resultSha": args.result_sha,
-            "artifact": str(args.artifact.expanduser().resolve()),
-            "checks": args.checks,
-            "expectedRevision": args.revision,
-        }
-    elif operation == "abandon":
-        arguments = {"reason": args.reason, "expectedRevision": args.revision}
     result = subprocess.run(
         [sys.executable, str(locate_kernel()), "operate"],
         input=json.dumps(

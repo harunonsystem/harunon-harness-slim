@@ -11,7 +11,7 @@ const HOOK = fileURLToPath(
 );
 
 /** 文字列、または pi / omp の AgentMessage（content に text part を持つ）から本文を取り出す。 */
-export function messageText(message) {
+function messageText(message) {
   if (typeof message === "string") return message;
   const content = message?.content;
   if (typeof content === "string") return content;

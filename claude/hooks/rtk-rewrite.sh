@@ -24,6 +24,14 @@ if [ -z "$CMD" ]; then
   exit 0
 fi
 
+# Claude の auto mode は書き換え前の入力を分類器で審査する。書き換えると審査が
+# 無効になり「同じ入力で再送せよ」と 1 往復増え、節約した token を打ち消す（2026-11-04 実測）。
+# 分類器は Claude 固有。他 runtime の permission_mode は同じ意味を持たないので見ない。
+if [ "${HARNESS_RUNTIME:-}" = "claude" ] && \
+   [ "$(echo "$INPUT" | jq -r '.permission_mode // empty')" = "auto" ]; then
+  exit 0
+fi
+
 # Claude の sandbox.excludedCommands は書き換え後の文字列と照合される。`rtk gh ...` /
 # `rtk git push ...` にすると一致せず、sandbox 内で credential や .git/config に当たって
 # 失敗する（2026-10-18 実測）。除外対象は素のまま通す。
@@ -84,8 +92,10 @@ fi
 
 # Claude Code の worktree 隔離ガードは `rtk git ...` を「git を operand に持つ未知の
 # launcher」と見て、どのディレクトリで動くか読めないという理由で拒否する（2026-09-10 実測。
-# git を rtk の直後に置いても通らないため、rtk 経由では原理的に通せない）。worktree
-# セッションでは書き換えを諦めて素の git を通す。main checkout では従来どおり節約する。
+# git を rtk の直後に置いても通らないため、rtk 経由では原理的に通せない）。`rtk grep -n
+# git-common-dir ...` のように引数に git を含むだけでも拒否される（2026-11-04 実測）。
+# Claude の worktree セッションでは git を含む書き換えを諦めて素のまま通す。他 runtime と
+# main checkout では従来どおり節約する。
 in_git_worktree() {
   case "$(git rev-parse --git-dir 2>/dev/null)" in
     */.git/worktrees/*) return 0 ;;
@@ -94,8 +104,8 @@ in_git_worktree() {
 }
 
 case "$REWRITTEN_CMD" in
-  *'rtk git '*)
-    if in_git_worktree; then
+  *git*)
+    if [ "${HARNESS_RUNTIME:-}" = "claude" ] && in_git_worktree; then
       exit 0
     fi
     ;;

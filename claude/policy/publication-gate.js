@@ -104,7 +104,7 @@ export async function gateToolCall({ toolName, command: rawCommand, cwd, input }
   if (action === AMBIGUOUS_PR_ACTION) {
     return {
       allowed: false,
-      reason: "Core Workflow policy blocked ambiguous PR actions: command contains multiple PR actions",
+      reason: "Core Workflow policy blocked ambiguous PR actions: command contains multiple PR actions or hides one behind an unrecognized wrapper. Run one direct `gh pr ...` command",
     };
   }
   let publication;

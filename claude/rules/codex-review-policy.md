@@ -16,7 +16,7 @@ paths:
 4. `run-change` の kernel `verify` で必須検証を記録し、`attach-review --provider self-check` で現 HEAD の報告を記録する。対象変更では続けて独立 reviewer の全出力を実 provider 名で添付する。self-check は reviewer の実行回数に数えない。判定後は `advance accepted` または指摘修正後の `advance findings_fixed` で進め、完了だけなら `complete`、PR 作成なら `authorize pr.create` を通す。入力や HEAD が変わった場合だけ必須検証を更新し、同じ入力・条件の成功結果は再利用する。
 5. commit・push・PR はユーザーの承認範囲で行う。明示された公開依頼を再確認しない。
 
-進行中のCore Workflowがなければ、native作業済みのworktreeで`start <task-id> --publish-only`を使う。未commitでもよく、この入口はcommitや公開を許可しない。legacy gate flagの作成やbypassでセルフチェックを代替しない。
+進行中のCore Workflowがなければ、native作業済みのworktreeで`start <task-id>`を使う。未commitでもよく、この入口はcommitや公開を許可しない。legacy gate flagの作成やbypassでセルフチェックを代替しない。
 
 自己チェックは独立レビューではない。ローカル証跡は `audit-only` であり、PR 公開時の作業漏れ防止に限る。kernel は報告の存在・HEAD・phase を検証するが、本文の合格判定は agent が確認する。merge には引き続き外部の required status check と branch rules が必要。
 

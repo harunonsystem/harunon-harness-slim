@@ -376,7 +376,7 @@
     "soft_deny": [
       "$defaults",
       "git push はユーザーが明示的に許可した場合のみ実行する。commit と push を 1 コマンドに連結しない",
-      "メインリポジトリのチェックアウト上で branch を作成しない。worktree を作成してから作業する",
+      "既存の checkout（main checkout・worktree とも）で branch を作成・切り替えて別作業を始めない。新しい worktree を作成してから作業する",
       "main / master のメイン checkout（worktree ではない方）で git commit しない。worktree を作成してから作業する",
       "git update-ref はユーザーの明示的な許可がある場合のみ",
       "git clean -f / -fd はユーザーの明示的な許可がある場合のみ",

@@ -7,17 +7,10 @@
 // 「承認したのに push が拒否される」「別タスクが占有中で PR が作れない」になる
 // （2026-08-26 に業務リポジトリで実測）。
 //
-// cwd の解決は共通 hook-runner/runtime-mapping.js の resolveCwd と同じ:
-//   tool 引数の workdir > cwd（絶対ならそのまま、相対ならセッション base 基準）> セッション base。
+// tool 引数からの cwd 解決は共通 hook-runner/runtime-mapping.js の resolveCwd が持ち、
+// ここはその base（セッション起点）だけを決める。
 // non-git セッションで OpenCode が worktree に "/" を渡す防御はここに寄せる。
-
-import { resolve } from "node:path";
 
 export function sessionBaseCwd({ directory, worktree } = {}) {
   return worktree && worktree !== "/" ? worktree : directory;
-}
-
-export function resolveToolCwd(base, toolCwd) {
-  if (typeof toolCwd !== "string" || toolCwd.trim() === "") return base;
-  return resolve(base, toolCwd);
 }

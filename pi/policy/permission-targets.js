@@ -1,4 +1,4 @@
-/** Pure input and result projections. This module is not installed as a guard yet. */
+/** Pure input and result projections, used by permission-runtime.js (Codex and OpenCode permission adapters). */
 import { classifyToolCall } from "./publication-gate.js";
 import { editedPaths } from "../hook-runner/runtime-mapping.js";
 

@@ -8,7 +8,7 @@ compatibility: codex opencode pi omp claude
 
 When `slop-word-refactor` is unavailable, proofread the wording locally under the same constraints instead of invoking it.
 
-Follow the resident Routing instructions for implementation, directly or through the selected pstack skill; keep the runtime's native execution loop. This skill uses the common kernel for required outcomes, verification evidence, and completion/publication gates, and resumes existing Core Workflow state; it does not orchestrate implementation. For a new task, finish implementation, then use `start --publish-only` to enter the completion/publication gates. If a task already has active state, resume it and record completed phases without replaying work.
+Follow the resident Routing instructions for implementation, directly or through the selected pstack skill; keep the runtime's native execution loop. This skill uses the common kernel for required outcomes, verification evidence, and completion/publication gates, and resumes existing Core Workflow state; it does not orchestrate implementation. For a new task, finish implementation, then use `start` to enter the completion/publication gates. If a task already has active state, resume it without replaying work.
 
 `run-change` owns lifecycle state, policy gates, and evidence binding. It does **not** own worker selection, spawning, dispatch, retries, worktree management, or runtime-specific handoff. Those belong to each runtime's native orchestration layer.
 
@@ -35,19 +35,13 @@ Inspect first:
 python3 <skill-dir>/scripts/harness.py status
 ```
 
-If the result is `STATE_NOT_FOUND` or `WORKFLOW_VERSION_MISMATCH`, start the task. A previous task that never left `intake` (revision 0) or was written by an older workflow version is replaced by `start`; a current task with recorded progress returns `ACTIVE_TASK_EXISTS` and must be finished in its own worktree first:
+If the result is `STATE_NOT_FOUND` or `WORKFLOW_VERSION_MISMATCH`, start the task after the native loop has implemented it. `start` enters `review`; it works for uncommitted changes too and does not publish anything. A task that never progressed (revision 0) or was written by an older workflow version is replaced by `start`; a current task with recorded progress returns `ACTIVE_TASK_EXISTS` and must be finished in its own worktree first:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py start <task-id>
 ```
 
-When an intake skill such as `implement-issue` has already resolved the task and created the worktree, use the native interface from that worktree. Reuse its task ID, acceptance criteria, and verification commands; record completed intake/isolation as phase transitions without fetching the issue or creating another worktree. Keep the task details in the runtime's context; the kernel stores lifecycle state and evidence, not a second task brief.
-
-For work already performed by a native loop, enter the gate path instead of replaying its planning or implementation. This entry works for uncommitted changes too; it does not publish anything:
-
-```bash
-python3 <skill-dir>/scripts/harness.py start <task-id> --publish-only
-```
+When an intake skill such as `implement-issue` has already resolved the task and created the worktree, use the native interface from that worktree and reuse its task ID, acceptance criteria, and verification commands. Keep the task details in the runtime's context; the kernel stores lifecycle state and evidence, not a second task brief.
 
 ## Advance
 
@@ -57,20 +51,17 @@ Read the current `revision` from status and apply exactly one valid event:
 python3 <skill-dir>/scripts/harness.py advance <event> --revision <revision>
 ```
 
-The compatibility lifecycle is below; do not replay it as a mandatory native execution procedure:
-
 ```text
-intake -> clarify? -> isolate -> plan -> implement -> verify
--> checkpoint -> review -> decide -> publish -> complete
+review -> decide -> publish -> complete
 ```
 
-An invalid transition or stale revision must remain blocked. Re-inspect instead of retrying with guessed state.
+`review` leaves through attached evidence only (`attach-review` / `skip-review`). In `decide`, record `accepted`, `findings_fixed`, or `findings_deferred` to reach `publish`, or `fix_selected` to return to `review` for a user-approved re-review. An invalid transition or stale revision must remain blocked. Re-inspect instead of retrying with guessed state.
 
 ## Verify
 
 Mandatory checks are declared outside the repository, in the harness registry `policy/verification-repos.json` under the runtime config directory, keyed by remote identity (`github.com/owner/repo`): a non-empty `commands` array of argv arrays referencing the repository's existing mise tasks, package scripts, or verification scripts. A repository whose remotes are not registered has not adopted the gates: completion and publication are not gated there. Never create a declaration file inside a repository. Invalid or empty declarations are unverified; ask the repository owner to establish the mandatory checks instead of substituting optional tests or an agent's success claim. Full declaration and evidence contract: `policy/verification.md` under the runtime config directory.
 
-Run focused checks during development and retain any required pre-commit checks. Schedule mandatory kernel verification after the final authorized commit; the kernel does not require verification evidence to commit. For completed native work, use `start --publish-only` and verify that final HEAD once. If no commit is authorized or needed, verify the final uncommitted checkout. Reuse current successful kernel evidence for completion/publication; separate pre-push and CI gates still run their required checks.
+Run focused checks during development and retain any required pre-commit checks. Schedule mandatory kernel verification after the final authorized commit; the kernel does not require verification evidence to commit. For completed native work, use `start` and verify that final HEAD once. If no commit is authorized or needed, verify the final uncommitted checkout. Reuse current successful kernel evidence for completion/publication; separate pre-push and CI gates still run their required checks.
 
 Read status; if mandatory verification is not current, run the declared checks through the kernel:
 
@@ -78,11 +69,9 @@ Read status; if mandatory verification is not current, run the declared checks t
 python3 <skill-dir>/scripts/harness.py verify --revision <revision>
 ```
 
-OpenCode uses `harness_workflow` operation `verify` with `arguments.expectedRevision`. The kernel executes every declared command, records exit codes/logs and the checkout fingerprint, and advances `verify` only on success. Manual `checks_passed` is protected. Additional native checks are useful but cannot replace this evidence.
+OpenCode uses `harness_workflow` operation `verify` with `arguments.expectedRevision`. The kernel executes every declared command, records exit codes/logs and the checkout fingerprint. It never changes the phase. Additional native checks are useful but cannot replace this evidence.
 
 Use the returned revision; verification records both the attempt and its result. Failure, timeout, interruption, changed inputs, or altered/missing evidence blocks completion/publication. Rerun after any checkout, declaration, or HEAD change, including a commit or review fix.
-
-`start --publish-only` enters `review`. A successful `verify` there (or at `checkpoint`, `decide`, `publish`, `complete`) keeps that phase. In the normal `verify` phase it advances to `checkpoint`; use `advance review_ready --revision <returned-revision>` to enter `review` without committing. Existing `committed` remains a compatibility event, not permission to commit.
 
 ## Complete without publication
 
@@ -137,7 +126,7 @@ Fixes after publication (CI, review comments from bots or people) continue the s
 
 - Run `verify --revision <r>`. The phase stays where it is; no event moves it back. `findings_fixed` and the other `decide` events record only findings from the attached independent review.
 - Run `pre-review-check` over the whole branch before the push. In `publish`, attach it with `--provider self-check`. In `complete`, the kernel refuses a new attach (`INVALID_REVIEW_PHASE`) and keeps counting the earlier self-check, so keep the report as a temporary artifact instead.
-- Self-check and independent-review evidence on an ancestor of HEAD still covers HEAD, so do not run or request a second independent review. If the reviewed commit is no longer an ancestor (for example after a rebase), the gates return `REVIEW_STALE`: report it. A new `start --publish-only` is accepted only after the task is `complete` and replaces its evidence, so ask before using it.
+- Self-check and independent-review evidence on an ancestor of HEAD still covers HEAD, so do not run or request a second independent review. If the reviewed commit is no longer an ancestor (for example after a rebase), the gates return `REVIEW_STALE`: report it. A new `start` is accepted only after the task is `complete` and replaces its evidence, so ask before using it.
 - Publication-body evidence is bound to HEAD. Before `advance published`, `pr.update-body`, or an own-PR write after the fix, attach a body attestation for the new HEAD.
 
 ## Publish
@@ -159,6 +148,4 @@ Detailed standing publication consent rules, worktree isolation handling, body a
 
 ## Delegation Boundary
 
-- The runtime-specific parent/coordinator supplies scope / acceptance criteria / deterministic check commands, then validates the resulting diff and checks before advancing the Core Workflow. Do not mirror the runtime's worker lifecycle as a second manual `assign -> dispatched -> report` loop.
-- The kernel's `assignment.create`, `assignment.dispatched`, `assignment.report`, and `assignment.abandon` operations remain low-level compatibility/provenance APIs for adapters that need an auditable external-worker record. They record facts; they are not the default orchestration API.
-- A runtime may delegate without creating a kernel assignment. Existing gates only require a report when an assignment was explicitly created, so inline and runtime-native delegation remain valid.
+The runtime-specific parent/coordinator supplies scope / acceptance criteria / deterministic check commands, then validates the resulting diff and checks before advancing the Core Workflow. The kernel records no workers; inline work and runtime-native delegation both enter through `start`.

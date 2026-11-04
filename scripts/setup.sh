@@ -180,7 +180,8 @@ install_args=()
 [ -n "$DEST" ] && install_args+=(--dest "$DEST")
 [ "$DRY_RUN" -eq 1 ] && install_args+=(--dry-run)
 
-"$REPO_ROOT/scripts/install.sh" "${install_args[@]}"
+# bash 3.2 の set -u は空配列の "${a[@]}" を未定義扱いにする
+"$REPO_ROOT/scripts/install.sh" ${install_args[@]+"${install_args[@]}"}
 
 # --- 5. 推奨設定のマージ（設定有効時） ---------------------------------------
 

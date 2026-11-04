@@ -21,7 +21,7 @@ A failed or interrupted rerun revokes earlier success. A successful receipt and 
 
 Casual targets (ADR-009, 2026-11-03 addendum): when the checkout's single github.com remote matches an explicit `owner/...` pattern with profile `casual` in `rigor-patterns.json` (`policy/rigor.py`; path patterns, `defaultProfile` and unreadable files count as rigorous), PR create / body update / comment need only current mandatory verification, from the `review` phase on. Merge additionally requires the PR to be open, its GitHub head to equal the verified checkout HEAD, and every reported check to have succeeded (none pending); a PR with no checks relies on the kernel verification alone. A casual repository outside the registry has no kernel verification, so its merge requires at least one reported check, all succeeded, on an open PR. In an adopted repository, a missing task is blocked, including the publish-only route.
 
-Native execution loops choose planning, worker tools, retries and order. `run-change` only exposes the common lifecycle/evidence contract. For already implemented work, `start --publish-only` enters its gates without replaying native planning.
+Native execution loops choose planning, worker tools, retries and order. `run-change` only exposes the common lifecycle/evidence contract. For already implemented work, `start` enters its gates (phase `review`) without replaying native planning.
 
 An external review quota skip is not a self-check artifact. Record the skip, attach the passed self-check with provider `self-check`, and accept its decision before completion/publication. The skip remains audit evidence and does not require rerunning the external reviewer.
 
