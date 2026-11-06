@@ -15,8 +15,8 @@ workflow / reusable workflow / composite action を変更したら、既存の p
 - workflow は `jactionlint` で検証する。既存設定の SHA pin・permissions・timeout・local action の checkout 要件を緩めない。既に jactionlint があれば actionlint を重ねて追加しない。
 - 外部 action / reusable workflow は full commit SHA と version コメント、または GitHub Actions の `actions.lock` で直接・推移依存を固定する。`jactionlint` で検証し、composite action と配布用 CI template も対象に含める。
 - この repo の action 追加・更新時は `gh actions-lock` で lock を再生成し、`gh actions-lock --verify` で upstream の provenance を照合する。`mise run actions:verify` の lock coverage は offline 検査であり、provenance 検証の代わりにはならない。
-- 配布用 CI template は full commit SHA と version コメントを維持し、`pinact run --fix=false --verify-comment` で対応を照合する。API が使えなければ未確認とする。
-- pin の編集は固定方式に応じて gh-actions-lock / pinact を使う。既存 action の version 更新は依頼範囲内だけに限定し、lint を通すための無関係な更新や除外を追加しない。
+- 配布用 CI template も各配布ルートで `GH_ACTIONS_LOCK_REPO_ROOT="$PWD" gh actions-lock` で lock を生成し、同じ環境で `gh actions-lock --verify` で照合する。API が使えなければ未確認とする。
+- この repo の pin の編集は `gh actions-lock` を使う。既存 action の version 更新は依頼範囲内だけに限定し、lint を通すための無関係な更新や除外を追加しない。
 - 同じ検証をローカルと CI の共通入口へ配線する。token は API が必要なコマンドだけへ渡し、commit / push / PR / 配布の承認範囲は拡張しない。
 
 ### 変更サイクル
