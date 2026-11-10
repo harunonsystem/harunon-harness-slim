@@ -27,9 +27,19 @@ Do not edit state files directly. Every mutation uses revision compare-and-swap 
 - State: `<absolute-git-dir>/harness/v2/state.json`, with receipts alongside it.
 - Agents invoke the kernel through this skill's `scripts/harness.py`; do not run `policy/harnessctl.py` relative to the project root.
 
+## Merge an existing PR
+
+For merge-only requests, inspect the remote PR before entering the local lifecycle:
+
+1. Read its diff, review findings, `headRefOid`, mergeability and checks. Reuse existing CI; create a worktree and run local tests only when a code fix is needed.
+2. Obtain the user's merge approval once. On a casual target, run the standalone command `gh pr merge <number> --repo owner/repo --squash --match-head-commit <headRefOid>` from an existing checkout of that repository. The kernel checks the pinned remote head and requires nonempty, passing checks; unrelated dirty files and old local tasks do not block it.
+3. Confirm `state` and `mergedAt` remotely. If the head changed, inspect the new diff and checks before retrying.
+
+On a rigorous target, follow the external trusted-review gate. If a guard denies an operation, follow its prescribed next action once; report a remaining block instead of adding unrelated setup or running every local check. Approval records, where required, are separate commands before the standalone merge; chains and subshells do not carry approval.
+
 ## Resume
 
-Inspect first:
+For implementation or local publication (not merge-only requests), inspect first:
 
 ```bash
 python3 <skill-dir>/scripts/harness.py status

@@ -719,12 +719,8 @@ TRUSTED_REVIEW_NEXT = (
 )
 
 
-def casual_merge_decision(repo: Path, request: JsonObject, *, verified: bool = True) -> JsonObject:
-    """Merge a casual PR only when no check is unfinished or failing.
-
-    verified: kernel verification is current, so the PR head must be the verified checkout HEAD
-    and zero checks is acceptable. Otherwise (unregistered repo) at least one check must exist.
-    """
+def casual_merge_decision(repo: Path, request: JsonObject) -> JsonObject:
+    """Authorize the pinned remote PR head using GitHub checks, not local checkout evidence."""
     command = request.get("command")
     publication = request.get("publication")
     try:
@@ -733,9 +729,11 @@ def casual_merge_decision(repo: Path, request: JsonObject, *, verified: bool = T
             if target["operation"] != "pr.merge":
                 raise UnresolvableTarget("merge 以外の PR 操作です")
             repository, number = target["repository"], target["number"]
+            expected_head = target.get("matchHeadCommit")
         elif isinstance(publication, dict) and isinstance(publication.get("repository"), str):
             repository = canonical_repository(publication["repository"], selector=True)
             number = str(publication.get("number", ""))
+            expected_head = publication.get("headSha")
             if repository != repository_identity(repo) or not number.isdigit() or number.startswith("0"):
                 raise UnresolvableTarget("merge 対象の repo / PR 番号が checkout と一致しません")
         else:
@@ -744,6 +742,10 @@ def casual_merge_decision(repo: Path, request: JsonObject, *, verified: bool = T
         return {"allowed": False, "code": "REPO_TARGET_UNRESOLVABLE", "reason": error.reason}
     if not rigor.is_casual_repository(repository):
         return {"allowed": False, "code": "TRUSTED_REVIEW_REQUIRED", "reason": TRUSTED_REVIEW_NEXT}
+    if not isinstance(expected_head, str) or not re.fullmatch(r"[0-9a-f]{40}", expected_head):
+        return {"allowed": False, "code": "CASUAL_MERGE_HEAD_REQUIRED",
+                "reason": "gh pr view で headRefOid を確認し、gh pr merge に --match-head-commit <SHA> を指定してください。"
+                          "merge だけならローカル task・worktree・verify は不要です"}
     pr = gh_pr_view(repository, number)
     checks = pr.get("statusCheckRollup")
     state = pr.get("state")
@@ -752,12 +754,10 @@ def casual_merge_decision(repo: Path, request: JsonObject, *, verified: bool = T
                      else "閉じた PR を merge するかは、reopen するかを含めてユーザーが判断してください")
         return {"allowed": False, "code": "CASUAL_MERGE_PR_NOT_OPEN",
                 "reason": f"PR #{number} は {state or '状態不明'} です。{next_step}"}
-    head = git_value(repo, "HEAD") if verified else None
-    if verified and pr.get("headRefOid") != head:
+    if pr.get("headRefOid") != expected_head:
         return {"allowed": False, "code": "CASUAL_MERGE_HEAD_MISMATCH",
-                "reason": f"PR の head（{pr.get('headRefOid') or '不明'}）が、検証したこの checkout の HEAD（{head}）と違います。"
-                          "push か pull で PR の head とこの checkout を揃え、verify し直してから merge してください"}
-    # With verification, no checks is fine: the declared CI already ran on this exact SHA.
+                "reason": f"PR の head（{pr.get('headRefOid') or '不明'}）が、指定した SHA（{expected_head}）と違います。"
+                          "新しい head の差分と checks を確認してから、その SHA を指定してください"}
     if not isinstance(checks, list) or not all(_check_passed(check) for check in checks):
         failed = isinstance(checks, list) and any(check.get("conclusion") == "FAILURE" or check.get("state") == "FAILURE"
                                                   for check in checks if isinstance(check, dict))
@@ -765,10 +765,9 @@ def casual_merge_decision(repo: Path, request: JsonObject, *, verified: bool = T
                      else f"`gh pr checks {number}` で完了を待ってから merge してください")
         return {"allowed": False, "code": "CASUAL_MERGE_CHECKS_NOT_PASSED",
                 "reason": f"PR #{number} の checks が成功していません。{next_step}"}
-    if not verified and not checks:
+    if not checks:
         return {"allowed": False, "code": "CASUAL_MERGE_CHECKS_NOT_PASSED",
-                "reason": f"PR #{number} に checks が 1 つもありません。この repo は検証を登録していないので、"
-                          "CI を足すか、ユーザーが自分で merge してください"}
+                "reason": f"PR #{number} に checks が 1 つもありません。CI を足すか、ユーザーが自分で merge してください"}
     return {"allowed": True, "code": "CASUAL_MERGE_VERIFIED"}
 
 
@@ -778,14 +777,14 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
     action_policy = workflow.get("actions", {}).get(action)
     if not isinstance(action_policy, dict):
         raise KernelError("UNKNOWN_ACTION", exit_code=2, action=action)
+    # A merge acts on a remote PR, not this checkout. GitHub checks and the pinned
+    # head protect casual merges even without a local task, including adopted repos.
+    if action == "pr.merge" and casual_repository(repo):
+        return {"action": action, **casual_merge_decision(repo, request)}
     # registry に載った repo だけが gate を採用する。repo 側にファイルは置かせない。
     if not gates_adopted(repo):
         if action == "pr.create":
             check_pr_create_target(repo, request)
-        # The bash guard drops the approval record for casual merges, so the kernel must still
-        # gate them here. Without kernel verification, passing GitHub checks are the only gate.
-        if action == "pr.merge" and casual_repository(repo):
-            return {"action": action, **casual_merge_decision(repo, request, verified=False)}
         return {"action": action, "allowed": True, "code": "NOT_ADOPTED"}
     # Missing tasks and tasks from an older workflow version must re-enter the gate,
     # never fall back to legacy flags. Current completed tasks still need fresh verification.
@@ -826,8 +825,6 @@ def authorize(state_file: Path, repo: Path, request: JsonObject, ctx: WorkflowCo
         # casual: current verification is the only publication requirement (ADR-009 addendum).
         check_casual_publication_target(repo, request)
         return {"action": action, "allowed": True, "code": "CASUAL_VERIFIED"}
-    if casual and action == "pr.merge":
-        return {"action": action, **casual_merge_decision(repo, request)}
     if action == "pr.comment":
         return {"action": action, **review_decision(state, repo, ctx)}
     if action in ("pr.create", "pr.update-body"):

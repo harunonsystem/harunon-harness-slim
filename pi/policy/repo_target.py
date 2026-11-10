@@ -646,12 +646,25 @@ def pr_target(repo: Path, command: str) -> dict:
     if len(args) < 2 or args[0] not in ("merge", "close") or not re.fullmatch(r"[1-9][0-9]*", args[1]):
         raise UnresolvableTarget("PR 操作と番号を明示してください")
     cursor = 2
+    match_head = None
     while cursor < len(args):
         token = args[cursor]
         cursor += 1
         if token in ("--merge", "--squash", "--rebase") and args[0] == "merge":
             continue
-        if token in _GH_REPO_OPTIONS:
+        if args[0] == "merge" and (token == "--match-head-commit" or token.startswith("--match-head-commit=")):
+            if match_head is not None:
+                raise UnresolvableTarget("--match-head-commit は 1 回だけ指定してください")
+            if token == "--match-head-commit":
+                if cursor >= len(args):
+                    raise UnresolvableTarget("--match-head-commit に SHA が必要です")
+                match_head = args[cursor]
+                cursor += 1
+            else:
+                match_head = token.partition("=")[2]
+            if not re.fullmatch(r"[0-9a-f]{40}", match_head):
+                raise UnresolvableTarget("--match-head-commit は完全な SHA を指定してください")
+        elif token in _GH_REPO_OPTIONS:
             cursor += 1
         elif token.startswith(("--repo=", "-R")):
             continue
@@ -662,7 +675,8 @@ def pr_target(repo: Path, command: str) -> dict:
     if reason:
         raise UnresolvableTarget(reason)
     return {"operation": "pr." + args[0], "checkout": checkout_identity(repo), "branch": branch,
-            "head": _git(repo, "rev-parse", "HEAD"), "repository": repository_identity(repo), "number": args[1]}
+            "head": _git(repo, "rev-parse", "HEAD"), "repository": repository_identity(repo), "number": args[1],
+            "matchHeadCommit": match_head}
 
 
 _PR_BODY_VALUE_OPTIONS = {"--body", "-b", "--body-file", "-F", "--title", "-t", "--repo", "-R"}
