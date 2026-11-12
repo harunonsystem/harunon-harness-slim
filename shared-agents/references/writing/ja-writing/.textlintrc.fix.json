@@ -1,0 +1,39 @@
+{
+  "filters": {
+    "@cffnpwr/code-comments": {
+      "ignoredRules": ["ja-technical-writing/ja-no-mixed-period"]
+    }
+  },
+  "plugins": {
+    "latex2e": true,
+    "@cffnpwr/comments": true
+  },
+  "rules": {
+    "preset-ja-technical-writing": {
+      "no-mix-dearu-desumasu": {
+        "preferInHeader": "",
+        "preferInBody": "",
+        "preferInList": "",
+        "strict": false
+      }
+    },
+    "@textlint-ja/preset-ai-writing": true,
+    "@cffnpwr/preset-ja-writing-extras": true,
+    "preset-ja-spacing": {
+      "ja-space-after-exclamation": false,
+      "ja-space-after-question": false,
+      "ja-space-around-code": {
+        "before": false,
+        "after": false
+      }
+    },
+    "prefer-tari-tari": true,
+    "no-mixed-zenkaku-and-hankaku-alphabet": true,
+    "@textlint-ja/no-synonyms": true,
+    "period-in-list-item": true,
+    "ja-no-orthographic-variants": true,
+    "@textlint-ja/no-insert-re": true,
+    "@textlint-ja/no-dropping-i": true,
+    "@textlint-ja/no-insert-dropping-sa": true
+  }
+}
