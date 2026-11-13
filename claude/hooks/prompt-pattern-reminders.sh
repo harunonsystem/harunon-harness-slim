@@ -1,5 +1,5 @@
 #!/bin/bash
-# UserPromptSubmit — 再発バグ・逐語要求・ダイアグラム要求のパターンを検出して
+# UserPromptSubmit — 再発バグ・逐語要求・図解要求のパターンを検出して
 # reminder を注入する。JSON パース失敗や prompt 欠落時は fail-open（exit 0）。
 set -uo pipefail
 
@@ -20,8 +20,8 @@ if printf '%s' "$PROMPT" | command grep -qE 'raw ?で|生のまま|そのまま(
   WARNINGS+=("要約・解説を挟まずコピペ可能な逐語テキストで返す")
 fi
 
-if printf '%s' "$PROMPT" | command grep -qiE 'ダイアグラム|構成図|フローチャート|シーケンス図|diagram|mermaid|figjam'; then
-  WARNINGS+=("形式（Mermaid/FigJam・縦横）が未指定なら確定してから生成する")
+if printf '%s' "$PROMPT" | command grep -qiE '図解|可視化|視覚化|全体像|処理フロー|データフロー|状態遷移|関係図|設計図|ダイアグラム|構成図|フローチャート|シーケンス図|diagram|mermaid|figjam'; then
+  WARNINGS+=("図解依頼: /show-me で必要な関係を図として実際に提示する。形式未指定なら用途に合わせて自分で選び、形式確認だけで止まらない。多層構造は /archify、リッチな比較・差分説明は利用可能なときだけ visual-explainer。")
 fi
 
 if [ "${#WARNINGS[@]}" -eq 0 ]; then

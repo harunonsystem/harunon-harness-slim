@@ -35,11 +35,12 @@ BLOCKED で人間の product decision を求める場合だけ、判断材料・
 親 Issue は product outcome の単位として維持する。
 最低限、Problem / outcome、Acceptance criteria、Out of scope、維持すべき既存 behavior、unresolved decisions を確定する。
 
-**状態検証ゲート**:
-対象が「非同期ジョブ」「決済・認証フロー」「複数ステップのUI」「分散・イベント同期」など**状態（State）を持つ場合、このステップを省略してはならない**。
-1. **モデル化**: 主要な状態（States）、イベント（Events）、不変条件（Invariants: 二重実行禁止など）を特定する。
-2. **検証（`/statechart` の実行）**: `/statechart` を呼び出してモデル化と検査を行い、デッドロック、未処理イベント（タイムアウト、キャンセル、ネットワーク切断、重複受信）、不変条件違反がないかを検証する。
-3. **成果物の反映**: 検出された考慮漏れ（反例シナリオ）を仕様に盛り込み、生成された状態遷移表または Mermaid ステート図を、該当する子 Issue の「受け入れ条件（Acceptance criteria）」に必ず含める。
+**状態検証ゲート（目的 → リスク → 検証の順に決める）**:
+対象が「非同期ジョブ」「決済・認証フロー」「複数ステップのUI」「分散・イベント同期」など状態を持つ場合は、**状態・イベント・ガード・不変条件の検討を省略しない**。ただし道具やモデル検査の実行はリスクで選ぶ。
+1. **契約**: 状態、イベント、ガード、禁止状態、不変条件（重複実行や権限逸脱の禁止など）、タイムアウト・キャンセル・切断・再送の扱いを列挙する。
+2. **手法選択**: 局所的なUI遷移は状態遷移表とmodel-based／integration testの受入条件でよい。並行実行・処理順序・再試行・分散整合性に重要なリスクがあるときはTLA+によるモデル化とTLCでの検査を優先する。pstackが導入済みなら `/statechart` は **TLC検査とMermaid状態図** を作れる。形式検証の継続保守が必要な領域は `/create-formal-verification-skill` と `/maintain-formal-verification-skill` を選ぶ。未導入なら「使った」と記録せず、別の実行可能な検証方法またはBLOCKED理由を明示する。
+3. **証跡と反例**: 検査した性質、対象コード、モデルと探索境界、実行コマンド、PASS / COUNTEREXAMPLE / NOT_RUN / BLOCKED、反例の再現条件を記録する。**図の生成や状態一覧だけでPASSとはしない**。TLCのPASSもモデルの仮定・有限探索範囲内の結果であり、実装全体の正しさではない。
+4. **成果物の反映**: 状態遷移・不変条件・反例から導いたテストと未検証事項を各子IssueのAcceptance criteriaに含める。criticalな振る舞いで検証手段や性質が未確定なら、そのsliceはREADYにしない。実装後は対象repoのテストと、モデル／コードの再照合が別途必要。
 
 ### 3. Architecture classification & Release boundary
 behavior の互換性（`compatible` / `parallel-v2`）と migration（`none` / `expand-migrate-contract`）、および release boundary を判定する。

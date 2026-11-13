@@ -42,7 +42,7 @@
 | --- | --- |
 | 実装・診断・Git 規約 | `rules/core-standards.md` |
 | 技術比較の依頼 | `derive-optimal-solution` skill |
-| テスト追加・監査 | `test-audit` skill。並行・不変条件の形式検証は `formal-verify` |
+| テスト追加・監査 | `test-audit` skill。並行・不変条件は pstack `statechart`（TLA+/TLC）、継続検証は `create-formal-verification-skill` |
 | デッドコード・不要テスト削減 | `dead-code-audit` skill |
 | 実装後の簡素化・脱スロップ | `simplify` skill、冗長コード削ぎ落としは `deslop` |
 | 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`（判定: `rules/review-policy.md`） |
@@ -50,9 +50,15 @@
 | 公開証跡（登録 repo のみ） | `run-change`（`policy/verification-repos.json` 登録外は不可） |
 | skill/指示の変更 | `skill-improvement` skill |
 | Figma からの実装（Claude のみ） | `figma-implement` skill |
-| 図・チャート作成 | `rules/visual-design.md` |
+| 図解・全体像・複雑な説明 | `show-me`。多層は `archify`、リッチな比較は `visual-explainer`、配色は生成時に `rules/visual-design.md` |
 | 外部 OSS 貢献 | `rules/oss-contribution.md` |
 | PR 作成・更新 | `rules/pr-body.md`。既存 PR は `pr-body-sync` |
+
+### 図解の発火と成果物
+
+- 「図解」「全体像」等の依頼には `show-me` で**図の実物**を生成。形式は自動選択し、確認待ちにしない。
+- 明示がなくても、複数主体の関係・状態遷移・分岐・before/afterが理解の核心なら図を検討。単純な事実や局所修正は文章でよい。
+- 図を選んだら Mermaid / ソース＋描画結果を提示。使えない plugin は代替へ。図は検証の証拠ではない（正しさは `statechart` 等）。
 
 trivial は解法が明白で局所的な変更。non-trivial は設計判断・複数の依存する変更・実装と検証の往復を要する変更。調査や検証の数だけで判定しない。
 
