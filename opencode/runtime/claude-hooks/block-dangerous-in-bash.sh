@@ -222,6 +222,8 @@ _push_is_standalone() {
   printf '%s' "$1" | perl -e '
 local $/;
 my $s = <STDIN>;
+# 前後の空白・改行はコマンドを区切らない（pi は末尾改行付きで送る）。
+$s =~ s/^\s+|\s+$//g;
 exit 1 if $s =~ /(?:&&|\|\||;|\n)/;
 my @seg = split /\|/, $s, -1;
 shift @seg;

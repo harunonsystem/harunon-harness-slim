@@ -102,7 +102,21 @@
           "subjectSha": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
           "artifact": { "type": "string", "minLength": 1 },
           "rereviewReason": { "type": "string", "minLength": 1 },
-          "skipReason": { "type": "string", "enum": ["quota"] },
+          "skipReason": { "type": "string", "enum": ["quota", "user-approved"] },
+          "userApproval": {
+            "type": "object",
+            "required": ["reason", "taskId", "worktreeRoot", "subjectSha", "inputHash", "provider", "failureKind"],
+            "properties": {
+              "reason": { "type": "string", "minLength": 1 },
+              "taskId": { "type": "string", "minLength": 1 },
+              "worktreeRoot": { "type": "string", "minLength": 1 },
+              "subjectSha": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+              "inputHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "provider": { "type": "string", "minLength": 1 },
+              "failureKind": { "type": "string", "enum": ["connection", "auth", "crash"] }
+            },
+            "additionalProperties": false
+          },
           "reason": { "type": "string", "minLength": 1 }
         },
         "additionalProperties": false

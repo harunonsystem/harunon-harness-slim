@@ -4,5 +4,10 @@ default_permissions = "harunon"
 [permissions.harunon]
 extends = ":workspace"
 
+[hooks]
+PreToolUse = [{ matcher = "^(Bash|EnterWorktree|Write|Edit|write_file|edit_file|apply_patch|mcp__.*github.*)$", hooks = [{ type = "command", command = "/bin/bash \"${CODEX_HOME:-$HOME/.codex}/harunon/codex-hooks/codex_hook.sh\"" }] }, { matcher = "^(Bash|exec_command|Read|read_file|Write|Edit|write_file|edit_file|apply_patch|mcp__.*)$", hooks = [{ type = "command", command = "node \"${CODEX_HOME:-$HOME/.codex}/harunon/codex-hooks/codex_permission.mjs\"" }] }]
+PostToolUse = [{ matcher = "^(Write|Edit|apply_patch|write_file|edit_file)$", hooks = [{ type = "command", command = "node \"${CODEX_HOME:-$HOME/.codex}/harunon/codex-hooks/codex_hook.mjs\"" }] }]
+Stop = [{ hooks = [{ type = "command", command = "python3 \"${CODEX_HOME:-$HOME/.codex}/harunon/claude-hooks/require-evidence-for-completion.py\" --kernel-only" }] }]
+
 [mcp_servers.linear-server]
 url = "https://mcp.linear.app/mcp"

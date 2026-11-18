@@ -74,7 +74,7 @@ non-trivial で `poteto-mode` 選択時は親が受入・進捗・done 条件を
 
 pstack 自動 mandate は使わず本 Routing 優先。`poteto-mode` 後は playbook 順序・完了条件を守り、subagent なければ逐次実行。不在環境（Slim 等）は `grill-me` / `grill-implementation` で仕様を固め `to-spec` → `implement-spec` / `implement-issue` で段階実装。
 
-ブラウザ操作は `agent-browser`（headless。ユーザーの画面にウィンドウを出さない）を使う。ログイン済みタブ・拡張機能など、ユーザーの実ブラウザの状態が必要な確認は `agent-browser` で代替せず、確認できない旨を伝える。
+ブラウザ操作は `agent-browser`（headless）。ログイン済みChromeは本人の許可後に Browser Use v1 ローカルCLIで試す（`frontend-verify`）。Cloud禁止。不可なら未検証と報告。
 
 ## OpenCode runtime
 

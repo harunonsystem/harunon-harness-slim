@@ -37,6 +37,9 @@
     "approval_policy",
     "default_permissions",
     "permissions.harunon.extends",
+    "hooks.PreToolUse",
+    "hooks.PostToolUse",
+    "hooks.Stop",
     "mcp_servers.linear-server"
   ],
   "settingsRemoveKeys": [

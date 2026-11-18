@@ -48,7 +48,8 @@ def _read(artifact: str, repo: Path, core: Path, task_id: str, head: str) -> tup
     authoritative = snapshot(rule_path, repo)
     if rule["sha256"] != authoritative["sha256"]:
         raise ValueError("rule must match this kernel's current bundled pr-body rule")
-    references = [rule] if rule == authoritative else [rule, authoritative]
+    # CLI and runtime hooks may use separate identical bundles; recheck the local hash above.
+    references = [rule]
     wording = checks["slop-word-refactor"]
     mode = wording.get("mode") if isinstance(wording, dict) else None
     if mode == "applied":

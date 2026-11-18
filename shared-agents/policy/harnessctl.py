@@ -446,31 +446,49 @@ def _apply_review_report(
     state["phase"] = workflow["states"]["review"]["review_attached"]
 
 
+def review_exception_matches(evidence: JsonObject, state: JsonObject, repo: Path) -> bool:
+    """An audit-only exception is limited to the explicitly approved failed review."""
+    approval = evidence.get("userApproval")
+    fields = {"reason", "taskId", "worktreeRoot", "subjectSha", "inputHash", "provider", "failureKind"}
+    if not isinstance(approval, dict) or set(approval) != fields:
+        return False
+    if any(not isinstance(value, str) or not value.strip() for value in approval.values()):
+        return False
+    return (
+        approval["taskId"] == state["task"]["id"]
+        and approval["worktreeRoot"] == str(repo.resolve())
+        and approval["subjectSha"] == git_value(repo, "HEAD")
+        and approval["inputHash"] == verification.snapshot(repo)["inputHash"]
+        and approval["provider"] == evidence.get("provider")
+        and approval["provider"] != "self-check"
+        and approval["failureKind"] in ("connection", "auth", "crash")
+    )
+
+
 def _apply_review_skip(
     state: JsonObject,
     request: JsonObject,
     repo: Path,
     workflow: JsonObject,
 ) -> None:
-    """quota 切れで review が返らなかった事実を evidence に記録し、publish へ進める。
-
-    rules/codex-review-policy.md の「quota 切れは SKIP」を Core Workflow 側に写した
-    もの。legacy flag（codex-review-bypass.sh --quota）だけだと active な task では
-    PR gate が kernel に委譲して review phase で止まり続ける。skipReason は quota
-    のみ（接続・認証・companion のクラッシュは止まってユーザーに確認する契約なので
-    kernel に SKIP 経路を持たせない）。
-    """
+    """Record quota exhaustion or a scope-bound explicit exception, never native permission."""
     if state["phase"] != "review":
         raise KernelError("INVALID_REVIEW_PHASE", exit_code=2, phase=state["phase"])
     evidence = request.get("evidence")
     if not isinstance(evidence, dict):
         raise KernelError("INVALID_REVIEW_EVIDENCE")
-    expected = {"kind": "review-skipped", "trust": "audit-only", "skipReason": "quota"}
-    if any(evidence.get(key) != value for key, value in expected.items()):
-        raise KernelError(
-            "INVALID_REVIEW_EVIDENCE",
-            reason="review skip evidence must be kind review-skipped, audit-only, skipReason quota",
-        )
+    expected = {"kind": "review-skipped", "trust": "audit-only"}
+    if (any(evidence.get(key) != value for key, value in expected.items())
+            or evidence.get("skipReason") not in ("quota", "user-approved")):
+        raise KernelError("INVALID_REVIEW_EVIDENCE", reason="unsupported review skip")
+    if evidence["skipReason"] == "user-approved":
+        if not review_exception_matches(evidence, state, repo):
+            raise KernelError("REVIEW_SKIP_APPROVAL_SCOPE_MISMATCH", exit_code=2)
+        if not any(item.get("kind") == "local-review" and item.get("provider") == "self-check"
+                   and item.get("subjectSha") == git_value(repo, "HEAD") for item in state["evidence"]):
+            raise KernelError("PRE_REVIEW_CHECK_REQUIRED", exit_code=2)
+    elif "userApproval" in evidence:
+        raise KernelError("INVALID_REVIEW_EVIDENCE", reason="quota skip must not hide a user exception")
     reason = evidence.get("reason")
     if not isinstance(reason, str) or not reason.strip():
         raise KernelError("REVIEW_SKIP_REASON_REQUIRED", exit_code=2)
@@ -613,6 +631,9 @@ def review_decision(state: JsonObject, repo: Path, ctx: WorkflowContext) -> Json
             self_check |= evidence.get("provider") == "self-check"
             independent |= bool(evidence.get("provider")) and evidence["provider"] != "self-check"
         elif evidence.get("skipReason") == "quota" and evidence.get("provider") != "self-check":
+            independent = True
+        elif (evidence.get("skipReason") == "user-approved" and subject == head
+              and review_exception_matches(evidence, state, repo)):
             independent = True
     if code is None:
         return {"allowed": False, "code": "REVIEW_STALE"}
@@ -1017,7 +1038,9 @@ def compile_operation(
         return "apply", {"type": "publication.attach", "expectedRevision": _operation_revision(operation, operation_arguments),
                          "artifact": _resolve_operation_artifact(_operation_artifact(operation, operation_arguments, "artifact"), repo)}
     if operation == "skip_review":
-        _validate_operation_keys(operation, operation_arguments, ("expectedRevision", "provider", "reason"))
+        _validate_operation_keys(operation, operation_arguments, ("expectedRevision", "provider", "reason"), ("userApproval",))
+        approval = ({"userApproval": _operation_json_object(operation, operation_arguments, "userApproval")}
+                    if "userApproval" in operation_arguments else {})
         return "apply", {
             "type": "review.skip",
             "expectedRevision": _operation_revision(operation, operation_arguments),
@@ -1025,8 +1048,9 @@ def compile_operation(
                 "kind": "review-skipped",
                 "trust": "audit-only",
                 "provider": _operation_string(operation, operation_arguments, "provider"),
-                "skipReason": "quota",
+                "skipReason": "user-approved" if approval else "quota",
                 "reason": _operation_string(operation, operation_arguments, "reason"),
+                **approval,
             },
         }
     _validate_operation_keys(operation, operation_arguments, ("action",), ("publication", "command"))

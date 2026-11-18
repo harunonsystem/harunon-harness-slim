@@ -57,6 +57,7 @@ def parse_args() -> argparse.Namespace:
     skip.add_argument("--revision", type=int, required=True)
     skip.add_argument("--provider", required=True)
     skip.add_argument("--reason", required=True)
+    skip.add_argument("--user-approval", type=Path, help="JSON record of the explicit approval and exact failed-review scope")
     authorize = commands.add_parser("authorize")
     authorize.add_argument("action", choices=("pr.create", "pr.update-body", "pr.merge"))
     authorize.add_argument("--body-file", type=Path)
@@ -210,6 +211,12 @@ def main() -> int:
             "reason": args.reason,
             "expectedRevision": args.revision,
         }
+        if args.user_approval is not None:
+            try:
+                arguments["userApproval"] = json.loads(args.user_approval.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                print(f"approval JSON unavailable: {error}", file=sys.stderr)
+                return 2
     elif operation == "authorize":
         # The CLI publishes from this checkout, so name it: casual gates compare these to the checkout.
         publication = checkout_target(args.repo.resolve())

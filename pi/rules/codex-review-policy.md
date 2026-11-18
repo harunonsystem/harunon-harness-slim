@@ -37,7 +37,7 @@ kernel は default branch との merge-base から、branch diff と staged / un
 - 修正 commit は今回の差分だけを stage する。レビューの依頼自体は commit の承認ではない。既存の決定や scope と衝突する修正だけユーザーに確認する。
 - 修正で動き始めた経路の既存欠陥も今回の変更に起因するため、妥当な P0 / P1 / P2 は同じ PR で直す。範囲外は `review-policy.md` のスコープ判定で区別し、別 issue か PR 本文に残す。ブロッキング指摘の修正が既存の合意・scope と衝突する場合は公開を止め、ユーザーが明示的に延期した場合だけ `advance findings_deferred` を使う（直せない P0 は延期せず公開停止）。再レビューの承認は別途必要。
 - quota / credit 切れで出力が返らない場合は再試行せず、必須のセルフチェックを通したうえで `skip-review` に実際の理由を記録する。PR 本文に外部レビュー未実施を明記し、レビュー済みと書かない。
-- 接続・認証・crash は quota skip ではない。明示依頼を満たせないと報告し、依頼の変更または例外の承認を待つ。
+- 接続・認証・crash は quota skip ではない。明示依頼を満たせないと報告し、依頼の変更または例外の承認を待つ。例外を明示承認された場合のみ、現checkoutのself-check・必須検証後に `run-change` の `skip-review --user-approval <承認JSON>` で障害と承認対象を別記録する。task・worktree・HEAD・入力hash・providerが違えば再利用しない。これは独立レビュー済みの記録でもnative権限の解除でもない。
 
 ### 既存 gate との関係
 

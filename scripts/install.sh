@@ -113,6 +113,8 @@ if [ -z "$DEST" ]; then
     esac
   fi
 fi
+# rsync runs from PAYLOAD; a relative --dest belongs to the caller.
+case "$DEST" in /*) ;; *) DEST="$PWD/$DEST" ;; esac
 ledger="$DEST/$ledger_name"
 # 同一秒内の再実行でも衝突しないよう PID を付ける（前回分の有無で「今回退避したか」を判定する）
 backup_dir="$DEST/$BACKUP_ROOT/$(date +%Y%m%d-%H%M%S)-$$"
@@ -332,4 +334,7 @@ else
     echo "backed up replaced files: $backup_dir"
   fi
   echo "installed: $DEST"
+  if [ "$TARGET" = codex ]; then
+    echo "Codex の /hooks で配布した hook の内容を確認して trust してください。未 trust の hook は実行されません。"
+  fi
 fi

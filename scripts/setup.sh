@@ -210,8 +210,9 @@ backup_and_replace() {
   local target_file="$1"
   local new_content_file="$2"
   local dest_dir="$3"
+  cmp -s "$target_file" "$new_content_file" && return 0
   local backup_timestamp
-  backup_timestamp="$(date +%Y%m%d%H%M%S)"
+  backup_timestamp="$(date +%Y%m%d%H%M%S)-$$"
   local base_name
   base_name="$(basename "$target_file")"
   local backup_file="$dest_dir/.harunon-slim.backups/$backup_timestamp/${base_name}.preset-before"
@@ -222,18 +223,19 @@ backup_and_replace() {
   echo "  ✓ 推奨設定をマージしました: $target_file (バックアップ: $backup_file)"
 }
 
-if [ "$PRESET" != "guardrails-only" ] && [ "$TARGET" != "shared-agents" ]; then
+if [ "$DRY_RUN" -eq 0 ] && [ "$PRESET" != "guardrails-only" ] && [ "$TARGET" != "shared-agents" ]; then
   target_manifest="$REPO_ROOT/$TARGET/$MANIFEST_NAME"
   if [ -f "$target_manifest" ]; then
     actual_dest="$(resolve_target_dest "$target_manifest")"
+    tmp_preset="$(mktemp "$actual_dest/.harunon-preset.XXXXXX")"
+    trap 'rm -f "$tmp_preset"' EXIT
 
     if [ "$TARGET" = "claude" ]; then
       target_settings="$actual_dest/settings.json"
       preset_file="$REPO_ROOT/presets/claude-recommended.json"
-      if [ -f "$target_settings" ] && [ "$DRY_RUN" -eq 0 ]; then
+      if [ -f "$target_settings" ]; then
         echo ""
         echo "▼ Claude Code 推奨設定の適用中..."
-        tmp_settings="$(mktemp "${TMPDIR:-/tmp}/harness-setup-settings.XXXXXX")"
         if [ "$PRESET" = "recommended" ] && [ -f "$preset_file" ]; then
           jq -s '
             .[0] as $orig | .[1] as $patch |
@@ -243,7 +245,7 @@ if [ "$PRESET" != "guardrails-only" ] && [ "$TARGET" != "shared-agents" ]; then
             else
               .
             end
-          ' "$target_settings" "$preset_file" > "$tmp_settings"
+          ' "$target_settings" "$preset_file" > "$tmp_preset"
         else
           # custom 選択項目だけを適用
           patch_obj="{}"
@@ -265,97 +267,67 @@ if [ "$PRESET" != "guardrails-only" ] && [ "$TARGET" != "shared-agents" ]; then
             else
               .
             end
-          ' "$target_settings" <(echo "$patch_obj") > "$tmp_settings"
+          ' "$target_settings" <(echo "$patch_obj") > "$tmp_preset"
         fi
-        backup_and_replace "$target_settings" "$tmp_settings" "$actual_dest"
+        backup_and_replace "$target_settings" "$tmp_preset" "$actual_dest"
       fi
 
-    elif [ "$TARGET" = "codex" ]; then
+    elif [ "$TARGET" = "codex" ] && { [ "$PRESET" = "recommended" ] || [ "$ENABLE_THINKING" -eq 1 ]; }; then
       target_config="$actual_dest/config.toml"
       preset_file="$REPO_ROOT/presets/codex-recommended.toml"
-      if [ -f "$target_config" ] && [ -f "$preset_file" ] && [ "$DRY_RUN" -eq 0 ]; then
+      if [ -f "$target_config" ] && [ -f "$preset_file" ]; then
         echo ""
         echo "▼ Codex 推奨設定の適用中..."
-        tmp_config="$(mktemp "${TMPDIR:-/tmp}/harness-setup-config.XXXXXX")"
-        cp "$target_config" "$tmp_config"
-        while IFS= read -r line || [ -n "$line" ]; do
-          [ -z "$line" ] && continue
-          key="$(echo "$line" | cut -d'=' -f1 | tr -d ' ')"
-          if [ "$PRESET" = "custom" ]; then
-            case "$key" in
-              model_reasoning_effort|plan_mode_reasoning_effort) [ "$ENABLE_THINKING" -eq 1 ] || continue ;;
-              *) continue ;;
-            esac
-          fi
-          if ! grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$tmp_config"; then
-            echo "$line" >> "$tmp_config"
-          fi
-        done < "$preset_file"
-        backup_and_replace "$target_config" "$tmp_config" "$actual_dest"
+        keys=()
+        if [ "$PRESET" = "custom" ]; then
+          keys=(model_reasoning_effort plan_mode_reasoning_effort)
+        fi
+        python3 "$REPO_ROOT/scripts/merge-preset.py" "$target_config" "$preset_file" ${keys[@]+"${keys[@]}"} > "$tmp_preset"
+        backup_and_replace "$target_config" "$tmp_preset" "$actual_dest"
       fi
 
     elif [ "$TARGET" = "opencode" ] && [ "$PRESET" = "recommended" ]; then
       target_json="$actual_dest/opencode.json"
       preset_file="$REPO_ROOT/presets/opencode-recommended.json"
-      if [ -f "$target_json" ] && [ -f "$preset_file" ] && [ "$DRY_RUN" -eq 0 ]; then
+      if [ -f "$target_json" ] && [ -f "$preset_file" ]; then
         echo ""
         echo "▼ OpenCode 推奨設定の適用中..."
-        tmp_json="$(mktemp "${TMPDIR:-/tmp}/harness-setup-json.XXXXXX")"
-        jq -s '.[0] * .[1]' "$target_json" "$preset_file" > "$tmp_json"
-        backup_and_replace "$target_json" "$tmp_json" "$actual_dest"
+        jq -s '.[0] * .[1]' "$target_json" "$preset_file" > "$tmp_preset"
+        backup_and_replace "$target_json" "$tmp_preset" "$actual_dest"
       fi
 
     elif [ "$TARGET" = "pi" ] && { [ "$PRESET" = "recommended" ] || [ "$ENABLE_THINKING" -eq 1 ]; }; then
       target_json="$actual_dest/settings.json"
       preset_file="$REPO_ROOT/presets/pi-recommended.json"
-      if [ -f "$target_json" ] && [ -f "$preset_file" ] && [ "$DRY_RUN" -eq 0 ]; then
+      if [ -f "$target_json" ] && [ -f "$preset_file" ]; then
         echo ""
         echo "▼ pi agent 推奨設定の適用中..."
-        tmp_json="$(mktemp "${TMPDIR:-/tmp}/harness-setup-json.XXXXXX")"
         if [ "$PRESET" = "custom" ]; then
           # custom reaches here only with thinking selected; a preset without the key adds nothing
-          jq -s '.[0] * (.[1] | {defaultThinkingLevel} | with_entries(select(.value != null)))' "$target_json" "$preset_file" > "$tmp_json"
+          jq -s '.[0] * (.[1] | {defaultThinkingLevel} | with_entries(select(.value != null)))' "$target_json" "$preset_file" > "$tmp_preset"
         else
-          jq -s '.[0] * .[1]' "$target_json" "$preset_file" > "$tmp_json"
+          jq -s '.[0] * .[1]' "$target_json" "$preset_file" > "$tmp_preset"
         fi
-        backup_and_replace "$target_json" "$tmp_json" "$actual_dest"
+        backup_and_replace "$target_json" "$tmp_preset" "$actual_dest"
       fi
 
     elif [ "$TARGET" = "omp" ] && [ "$PRESET" = "recommended" ]; then
       target_yml="$actual_dest/config.yml"
       preset_file="$REPO_ROOT/presets/omp-recommended.yml"
-      if [ -f "$target_yml" ] && [ -f "$preset_file" ] && [ "$DRY_RUN" -eq 0 ]; then
+      if [ -f "$target_yml" ] && [ -f "$preset_file" ]; then
         echo ""
         echo "▼ oh-my-pi 推奨設定の適用中..."
-        tmp_yml="$(mktemp "${TMPDIR:-/tmp}/harness-setup-yml.XXXXXX")"
-        python3 -c "
-import yaml
-with open('$target_yml') as f:
-    orig = yaml.safe_load(f) or {}
-with open('$preset_file') as f:
-    patch = yaml.safe_load(f) or {}
-for k, v in patch.items():
-    if isinstance(v, dict) and isinstance(orig.get(k), dict):
-        orig[k].update(v)
-    else:
-        orig[k] = v
-with open('$tmp_yml', 'w') as f:
-    yaml.dump(orig, f, default_flow_style=False, allow_unicode=True)
-" 2>/dev/null || cat "$target_yml" "$preset_file" > "$tmp_yml"
-        backup_and_replace "$target_yml" "$tmp_yml" "$actual_dest"
+        python3 "$REPO_ROOT/scripts/merge-preset.py" "$target_yml" "$preset_file" > "$tmp_preset"
+        backup_and_replace "$target_yml" "$tmp_preset" "$actual_dest"
       fi
     fi
   fi
 fi
 
-# Codex / OpenCode / pi / omp を導入した場合、shared-agents の配布も自動案内・実行
-if [[ "$TARGET" =~ ^(codex|opencode|pi|omp)$ ]] && [ -d "$REPO_ROOT/shared-agents" ]; then
-  shared_dest="$(resolve_target_dest "$REPO_ROOT/shared-agents/$MANIFEST_NAME")"
-  if [ ! -d "$shared_dest/skills" ] && [ "$DRY_RUN" -eq 0 ]; then
-    echo ""
-    echo "▼ 共通スキル (shared-agents: ~/.agents) を配布中..."
-    "$REPO_ROOT/scripts/install.sh" shared-agents
-  fi
+if [ -z "$DEST" ] && [[ "$TARGET" =~ ^(codex|opencode|pi|omp)$ ]] && [ -d "$REPO_ROOT/shared-agents" ]; then
+  shared_args=(shared-agents)
+  [ "$DRY_RUN" -eq 0 ] || shared_args+=(--dry-run)
+  "$REPO_ROOT/scripts/install.sh" "${shared_args[@]}"
 fi
 
 # --- 6. 完了報告と鉄則案内 -----------------------------------------------------

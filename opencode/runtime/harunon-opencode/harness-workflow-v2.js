@@ -19,6 +19,13 @@ export function workflowToolV2(base, run = invokeKernel) {
         ...Object.fromEntries(STRING_FIELDS.map((name) => [name, { type: "string" }])),
         expectedRevision: { type: "integer" },
         action: { type: "string", enum: ["pr.create", "pr.update-body", "pr.merge"] },
+        userApproval: {
+          type: "object",
+          properties: Object.fromEntries(["reason", "taskId", "worktreeRoot", "subjectSha", "inputHash", "provider", "failureKind"]
+            .map((name) => [name, { type: "string" }])),
+          required: ["reason", "taskId", "worktreeRoot", "subjectSha", "inputHash", "provider", "failureKind"],
+          additionalProperties: false,
+        },
         publication: { type: "object", properties: {
           body: { type: "string" }, number: { type: "integer" }, repository: { type: "string" },
           headBranch: { type: "string" }, headRepository: { type: "string" }, bodyError: { type: "string" },

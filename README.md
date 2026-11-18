@@ -70,12 +70,26 @@ scripts/install.sh claude --check         # 配布後のドリフト確認（差
 ```
 
 `claude`の部分を使うtarget名に替えて実行してください。Codex / OpenCode / omp / piを使う場合は、`shared-agents`もインストールします。
-配布先は`--dest DIR`で指定できます。
+`--dest DIR` はコマンドを実行した場所からの相対パスでも指定できます。`setup.sh` に `--dest` を渡すとそのディレクトリだけに配ります。共通 skill も試す場合は `scripts/install.sh shared-agents --dest 別のディレクトリ` で配ってください。
 
 `install.sh`は`managedPaths`にあるファイルだけをrsyncで配布し、未管理のファイルは変更しません。
 配布済みのファイルは`.harunon-slim.installed.json`に記録します。次回の配布では、前回配ったファイルのうち、今回の配布物にないものだけを削除します。
 上書き・削除する既存ファイルは`.harunon-slim.backups/<timestamp>/`に退避します。手元の修正はそこから復元できます。
 Codexの配布先は、`CODEX_HOME`が設定されていればそのディレクトリになります。
+
+## 実ログからワークフローを改善する
+
+`config-tune` を使って、実際の作業ログから手戻りや人間の介入を調べ、改善案を最大3件に絞れます。普段の依頼文で呼び出せます。
+
+> このプロジェクトの直近14日の作業ログから、手戻りや毎回の追加指示を減らす方法を提案して。まず診断だけ。外部の実践とも比較して、根拠と試し方を示して。
+
+Claude だけなら外部の `cclens`、複数 runtime なら `cclens-multi` を利用します。どちらも slim には同梱しません。
+未導入なら公式の導入方法を確認して案内します。インストールできない場合は、選んだ匿名化ログでも進められます。
+外部比較の例は Matt Pocock や pstack の実践です。取得できた一次資料だけを根拠にします。
+
+案を選んだら「その案を1件だけ試して、効果が分かる形で残して」と依頼できます。
+設定の管理元を確認して変更し、品質・人間の負担・手戻りを比較して採用、撤回、保留を判断します。既存の分析器とこの Skill だけを使い、試行記録は Markdown で残せます。新しい製品 CLI は不要です。
+診断だけの依頼では設定を変更しません。ログの外部送信やツールのインストールも別途許可が必要です。
 
 ## アンインストール
 
@@ -94,8 +108,10 @@ scripts/uninstall.sh claude               # 配布済みファイルを削除
 
 ```bash
 scripts/doctor.sh                         # 全ターゲットの診断
-scripts/doctor.sh claude                  # 特定ターゲットのみ診断
+scripts/doctor.sh claude --dest DIR       # 指定したインストール先だけを診断
 ```
+
+配布済みのファイルに差分がある、または照合できない場合は exit 1 です。未インストールのターゲットは表示のみです。
 
 ## 安全ガードを試す（try）
 
@@ -115,11 +131,13 @@ JSON（`claude/settings.json`・`opencode/opencode.json`・`pi/settings.json`）
 
 TOML / YAML（`codex/config.toml`・`omp/config.yml`）は、配布先にないときだけコピーします。既にある場合は変更せず、`S config.toml (not merged: toml; ...)`と表示します。該当targetの`install-manifest.json`にある`settingsKeys`のキーを手で取り込んでください。
 
+Codex の設定が既にある場合は、配布物の `[hooks]` から `PreToolUse`・`PostToolUse`・`Stop` を取り込んでください。新規・既存どちらの環境でも、Codex の `/hooks` で内容を確認して trust するまで hook は実行されません。公開版は `hooks.state` を書き換えません。
+
 公開設定は安全hookと共通機能に必要なキーだけです。モデル、UI、個人用plugin / npm packageは指定しません。既存の値は保持し、新規環境ではruntimeの既定値を使います。
 
 ## 前提ツール
 
-`install.sh`には`jq`と`rsync`、`validate.sh`にはさらに`node`と`python3`が必要です。hookもhook-runnerに`node`、policyの処理に`python3`を使います。`skill-creator`の検証スクリプトなど、一部のskillにはPyYAMLが必要です。
+`install.sh`には`jq`と`rsync`、`validate.sh`にはさらに`node`と`python3`が必要です。hookもhook-runnerに`node`、policyの処理に`python3`を使います。`setup.sh` で Codex の推奨設定を加える場合は Python 3.11 以降、omp の推奨設定を加える場合は PyYAML が必要です。これらは `--preset guardrails-only` では使いません。
 
 コマンド出力を圧縮するCLIのrtkは任意です。未導入の場合、`rtk-rewrite.sh`はコマンドを変更せずに通します。
 

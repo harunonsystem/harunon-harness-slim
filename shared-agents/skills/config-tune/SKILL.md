@@ -1,9 +1,17 @@
 ---
 name: config-tune
-description: "cclens-multi による runtime 横断の実測と Claude の cclens /insights で設定や skill 導線を改善する。harness 環境は packages/core（SSOT）、非 harness は ~/.claude へ反映。「config-tune」「設定の健康診断」で起動。"
+description: "実ログからエージェントの手戻り・人間の介入を診断し、外部の実践と照合してワークフロー改善を1件ずつ試す。Claude のみなら cclens、複数 runtime は cclens-multi。slim / 単体配布でも利用可。「config-tune」「実ログ監査」「エージェントの生産性改善」「設定の健康診断」で起動。"
 ---
 
 # config-tune
+
+## 実行モード
+
+- 既定は **ワークフロー監査**。「実ログから改善」「生産性」「agent-native」「Skill を使いこなせない」もこちら。[references/workflow-audit.md](references/workflow-audit.md) を読み、その手順だけを実行する。以下の設定健康診断へ自動で進まない。
+- 明示的な「設定の健康診断」「古い設定・メモリの整理」は、以下の従来手順を使う。
+- 診断だけの依頼では編集しない。配布済みの Skill は操作対象の設定 SSOT とは限らない。harness checkout がなくても監査できる。
+
+## 設定の健康診断
 
 cclens（定量分析）と Claude ネイティブ `/insights`（定性の修正シグナル）の結果を、設定改善のサイクルに変換する。分析自体は各ツールの仕事。この skill は「収集 → 分類 → 反映先へのルーティング → 適用 → 記録 → 検証」を担う。
 

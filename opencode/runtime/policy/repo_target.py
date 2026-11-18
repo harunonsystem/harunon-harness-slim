@@ -243,9 +243,10 @@ def _tokenize(command: str) -> list[str]:
     """
     # 改行はコマンドの区切り。shlex は改行を空白としか見ないため、先に `;` へ
     # 寄せる（quote 内の改行も置換されるが、値の中身は判定に使わない）。
+    # 前後の空白・改行は何も区切らないので先に落とす。
     try:
         lexer = shlex.shlex(
-            command.replace("\n", " ; "), posix=True, punctuation_chars=";&|()"
+            command.strip().replace("\n", " ; "), posix=True, punctuation_chars=";&|()"
         )
         lexer.whitespace_split = True
         return list(lexer)

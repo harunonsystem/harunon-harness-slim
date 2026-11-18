@@ -132,6 +132,7 @@ cli_map() {
   esac
 }
 
+drift_found=0
 for t in "${targets[@]}"; do
   manifest=""
   if [ "$t" = "root" ]; then
@@ -143,6 +144,9 @@ for t in "${targets[@]}"; do
   fi
 
   dest="$(resolve_dest "$manifest")"
+  install_args=(--dest "$dest")
+  [ "$t" = root ] || install_args=("$t" "${install_args[@]}")
+  printf -v install_hint ' %q' "${install_args[@]}"
   ledger_name="$(jq -r '.ledger' "$manifest")"
   ledger="$dest/$ledger_name"
   legacy_ledger="$dest/$LEGACY_LEDGER_NAME"
@@ -171,7 +175,7 @@ for t in "${targets[@]}"; do
 
   if [ -z "$active_ledger" ]; then
     printf '  ⚠ 状態       : 未配布 (ディレクトリは存在しますが ledger がありません)\n'
-    printf '                 → インストールするには: scripts/install.sh %s\n' "${t#root}"
+    printf '                 → インストールするには: scripts/install.sh%s\n' "$install_hint"
     continue
   fi
 
@@ -179,23 +183,13 @@ for t in "${targets[@]}"; do
   printf '  ✓ インストール: 配布済み (管理ファイル: %s 件)\n' "$file_count"
 
   # ドリフト検査
-  drift_output=""
-  set +e
-  if [ "$t" = "root" ]; then
-    drift_output="$("$REPO_ROOT/scripts/install.sh" --check 2>&1)"
-    drift_rc=$?
+  if drift_output="$("$REPO_ROOT/scripts/install.sh" "${install_args[@]}" --check 2>&1)"; then
+    printf '  ✓ ドリフト   : なし (install.sh --check の照合範囲)\n'
   else
-    drift_output="$("$REPO_ROOT/scripts/install.sh" "$t" --check 2>&1)"
-    drift_rc=$?
-  fi
-  set -e
-
-  if [ "$drift_rc" -eq 0 ]; then
-    printf '  ✓ ドリフト   : なし (配布物と完全一致)\n'
-  else
+    drift_found=1
     printf '  ⚠ ドリフト   : 検出（ローカルまたは payload 側に差分あり）\n'
     echo "$drift_output" | sed 's/^/      /'
-    printf '                 → 再配布して同期するには: scripts/install.sh %s\n' "${t#root}"
+    printf '                 → 再配布して同期するには: scripts/install.sh%s\n' "$install_hint"
   fi
 done
 
@@ -203,6 +197,9 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 if [ "$prereq_missing" -eq 1 ]; then
   echo "診断結果: 必須ツールが不足しています。上記を確認してインストールしてください。"
+  exit 1
+elif [ "$drift_found" -ne 0 ]; then
+  echo "診断結果: 配布物と一致しないか、照合できないターゲットがあります。"
   exit 1
 else
   echo "診断完了: 前提ツールはすべて利用可能です。"

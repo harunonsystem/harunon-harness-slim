@@ -73,7 +73,7 @@ gh issue view <issue-number> --repo <owner/repo>
 
 ### Phase 2: worktree の再利用または作成
 
-作成前に `git worktree list` を確認する。同じ task ID の branch と対象 repo が一致し、worktree の intake 情報を確認できたら再利用する。issue 情報が会話内ですでに解決済みなら再取得しない。別 task の state は保持し、その worktree を変更・再利用しない。該当する既存 worktree が無い場合だけ以下の準備を行う。
+作成前に `git worktree list` を確認する。同じ task ID の branch と対象 repo が一致し、worktree の intake 情報を確認できたら再利用する。issue 情報が会話内ですでに解決済みなら再取得しない。別 task の state は保持し、その worktree を変更・再利用しない。該当する既存 worktree が無い場合だけ以下の準備を行う。再利用時も 5 の照合と実行コンテキストの指定は省略しない。
 
 1. `repos` が設定されている場合、issue ID の prefix から対象リポジトリを解決し `$main_repo` を確定する（解決ロジックは「設定」節を参照）。task が複数 repo に触れる場合は、触る repo を Issue 本文・会話・repo の契約から特定し、それぞれのパスを確定する。設定や `git` の情報から解決できない repo だけユーザーに確認する。以降の 2〜6 は repo ごとに行い、既存 worktree・state の確認も repo ごとに行う。
 
@@ -100,16 +100,11 @@ git -C "$main_repo" worktree add -b <branch-name> <worktree-path> <base>
 ```
    stacked PR は選んだ base を CLI に渡す（`EnterWorktree(name:)` では base を指定できない）。管理コマンドを使う場合も base を明示する。
 
-5. worktree ディレクトリに移動（Bash の `cd` ではセッションの作業ディレクトリが変わらない）：
-```bash
-# Claude Code:
-#   base が origin/main → 4 の EnterWorktree(name: <branch-name>) が作成と移動を兼ねるので追加操作なし
-#   stacked PR         → EnterWorktree(path: <4 で控えた worktree パス>)
-# その他: 4 で作成したパスを runtime の worktree 移動機能へ渡す
-```
-   移動後に `git log --oneline -1` の SHA が 2.5 で提示した base の SHA と一致することを確認する。一致しなければ base の取り違えなので、実装に入らずやり直す。
+5. 選定した worktree の実パス・git root・branch を照合し、操作先を固定する。新規作成時は HEAD が 2.5 で保持した base SHA と一致することを確認する。再利用時は保持した base SHA が HEAD の祖先であることを確認し、後続 commit や既存の未 commit 変更を保持する。不一致なら編集せず、対象の取り違えを解消する。
+   - 親が直接作業する場合、セッション cwd の移動は必須ではない。Read/Edit/Write は選定 worktree の絶対パス、Git は `git -C <worktree>`、実行ツールは対応する `workdir` / `cwd` またはコマンド固有の project 指定を使う。
+   - 相対パスを使うコマンドは、選定 worktree で実行されると確認できる手段を使う。Bash の `cd` や `git -C` が後続ツールや子の cwd も変えるとはみなさない。Claude Code の `EnterWorktree` で既に移動済みの場合も照合する。
 
-6. ユーザーに作成した worktree とこれから実装する内容のサマリーを報告する。
+6. 選定した worktree と実装内容を短く報告し、承認済みの実装・検証へ続ける。セッション移動だけのためにユーザーへ新しいセッションを要求しない。
 
 ### Phase 3: 実装への引き継ぎ
 
@@ -120,9 +115,9 @@ worktree が解決済みなら、その task・worktree・受入条件・base・
 選定済み worktree を渡す委譲は、調査・レビューだけの場合も次の順で行う。
 
 1. handoff packet に選定済み worktree の絶対パス、branch、base を入れる。パスを prompt に書くだけでは runtime の cwd は変わらない。
-2. 子の起動前に、runtime の cwd と git root・branch がその worktree と一致することを確認する。Claude の `Agent` は親の cwd を引き継ぐので、不一致なら親で `EnterWorktree(path: <選定済みの絶対パス>)` を完了してから確認する。Bash の `cd` や `git -C` はセッション移動の代わりにならない。
+2. 子を選定 worktree の cwd で起動できるか、実際の起動ツールの契約を確認する。cwd 指定に対応する場合はその引数を使う。Claude の `Agent` は親の cwd を引き継ぐので、不一致なら親で `EnterWorktree(path: <選定済みの絶対パス>)` を完了してから確認する。Bash の `cd` や `git -C` は子の cwd を変更しない。
 3. 子への最初の指示は、プロジェクトの Read/Edit/Write より前に自分の `pwd`、`git rev-parse --show-toplevel`、`git branch --show-current` を確認し、実パスと branch を packet と照合して報告すること。不一致ならファイルを読まず親に差し戻す。
-4. cwd の移動が未完了、または runtime に移動手段が無い場合は、その作業を保留として報告する。選定した既存 worktree を新しい `isolation: worktree` で置き換えたり、別 worktree の一括許可で解決したりしない。
+4. 選定 worktree で子を起動できなければ委譲せず、親が Phase 2 の明示的な操作先指定で実装・検証を続ける。親にも対象を安全に操作する手段が無い場合だけ、不足する能力を示して止まる。選定した既存 worktree を新しい `isolation: worktree` で置き換えたり、sandbox・公開承認を迂回したり、別 worktree の一括許可で解決したりしない。
 
 実装側に渡す情報：目的、受け入れ条件、task URL / ID、対象 repo、worktree、base と branch、repo の検証コマンド、既存の公開承認。stacked PR では親 PR 番号と保持した親 head SHA も渡し、親の変更を子へ取り込んだら境界 SHA を更新する。設定済みなら `pr_template` と `lint_fix_cmd` も渡す。
 

@@ -194,8 +194,12 @@ async function confirmOrBlock(
 	reason: string,
 	detail: string,
 ): Promise<ToolCallResponse> {
-	const approved = ctx.hasUI && (await ctx.ui.confirm(title, `${reason}\n${detail}`));
-	return approved ? undefined : { block: true, reason: `ユーザー未承認: ${reason}` };
+	if (!ctx.hasUI) {
+		return { block: true, reason: `[APPROVAL_UI_UNAVAILABLE] 確認UIを利用できないため実行を停止: ${reason}。チャットの返答では解除されません` };
+	}
+	const approved = await ctx.ui.confirm(title, `${reason}\n${detail}`);
+	// false also covers cancellation, timeout, and queue shutdown, not just a user decline.
+	return approved ? undefined : { block: true, reason: `[APPROVAL_NOT_GRANTED] 確認が成立しなかったため実行を停止: ${reason}` };
 }
 
 export function createConfirmDestructiveHandler(

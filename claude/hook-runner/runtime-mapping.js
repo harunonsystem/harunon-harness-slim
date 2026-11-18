@@ -169,9 +169,10 @@ export function hookInputsPerFile(normalized, toolName, input) {
 }
 
 /**
- * Map a hookRunner decision onto a pi / omp tool_call response. Both hosts expose
- * ctx.hasUI and ctx.ui.confirm/notify, so ask goes to the confirm dialog and falls back
- * to block only without UI (print / RPC mode).
+ * Ask succeeds only on explicit true; missing UI, failed confirmation, and UI errors block.
+ * Pi's queue also maps renderer errors to false, so false is not proof of user rejection.
+ * A thrown/rejected UI promise can be identified here; a queue-hidden cause stays NOT_GRANTED.
+ * Formal deny retains the hook reason and never opens a confirmation dialog.
  *
  * @returns {Promise<{block: true, reason: string}|undefined>}
  */
@@ -180,8 +181,17 @@ export async function settleDecision(result, ctx) {
     for (const warning of result.warnings ?? []) ctx.ui.notify(warning, "warning");
   }
   if (result.decision === "allow") return undefined;
-  if (result.decision === "ask" && ctx?.hasUI && (await ctx.ui.confirm("Hook 確認", result.reason))) {
-    return undefined;
+  if (result.decision === "ask") {
+    const reason = result.reason || "harness guard hook が確認を要求しました";
+    if (!ctx?.hasUI) {
+      return { block: true, reason: `[APPROVAL_UI_UNAVAILABLE] 確認UIを利用できないため実行を停止: ${reason}。チャットの返答では解除されません` };
+    }
+    try {
+      if ((await ctx.ui.confirm("Hook 確認", reason)) === true) return undefined;
+    } catch {
+      return { block: true, reason: `[APPROVAL_UI_FAILED] 確認UIでエラーが発生したため実行を停止: ${reason}` };
+    }
+    return { block: true, reason: `[APPROVAL_NOT_GRANTED] 確認が成立しなかったため実行を停止: ${reason}` };
   }
   return { block: true, reason: result.reason || "harness guard hook が理由なしで deny しました" };
 }
