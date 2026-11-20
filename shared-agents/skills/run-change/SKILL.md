@@ -119,7 +119,7 @@ Omit the selector after `--pr` to find the current branch's PR, including closed
 
 The implementer owns fixes, ordinary commit/push, published-HEAD CI, and latest valid review fixes within the authorized scope. Self-check or coordinator review does not transfer that work or require renewed consent; native/platform confirmation remains independent. Handoff/progress states the current command or bounded wait target, last success, and remaining work. Immediately report a merged/closed PR or changed HEAD to the coordinator/user and reconcile before continuing.
 
-After publication, resolve the CI run for the exact published SHA and use `gh run watch <run-id> --repo github.com/<owner/repo> --interval 30 --exit-status` with a bounded tool timeout. Read final CI/review results once and handle valid current findings; do not replace this with repeated LLM status polls or a new long-lived observer.
+After publication, [wait for PR checks](references/pr-checks.md) on the exact published SHA. Read only the final CI summary and current review findings; do not repeatedly poll from the model.
 
 Handle what that read finds in this order, and batch every fix into one push so CI restarts once:
 
@@ -130,7 +130,7 @@ Handle what that read finds in this order, and batch every fix into one push so 
    - Infrastructure or flake (network, runner, dependency fetch): at most one fresh run. An identical second failure is not flake: read the logs, reclassify, and report instead of rerunning again.
    - Failure in the diff's own code: fix it in the same push.
 
-After each push, watch the new run the same way and handle its result in the same order. Stop when the PR can merge (checks pass, no conflict, no unhandled valid comment), when a step above says to report, or when the same failure survives a fix push; report the state then instead of trying again.
+After each push, watch checks for the new SHA the same way and handle its result in the same order. Stop when the PR can merge (checks pass, no conflict, no unhandled valid comment), when a step above says to report, or when the same failure survives a fix push; report the state then instead of trying again.
 
 Fixes after publication (CI, review comments from bots or people) continue the same task in its `publish` or `complete` phase. Do not run `start` again; on a `complete` task it replaces the state and its review evidence. After the last fix commit of each push:
 

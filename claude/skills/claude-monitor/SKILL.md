@@ -30,7 +30,7 @@ pnpm 環境（`pnpm-lock.yaml` が存在する場合）では、バッファリ�
 
 ### 1. CI / PR 完了監視（ワンショット）
 
-PR 作成後や push 後の CI 完了を非同期で監視する。
+PR 全体のチェックを待つ場合は `run-change` の「Wait for PR checks without streaming logs」に従う。以下は GitHub Actions の run を1件だけ待つ場合。
 
 - `timeout_ms`: `1800000`（30分）
 - `persistent`: `false`
