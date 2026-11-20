@@ -96,6 +96,12 @@ def _body_from_command(command: str, wrapped: bool = False) -> tuple[str | None,
         lexer.whitespace = " \t\r"
         lexer.whitespace_split = True
         tokens = list(lexer)
+        # 前後の改行は何も区切らない（pr-action.js の tokenize と同じ扱い）。入力を strip すると
+        # 末尾の `\` + 空白（本文の一部）が壊れるので、解析後の改行トークンだけを落とす。
+        while tokens and set(tokens[0]) == {"\n"}:
+            tokens.pop(0)
+        while tokens and set(tokens[-1]) == {"\n"}:
+            tokens.pop()
     except ValueError as exc:
         # PR 本文の更新でなければ検査対象外。前段の絞り込みは `gh` の有無しか見ていない。
         if not re.search(r"\bgh\s+pr\s+(?:create|edit)\b", command):

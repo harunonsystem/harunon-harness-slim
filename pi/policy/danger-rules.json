@@ -1,7 +1,7 @@
 {
   "version": 1,
   "constants": {
-    "originEre": "(^|\\||&&|;|\\$\\()[[:space:]]*",
+    "originEre": "(^|\\||&|;|\\()[[:space:]]*",
     "chainOnlyOriginEre": "(\\||&&|;|\\$\\()[[:space:]]*",
     "wordEndEre": "([^A-Za-z0-9_/-]|$)",
     "originJs": "(^|\\||&&|;|\\$\\()\\s*"

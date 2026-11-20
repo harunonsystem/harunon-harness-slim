@@ -16,6 +16,7 @@ function truncate(value) {
 
 export default function terminalStatusTitle(pi) {
 	let status = "idle";
+	let waiting = false;
 	let frame = 0;
 	let timer;
 	let lastCtx;
@@ -26,13 +27,23 @@ export default function terminalStatusTitle(pi) {
 		frame = 0;
 	};
 
+	const startSpinner = (ctx = lastCtx) => {
+		if (timer || status !== "working" || waiting || !ctx?.hasUI) return;
+		timer = setInterval(() => {
+			frame = (frame + 1) % SPINNER.length;
+			writeTitle();
+		}, SPINNER_MS);
+		timer.unref?.();
+	};
+
 	const writeTitle = (ctx = lastCtx) => {
 		if (!ctx?.hasUI) return;
 		lastCtx = ctx;
 		const sessionName = pi.getSessionName()?.trim();
 		const name = truncate(sessionName || basename(ctx.cwd));
 		let indicator = "○";
-		if (status === "working") indicator = SPINNER[frame % SPINNER.length];
+		if (waiting) indicator = "?";
+		else if (status === "working") indicator = SPINNER[frame % SPINNER.length];
 		else if (status === "done") indicator = "✓";
 		else if (status === "aborted") indicator = "×";
 		ctx.ui.setTitle(`${indicator} | ${PREFIX} | ${name}`);
@@ -42,20 +53,13 @@ export default function terminalStatusTitle(pi) {
 		status = next;
 		lastCtx = ctx;
 		stopSpinner();
-
-		if (status === "working" && ctx?.hasUI) {
-			timer = setInterval(() => {
-				frame = (frame + 1) % SPINNER.length;
-				writeTitle();
-			}, SPINNER_MS);
-			timer.unref?.();
-		}
-
+		startSpinner(ctx);
 		writeTitle(ctx);
 	};
 
 	// startup / reload / new / resume / fork はすべて session_start（event.reason で区別）で届く。
 	pi.on("session_start", (_event, ctx) => {
+		waiting = false;
 		setStatus("idle", ctx);
 	});
 
@@ -69,11 +73,25 @@ export default function terminalStatusTitle(pi) {
 		setStatus("working", ctx);
 	});
 
+	pi.on("ui_prompt_start", async (_event, ctx) => {
+		waiting = true;
+		stopSpinner();
+		writeTitle(ctx);
+	});
+
+	pi.on("ui_prompt_end", async (_event, ctx) => {
+		if (!waiting) return;
+		waiting = false;
+		startSpinner(ctx);
+		writeTitle(ctx);
+	});
+
 	pi.on("agent_settled", async (event, ctx) => {
 		setStatus(event.aborted === true ? "aborted" : "done", ctx);
 	});
 
 	pi.on("session_shutdown", async () => {
+		waiting = false;
 		stopSpinner();
 	});
 }

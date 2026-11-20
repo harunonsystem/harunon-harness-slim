@@ -258,3 +258,5 @@ bash:
     approval: prompt
   - match: '*Drop Database*'
     approval: prompt
+commit:
+  enabled: false

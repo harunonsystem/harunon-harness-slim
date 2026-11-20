@@ -32,7 +32,8 @@
   "settingsFile": "config.yml",
   "settingsFormat": "yaml",
   "settingsKeys": [
-    "bash.patterns"
+    "bash.patterns",
+    "commit.enabled"
   ],
   "settingsRemoveKeys": [
     "permissions"

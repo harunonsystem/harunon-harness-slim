@@ -32,7 +32,10 @@ export function createCompletionGate(run) {
       return {
         // Infrastructure errors still stay visible, but never restart the model indefinitely.
         continue: continueOnce,
-        entries: [{ type: "custom_message", customType: "harness-completion-gate", content: reason, display: true }],
+        entries: [
+          ...(event.entries ?? []),
+          { type: "custom_message", customType: "harness-completion-gate", content: reason, display: true },
+        ],
       };
     },
   };

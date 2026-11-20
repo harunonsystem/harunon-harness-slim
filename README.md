@@ -133,6 +133,8 @@ TOML / YAML（`codex/config.toml`・`omp/config.yml`）は、配布先にない�
 
 Codex の設定が既にある場合は、配布物の `[hooks]` から `PreToolUse`・`PostToolUse`・`Stop` を取り込んでください。新規・既存どちらの環境でも、Codex の `/hooks` で内容を確認して trust するまで hook は実行されません。公開版は `hooks.state` を書き換えません。
 
+OMP の `config.yml` が既にある場合は、配布物の `bash.patterns` と `commit.enabled: false` を取り込んでください。後者は承認フックを経由しない内蔵コミット機能を無効にします。
+
 公開設定は安全hookと共通機能に必要なキーだけです。モデル、UI、個人用plugin / npm packageは指定しません。既存の値は保持し、新規環境ではruntimeの既定値を使います。
 
 ## 前提ツール

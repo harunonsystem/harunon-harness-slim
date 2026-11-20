@@ -93,6 +93,13 @@ if ! NORMALIZED=$(normalize_command "$COMMAND"); then
   declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "fail-closed" "${COMMAND:-}" || true
   exit 2
 fi
+# 引数を実行しないコマンド（表示・検索・照会）の区間を除いた版。git_rule_matches が使う。
+# 語の直後が空白か行末のときだけ除く（`echo+=x git push` の echo+=x は代入で、実行されるのは後ろ）。
+if ! EXEC_NORMALIZED=$(printf '%s' "$NORMALIZED" | perl -pe 's/(^|[;&|(])([ \t]*)(?:echo|printf|grep|man|which|type|command[ \t]+-[vV])(?=[ \t]|$)[^;&|()\n]*/$1$2/g'); then
+  echo "危険コマンド判定の前処理に失敗しました（安全側に倒してブロックします）" >&2
+  declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "fail-closed" "${COMMAND:-}" || true
+  exit 2
+fi
 if [ -n "$COMMAND" ] && [ -z "$NORMALIZED" ]; then
   echo "危険コマンド判定の前処理が空を返しました（安全側に倒してブロックします）" >&2
   declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "fail-closed" "${COMMAND:-}" || true
@@ -216,6 +223,14 @@ fi # _BLOCK_DANGEROUS_SOURCED（setup）
 # --- custom ルールが使う判定ヘルパ ---
 # 以下の関数定義は source 時にも常に評価する（テストが直接呼び出すため）。
 
+# git / gh のルール用の一致判定。同じ単純コマンド内で前に何が付いていても一致させる。
+# 剥がすラッパーを列挙する方式だと、列挙に無い語（nice, timeout, env -i ...）を前置した
+# 操作が検査されずに通る。逆に、引数を実行しないと分かっているコマンドの区間だけを
+# 対象から外し（$EXEC_NORMALIZED）、知らない形は拒否に倒して記録に残す。
+git_rule_matches() {
+  ere_matches "$EXEC_NORMALIZED" "${ORIGIN}([^;&|()]*[[:space:]])?$1"
+}
+
 # push が「単独」か判定する。逐次実行・別行（コマンド置換 / interpreter -c 由来）は
 # 単独ではない。読み取り専用シンクへのパイプだけは単独として扱う（2>&1 | tee log）。
 _push_is_standalone() {
@@ -271,8 +286,8 @@ exit 1
 # rule: git-commit-and-push-same-command
 custom_git_commit_and_push_same_command() {
   # git commit + git push を1コマンドに詰め込むパターン（分離を強制）
-  if ere_matches "$NORMALIZED" "${ORIGIN}(git|rtk git)[[:space:]]+commit" && \
-     ere_matches "$NORMALIZED" "${ORIGIN}(git|rtk git)[[:space:]]+push"; then
+  if git_rule_matches "(git|rtk git)[[:space:]]+commit" && \
+     git_rule_matches "(git|rtk git)[[:space:]]+push"; then
     echo "git commit と git push を1コマンドにまとめないでください。commit → 確認 → push の順で分離してください" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-commit-and-push-same-command" "${COMMAND:-}" || true
     exit 2
@@ -303,7 +318,7 @@ custom_git_push() {
     exit 2
   fi
 
-  ere_matches "$NORMALIZED" "${ORIGIN}${ere}" || return 0
+  git_rule_matches "${ere}" || return 0
 
   local flag push_count target_reason target_base
 
@@ -366,7 +381,7 @@ custom_git_push() {
 
 # rule: gh-pr-merge-close
 custom_gh_pr_merge_close() {
-  ere_matches "$NORMALIZED" "${ORIGIN}${ere}${WORD_END}" || return 0
+  git_rule_matches "${ere}${WORD_END}" || return 0
 
   local flag target_reason
 
@@ -442,7 +457,7 @@ custom_git_commit_chain() {
 custom_git_create_branch_in_checkout() {
   # git checkout -b / git switch -c を main checkout でも linked worktree でもブロックする。
   # worktree 内で切り替えると、その worktree の branch に別作業が混ざる（2026-11-04）。
-  ere_matches "$NORMALIZED" "${ORIGIN}${ere}" || return 0
+  git_rule_matches "${ere}" || return 0
   # submodule（extras 等）は worktree を持たない detached HEAD で、push 前に branch を作る必要がある。
   # 対象（-C 先を含む）の解決は cd を伴うので、後続 rule の cwd を変えないよう subshell で行う。
   # resolver は先頭の -C を全体の対象にするので、例外は連結のない単独の呼び出しに限る。
@@ -477,7 +492,7 @@ custom_git_discard_in_shared_checkout() {
   # ブランチを問わずブロックする。これらは checkout 全体の未 commit 変更を退避・破棄
   # するため、同じ checkout で並行する他セッションの作業を巻き込む。linked worktree
   # 内では table の git-stash / git-reset-hard / git-checkout-discard の warn に任せる。
-  ere_matches "$NORMALIZED" "${ORIGIN}${ere}" || return 0
+  git_rule_matches "${ere}" || return 0
 
   if ! review_gate_resolve_target_repo "$COMMAND"; then
     echo "${message}（対象 repo を確定できません: ${REVIEW_GATE_UNRESOLVABLE_REASON}）" >&2
@@ -521,7 +536,7 @@ custom_git_commit_on_main() {
   # block-edit-on-main と対になる Bash 側の穴埋め（2026-09-15 に omp で
   # main checkout へ直接 commit/push した実例。block-edit-on-main は omp では
   # absent のため Edit/Write 経路でも素通りだった）。
-  ere_matches "$NORMALIZED" "${ORIGIN}${ere}${WORD_END}" || return 0
+  git_rule_matches "${ere}${WORD_END}" || return 0
 
   # git -C <dir> commit は対象 repo が cwd と異なる。push 承認と同じ
   # quote-aware resolver で対象を確定し、解決不能（複数 -C・--git-dir・
@@ -554,7 +569,7 @@ EOF
 # rule: gh-api-comment-write
 custom_gh_api_comment_write() {
   # gh api ... comment（書き込み系のみブロック。GET は許可）
-  ere_matches "$NORMALIZED" "${ORIGIN}gh[[:space:]]+api" || return 0
+  git_rule_matches "gh[[:space:]]+api" || return 0
   ere_matches "$NORMALIZED" '(-X|--method)[[:space:]]*(POST|PUT|PATCH|DELETE)|(^|[[:space:]])(-f|-F|--field|--raw-field|--input)[[:space:]]' || return 0
 
   # 'comment' は URL パスのセグメントに現れたときだけコメント API と見なす
@@ -567,7 +582,7 @@ custom_gh_api_comment_write() {
   # graphql は URL パスを持たないため mutation 名で判定する（addComment 等）。
   # `query{...comments...}` は読み取りなので、`mutation` キーワードを伴うときだけ block する
   # （無名の `{...}` 短縮形は GraphQL 仕様上 query 固定）。
-  if ere_matches "$NORMALIZED" "${ORIGIN}gh[[:space:]]+api[[:space:]]+graphql" && \
+  if git_rule_matches "gh[[:space:]]+api[[:space:]]+graphql" && \
      ere_matches_nocase "$NORMALIZED" '(^|[^A-Za-z0-9_])mutation([^A-Za-z0-9_]|$)' && \
      ere_matches_nocase "$NORMALIZED" 'comment'; then
     echo "$message" >&2
@@ -583,7 +598,7 @@ custom_git_no_verify() {
   # 空白が保持されないため、コミットメッセージの中身を誤って引数として拾わない）。
   # perl の起動は commit を含むコマンドだけに限る（下の perl 正規表現が要求する
   # 語の部分集合なので判定結果は変わらない。Bash 呼び出し毎の fork を 1 つ減らす）。
-  if ere_matches "$NORMALIZED" "${ORIGIN}(git|rtk git)[[:space:]]+commit${WORD_END}" &&
+  if git_rule_matches "(git|rtk git)[[:space:]]+commit${WORD_END}" &&
      ! printf '%s' "$COMMAND" | python3 "$HOOK_DIR/../policy/commit_args.py" no-verify >/dev/null; then
     echo "$message" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-no-verify" "${COMMAND:-}" || true
@@ -591,7 +606,7 @@ custom_git_no_verify() {
   fi
 
   # push: --no-verify のみ対象（push の -n は --dry-run であり skip-hooks ではない）。
-  if ere_matches "$NORMALIZED" "${ORIGIN}(git|rtk git)[[:space:]]+push" && \
+  if git_rule_matches "(git|rtk git)[[:space:]]+push" && \
      ere_matches "$NORMALIZED" '--no-verify([^A-Za-z0-9_]|$)'; then
     echo "$message" >&2
     declare -f record_denial >/dev/null 2>&1 && record_denial "block-dangerous-in-bash" "git-no-verify" "${COMMAND:-}" || true
@@ -682,7 +697,12 @@ while IFS="$FIELD_SEP" read -r row_tag rule_id impl ere origin_kind word_end act
     word_end_pattern=""
   fi
 
-  if ere_matches "$NORMALIZED" "${origin_pattern}${ere}${word_end_pattern}"; then
+  rule_matched=0
+  case "${origin_kind}:${ere}" in
+    default:gh*|"default:(git"*) git_rule_matches "${ere}${word_end_pattern}" && rule_matched=1 ;;
+    *) ere_matches "$NORMALIZED" "${origin_pattern}${ere}${word_end_pattern}" && rule_matched=1 ;;
+  esac
+  if [ "$rule_matched" -eq 1 ]; then
     if [ "$action" = "warn" ]; then
       # warn で即 exit 0 すると後続の block ルールを評価せずコマンド全体を
       # 許可してしまう（例: `git rebase x && doc2notion init` は git-rebase の

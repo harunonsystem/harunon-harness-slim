@@ -50,10 +50,10 @@ git diff "$MERGE_BASE" "$HEAD_SHA"
 
 ## 2. 検証する
 
-repo の `.github/PULL_REQUEST_TEMPLATE.md` があれば読み、本文を欄ごとに次の順で点検する。template が無ければ `rules/pr-body.md` の情報順序（Why / Shape of change / Evidence / Merge risk / Notes）を欄として扱う。
+repo の `.github/PULL_REQUEST_TEMPLATE.md` があれば読み、本文を欄ごとに次の順で点検する。template が無ければ `rules/pr-body.md` の情報順序（Why / Shape of change / Tradeoffs / Evidence / Merge risk / Notes）を欄として扱う。
 
 - 必須欄（template の `[必須]`、または Why と Shape of change）が空・placeholder のままになっていないか
-- 本文に書かれた変更・ファイル・数値・検証結果が、現在の差分と一致しているか。push で増えた変更が本文に無い、本文にある変更が差分から消えている、のどちらも乖離とする
+- 本文に書かれた変更・`Shape of change` の変更範囲（対象外とした範囲を含む）・`Tradeoffs`（ある場合）・数値・`Evidence` の検証結果と確かめ方（再現コマンド）が、現在の差分と一致しているか。push で増えた変更が本文に無い、本文にある変更が差分から消えている、のどちらも乖離とする
 - 「やらなかったこと」「残件」が、その後の commit で解消済みになっていないか
 - `rules/pr-body.md` の書き方（同じ内容の重複、commit log やファイル一覧の転記）に反していないか
 

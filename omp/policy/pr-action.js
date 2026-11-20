@@ -112,7 +112,7 @@ function tokenize(command, splitRedirections = false) {
 
     if (character === "\n" || character === "\r") {
       pushWord(tokens, word);
-      tokens.push({ value: "\n", separator: true });
+      tokens.push({ value: "\n", separator: true, carriageReturn: character === "\r" });
       continue;
     }
     if (/\s/.test(character)) {
@@ -148,6 +148,12 @@ function tokenize(command, splitRedirections = false) {
 
   if (quote) return undefined;
   pushWord(tokens, word);
+  // 前後の改行は何も区切らない（pi は末尾改行付きで送る）。入力を先に trim すると
+  // 末尾の `\` + 空白の解釈が変わるので、解析後の区切りトークンだけを落とす。
+  // CR は bash では引数の一部になる。落とすと検査する値と実行される値がずれるので残す（拒否に倒れる）。
+  const isNewline = (token) => token.separator && token.value === "\n" && !token.carriageReturn;
+  while (tokens.length && isNewline(tokens[0])) tokens.shift();
+  while (tokens.length && isNewline(tokens[tokens.length - 1])) tokens.pop();
   return tokens;
 }
 

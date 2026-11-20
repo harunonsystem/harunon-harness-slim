@@ -6,7 +6,7 @@ paths:
 
 # PR Body Writing
 
-PR本文は lab notebook ではなく reviewer 向けの briefing。diff を読む前に「なぜ」「変更の形」「証拠」「merge risk」が短時間で分かるようにする。
+PR本文は lab notebook ではなく reviewer 向けの briefing。diff を読む前に「変更理由」「やったことと変更範囲」「トレードオフ」「検証結果と確かめ方」「影響範囲（merge risk）」が短時間で分かるようにする。
 
 ## 情報順序
 
@@ -16,16 +16,19 @@ repo固有 template がない場合は次の順序を使う。
    - 何が問題だったか / なぜ今変えるかを1〜3文。
    - 実装手段の説明から始めない。
 2. `## Shape of change`
-   - 変更内容そのものを必ず要約する。
-   - 図が文章より速い場合は `show-me` の形式選択から最小の1図を使う。
+   - やったことと変更範囲（カバーする範囲と、follow-up 等で意図的に対象外にした範囲）を要約する。
+   - 図が文章より速い場合は `show-me` または `statechart` から最小の1図を使う。
    - 図が有効でない場合は、契約・挙動・責務がどう変わるかを1〜3項目の短い文章で書く。
-3. `## Evidence`
-   - 変更が効いた証拠を before → after で示す。
-4. `## Merge risk`
+3. `## Tradeoffs`
+   - 検討したが採用しなかった案と理由。
+   - reviewer が疑問に持ちそうな実質的な設計分岐があった場合のみ1〜3項目で書く。選択肢が自明な変更では見出しごと省略する。
+4. `## Evidence`
+   - 変更が効いた検証結果（before → after）と、reviewer が自分で再実行・確認できるやり方（コマンドや手順）を示す。
+5. `## Merge risk`
    - `Door`: `two-way`（容易にrollback可能）か `one-way`（不可逆または復旧コストが高い）。
-   - `Blast radius`: 影響対象を短く具体化する。
-5. `## Notes`
-   - non-goal、互換性、残件、review skip などがある場合だけ置く。
+   - `Blast radius`: 変更の影響範囲と安全・注意の理由を短く具体化する。
+6. `## Notes`
+   - 互換性、残件、review skip などがある場合だけ置く。
    - 空なら見出しごと省略する。
 
 既存の `.github/PULL_REQUEST_TEMPLATE.md` がある場合は、その見出し・checklistを優先する。ただし各欄の中ではこの情報優先度を維持し、同じ内容を複数セクションに重複させない。
@@ -40,29 +43,37 @@ PR本文が英語のみの場合はこの工程を省略してよい。`slop-wor
 
 ## Shape of change
 
-`Shape of change` 自体は必須。図は装飾ではなく review navigation なので、差分の理解時間を縮める場合だけ使う。図が有効でない変更では、同じsectionに短い変更要約を書く。
+`Shape of change` 自体は必須。何を変え、何を今回の変更範囲から意図的に外したか（Scope）を1〜3項目で明記する。図は装飾ではなく review navigation なので、差分の理解時間を縮める場合だけ使う。図が有効でない変更では、同じsectionに短い変更要約を書く。
 
-非自明な構造・制御フロー・責務変更では `show-me` を使い、PR本文に貼れるMarkdown表現へ落とす。HTML artifact はPR本文には埋め込まない。
+非自明な構造・制御フロー・責務変更では `show-me` または `statechart` を使い、PR本文に貼れるMarkdown表現へ落とす。HTML artifact はPR本文には埋め込まない。
 
 - **ロジック / policy**: 疑似コード
 - **runtime control flow**: call tree
 - **UI / component structure**: component tree または diff sketch
 - **責務移動 / broad refactor**: shallow file tree
 - **component interaction / data flow / sequence**: Mermaid
+- **状態遷移 / プロトコル / 並行フロー**: Mermaid `stateDiagram-v2`（不変条件の形式検証を伴う場合は `statechart` の出力図）
 - **既存形状への局所変更**: `diff` sketch
 - **visual UI change**: screenshot before / after を Evidence に置く
 
 図には、reviewer が判断するために必要な call / state / boundary / ownership だけを残す。実ファイル一覧の転記や全アーキテクチャ図は作らない。
 
+## Tradeoffs
+
+実質的な設計判断（`architect` / `derive-optimal-solution` で比較した代替案など、reviewer が「なぜ別案にしなかったのか」と疑問に持つ分岐）がある場合のみ、採用しなかった案と却下理由を1〜3項目で書く。
+
+実質的な分岐がない変更では見出しごと省略し、欄を埋めるための架空の代替案を書かない。
+
 ## Evidence
 
-「テストを追加した」ではなく、何が失敗し、何が通るようになったかを書く。
+「テストを追加した」ではなく、何が失敗し、何が通るようになったか（検証結果）と、**reviewer が手元で再実行して確かめられるコマンド・手順（確かめ方）**を併記する。
 
 - UI: screenshot before → after を優先。
 - behavior / bug fix: failing repro → passing repro。
 - testable logic: failing test → passing test。必要ならテスト手順を短い疑似コードで示す。
+- 状態マシン・形式検証（`statechart` 等）: 検証した不変条件（INVARIANT）、Mermaid statechart（バグ修正なら `breaks` の最短反例パス、新規・正常系なら状態遷移図）、モデルが省略した前提、および再生成コマンドを示す。状態遷移図で反例解消や遷移の正しさが即断できる場合は動画添付を不要とする。
 - performance: 主指標を `before → after` と単位付きで示す。
-- test / lint / typecheck / build は、実際に実行したものと結果だけを書く。
+- test / lint / typecheck / build は、実際に実行したものと結果・実行コマンドを書く。
 - 未実行は成功したように書かず、理由を明記する。
 
 ## Merge risk

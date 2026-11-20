@@ -384,7 +384,11 @@ add_then_commit_paths() {
   local _path='[A-Za-z0-9_./@+=,:%][A-Za-z0-9_./@+=,:%-]*'
   local _re="^(rtk )?git add(( ${_path})+) && (rtk )?git commit( [^;&|<>\`\$"$'\n'"]*)?$"
   local -a _paths
-  [[ "$1" =~ $_re ]] || return 1
+  # 前後の空白・改行は何も区切らないので落としてから照合する
+  local _cmd="$1"
+  _cmd="${_cmd#"${_cmd%%[![:space:]]*}"}"
+  _cmd="${_cmd%"${_cmd##*[![:space:]]}"}"
+  [[ "$_cmd" =~ $_re ]] || return 1
   read -r -a _paths <<< "${BASH_REMATCH[2]}"
   printf '%s\n' "${_paths[@]}"
 }

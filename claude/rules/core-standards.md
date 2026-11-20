@@ -31,6 +31,8 @@ workflow / reusable workflow / composite action を変更したら、既存の p
 
 **テスト信頼性**: flaky test / race condition を retry・timeout 増加・sleep・不要な直列化・assertion の弱体化で隠さない。実際の並列実行 topology と共有 resource / lifecycle を確認し、同期は経過時間ではなく observable state / readiness / barrier を待つ。resource allocation は atomic に行い、teardown は close / abort / kill の呼び出しではなく process / resource が quiescent state に到達した時点を完了とする。並行性の回帰テストは可能なら barrier 等で deterministic に再現し、高回数実行して「落ちなかった」ことだけを根拠にしない。**変異確認（空虚な証明の防止）**: 実装やプロパティを意図的に壊したとき、テストや形式検証が正しく FAIL することを最低1回は確認する。いかなる変異でも失敗しないテストは完了の証拠にならない。
 
+**状態遷移・並行不変条件の形式検証**: 状態マシン・非同期ジョブ・排他制御・リトライ・決済/認証など、単体テストだけではイベント順序や競合を網羅しにくい変更では、`statechart` skill が利用可能なら TLA+/TLC モデル検査と Mermaid statechart 描画を行い、不変条件（INVARIANT）違反やデッドロックをエージェント自身が検査する。検出した最短反例パス（`breaks`）は実コードまたは再現テストで1ステップずつ照合する。継続的に守るべき領域には `create-formal-verification-skill` でプロジェクト固有の検証 skill を残し、対象コード変更時は `maintain-formal-verification-skill` で同期する。
+
 プロジェクトが明示的に「開発中・内部向け」で、外部利用者・永続データ・既存契約に対する互換性や migration 要件がない場合は、古い構造を温存しない。理想形へ直接置き換え、不要になった旧実装・compatibility layer・migration・deprecated path を同じ変更で削除する。公開 API、保存済みデータ、外部 consumer がある場合は、削除前に互換性・migration 要件を確定する。
 
 新機能より既存の差分修正・バグ修正を先にやる。新機能追加時はエントリポイント・ナビゲーションも同じ変更セットで更新する。
