@@ -48,7 +48,7 @@
       "absent": {
         "codex": "push 承認は Codex native permissions / guardian_approval が所有する（旧 hook-pipeline absent.codex の決定を rule 単位で継承）"
       },
-      "message": "git push はユーザーの明示的な許可を得てから実行してください。許可を得たら承認スクリプト `approve-push.sh \"理由\"`（Claude: `~/.claude/hooks/`、pi: `~/.pi/agent/claude-hooks/`、omp: `~/.omp/agent/claude-hooks/`）を実行してから、単独の push コマンドを実行してください。`~/.agents/policy/publication-consent.json` で継続許可を宣言した repo なら、確認せずに `approve-push.sh --standing-consent` を実行してよい（送信先は省略可）。Claude で承認スクリプト自体が auto mode に拒否されたら再試行せず、ユーザーに `! ~/.claude/hooks/approve-push.sh \"理由\"` の実行を頼んでください",
+      "message": "保護 ref など、承認しても実行できない場合は、承認を依頼せず理由を伝えてください。`~/.agents/policy/publication-consent.json` で今回の push が継続許可の対象なら、確認せずに `approve-push.sh --standing-consent` を実行してよい。継続許可の対象外で、この push の明示的な許可もまだなければ、送信先とブランチを示して「push してよいですか？（y/n）」と聞いてください。許可を得たら、対象の checkout で承認スクリプト `approve-push.sh \"理由\"`（Claude: `~/.claude/hooks/`、pi: `~/.pi/agent/claude-hooks/`、omp: `~/.omp/agent/claude-hooks/`）を自分で実行してください。承認スクリプトが成功したら、単独の push コマンドを実行してください。Claude で承認スクリプトの実行が auto mode または worktree 隔離に拒否された場合に限り、再試行せず、対象の checkout で `! ~/.claude/hooks/approve-push.sh \"理由\"` を実行するようユーザーに頼んでください。操作・送信先・ref のいずれかが承認スクリプトの既定と異なる場合は、`!` で実行するときも第2引数に実行予定の push コマンドを渡してください",
       "autoMode": [
         { "tier": "hard_deny", "prose": "main / master への直接 push、および force push（--force / -f / +ref）は禁止" },
         { "tier": "soft_deny", "prose": "git push はユーザーが明示的に許可した場合のみ実行する。commit と push を 1 コマンドに連結しない" }
