@@ -46,7 +46,7 @@
 | デッドコード・不要テスト削減 | `dead-code-audit` skill |
 | 実装後の簡素化・脱スロップ | `simplify` skill、冗長コード削ぎ落としは `deslop` |
 | 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`（判定: `rules/review-policy.md`） |
-| 開発・Issue・spec 整理 | 着手・worktree は `implement-issue`、tracker 前に `rules/issue-tracker.md`。trivial は main、non-trivial は `poteto-mode` を親に。調査 `how`、設計 `architect`、E2E検証 `create-verification-skill` |
+| 開発・Issue・spec 整理 | 着手 `implement-issue`・`rules/issue-tracker.md`、検証 `frontend-verify`/テスト。pstack導入時は `poteto-mode`（`how`・`architect`・`create-verification-skill`） |
 | 公開証跡（登録 repo のみ） | `run-change`（`policy/verification-repos.json` 登録外は不可） |
 | skill/指示の変更 | `skill-improvement` skill |
 | Figma からの実装（Claude のみ） | `figma-implement` skill |

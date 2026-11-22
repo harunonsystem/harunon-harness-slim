@@ -105,7 +105,7 @@ python3 <skill-dir>/scripts/harness.py attach-review \
   --artifact <self-check-report-file>
 ```
 
-Detailed self-check rules, independent reviewer dispatch per runtime (Codex / codex-companion), quota skips, and review approvals: see [review-gates](references/review-gates.md).
+Detailed self-check rules, independent reviewer dispatch per runtime (Codex / Claude codex-companion / standalone independent reviewer), quota skips, and review approvals: see [review-gates](references/review-gates.md).
 
 ## Resume and handoff
 

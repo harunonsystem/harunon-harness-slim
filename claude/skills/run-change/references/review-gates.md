@@ -22,7 +22,8 @@ python3 <skill-dir>/scripts/harness.py attach-review \
 `rules/codex-review-policy.md` の免除規定（Markdown/テキスト等）を守る。
 
 - Codex: アクティブランタイムの reviewer を使用。
-- その他プロバイダ: codex-companion 経由で `/codex:review` を実行。
+- Claude Code（`codex-companion` plugin 導入済み）: `codex-companion` 経由で `/codex:review` を実行。
+- その他 runtime（Antigravity / Pi / OpenCode 等）: 利用可能な外部の独立 reviewer（例: Codex CLI の `codex review` や独立 reviewer agent）を実行し、完全な出力を `--provider <actual-provider>` で添付する。独立 reviewer が利用できない場合は `self-check` で代替せず、未実行として停止・報告する（`rules/codex-review-policy.md` に従う）。
 
 完全なレビューア出力を保存し、実際のプロバイダを指定して添付する:
 

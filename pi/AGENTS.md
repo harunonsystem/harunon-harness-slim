@@ -46,7 +46,7 @@
 | デッドコード・不要テスト削減 | `dead-code-audit` skill |
 | 実装後の簡素化・脱スロップ | `simplify` skill、冗長コード削ぎ落としは `deslop` |
 | 公開前・レビュー | `pre-review-check` skill、`rules/codex-review-policy.md`（判定: `rules/review-policy.md`） |
-| 開発・Issue・spec 整理 | 着手・worktree は `implement-issue`、tracker 前に `rules/issue-tracker.md`。trivial は main、non-trivial は `poteto-mode` を親に。調査 `how`、設計 `architect`、E2E検証 `create-verification-skill` |
+| 開発・Issue・spec 整理 | 着手 `implement-issue`・`rules/issue-tracker.md`、検証 `frontend-verify`/テスト。pstack導入時は `poteto-mode`（`how`・`architect`・`create-verification-skill`） |
 | 公開証跡（登録 repo のみ） | `run-change`（`policy/verification-repos.json` 登録外は不可） |
 | skill/指示の変更 | `skill-improvement` skill |
 | Figma からの実装（Claude のみ） | `figma-implement` skill |
@@ -68,25 +68,24 @@ pstack 自動 mandate は使わず本 Routing 優先。`poteto-mode` 後は play
 
 ブラウザ操作は `agent-browser`（headless）。ログイン済みChromeは本人の許可後に Browser Use v1 ローカルCLIで試す（`frontend-verify`）。Cloud禁止。不可なら未検証と報告。
 
-- 図・HTMLのローカル生成・提示は常時依頼済み。都度確認不要。公開・上書きは対象外。
+- 図・HTMLのローカル生成・提示は都度確認不要（公開・上書きは対象外）。
 
 ## Language
 
-- 回答・レビュー・コメントは日本語。識別子・ファイル名・エラー・コマンド出力は原文を保つ。
+- 回答・レビュー・コメントは日本語。識別子・パス・エラー・出力は原文保持。
 
 ## Worktree
 
-- worktree は絶対パスかコマンドの cwd を指定して操作。セッション移動不要。
+- worktree は絶対パスか cwd 指定で操作（移動不要）。
 
 ## pstack execution
 
-- main で実装・検証。pstack extension 委譲は明示依頼時のみ（複数モデル連携は未検証）。
-- 子 agent 成果物は main が検証。書き込み並列化は worktree で分離。モデルは現在の provider から選び、別 provider に暗黙に切り替えない。
+- 実装・検証は main。pstack skills が利用できない場合は Routing の不在環境フローで進める。extension 委譲は明示依頼時のみ（書き込み並列化は worktree 分離、現在 provider 外へ暗黙切替しない）。
 
 ## Hooks（自動適用）
 
-extensions が Claude Code hooks を実行。`confirm-destructive` は破壊的コマンドと要確認 MCP を確認。一般 shell/read/edit への権限判定は接続せず、非対話で要確認な操作は拒否。表は GFM に補正。
+extensions が hooks を実行（破壊的操作・要確認 MCP は `confirm-destructive`、非対話の要確認は拒否、表は GFM 補正）。`codemode` 内の `bash` でも `git add` / `git commit` / `git push` はチェインせず 1 コマンドずつ単独実行し、`gh pr create` / `gh pr edit` は `--body-file <絶対パス>` で単独実行する。
 
 ## Account rotation boundary
 
-`openai-codex` の account rotation は対象 extension に委譲。資格情報は `~/.pi/agent` 内のみ保存し、quota/rate-limit 以外のエラーで暗黙に account/provider を切り替えない。
+`openai-codex` の rotation は extension に委譲（資格情報は `~/.pi/agent` 限定、quota/rate-limit 以外で暗黙切替しない）。

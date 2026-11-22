@@ -65,6 +65,17 @@ static / slow / source-based という理由だけで削除しない。implement
 
 不明な候補を deletion count のために消さない。テスト削除で不要になる test-only production seam や dead path は、互換 alias として残さず同じ coherent change で削除する。
 
+## Lean 4 の定理の監査
+
+既存の Lean 4 プロジェクトで、証明済みの定理が仕様上誤った実装まで許していないかを調べるときは、[leanassay](https://github.com/conao3/lean-leanassay) を使う。Lean を使っていないプロジェクトに、この監査のためだけに Lean を導入しない。
+
+1. `lean-toolchain` と互換の `assay` のリビジョンを、使用中の Lake 設定に固定する（`lakefile.toml` なら `[[require]]`、`lakefile.lean` なら `require`）。
+2. 監査専用モジュールで `Assay` と対象モジュールを import し、`#assay <関数名>` を実行する。自動探索は関数の定義元モジュールに限られる。別モジュールの定理も調べるなら、そのモジュールを import し、`#assay <関数名> using <定理名> ...` で同じモジュールの分も含めて監査対象の定理をすべて指定する。
+3. 生存変異（現行出力では `HOLE`）の具体入力を仕様と照合する。禁止すべき振る舞いなら定理を追加または強化し、証明と監査を再実行して、監査出力でその変異が検出されたことを確かめる。`untested` や `timeout` はビルドが通っても検出成功に数えない。
+4. 監査モジュールを CI の Lake ビルド対象に含め、`#assay` の前に `set_option assay.failOnHole true` を置く。監査の警告も失敗にするなら `lake build --wfail` を使う。定理を強化する前は生存変異でビルドが失敗し、強化後は通ることを確認する。
+
+生存変異がなかった場合も、その結果は生成した変異と試した入力に限る。leanassay は定理の**文**を具体入力で評価するため、証明の完了やモデル検査の代わりにはならない。
+
 ## Validation
 
 - 変更した contract の owner test と隣接 test を最小範囲で実行する。

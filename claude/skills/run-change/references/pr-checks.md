@@ -2,12 +2,18 @@
 
 Use this when the task calls for waiting after a push or PR creation. Confirm that the PR is open and its head matches the published SHA (see **Resume and handoff** in [run-change](../SKILL.md)).
 
-1. Start one background command with a 30-minute tool timeout (e.g., Pi `interactive_shell` dispatch with `handsFree.autoExitOnQuiet: false`). Let the CLI poll and keep its progress in a local file. Keep the log path when dispatching (the watcher should print only that path before waiting).
+1. On runtimes that keep a command running after the tool call returns (background task or detached shell), start one background command with a 30-minute tool timeout. Let the CLI poll and keep its progress in a local file. Keep the log path when dispatching (the watcher should print only that path before waiting).
 
    ```bash
    watch_log="$(mktemp)" || exit 1
    printf 'watch log: %s\n' "$watch_log"
    gh pr checks "$pr" --repo "$repo" --watch --interval 30 >"$watch_log" 2>&1
+   ```
+
+   On runtimes whose shell tool returns only after the command exits — standard Pi, which retired `interactive_shell` — do not use the background form. Run the watch in the foreground with a bounded tool `timeout` instead:
+
+   ```bash
+   gh pr checks "$pr" --repo "$repo" --watch --interval 30
    ```
 
 2. Once all checks finish, read the counts and failing check links in one tool call. Keep the `bucket` fields: the completion hook reads this JSON array as CI evidence.
